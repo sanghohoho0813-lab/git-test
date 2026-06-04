@@ -122,13 +122,12 @@ with tab1:
             with st.container():
                 c1, c2 = st.columns([1, 4])
                 with c1:
-                    if row.get("thumbnail"):
+                    thumb = row.get("thumbnail", "")
+                    if thumb:
                         try:
-                            st.image(row["thumbnail"], use_container_width=True)
-                        except:
+                            st.image(thumb, width=160)
+                        except Exception:
                             st.write("🖼️")
-                    else:
-                        st.write("🖼️")
                 with c2:
                     st.markdown(f"**[{row['title']}]({row['url']})**")
                     st.caption(
