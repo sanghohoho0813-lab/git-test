@@ -57,7 +57,12 @@ if do_refresh:
     st.success("완료!")
 
 if not cache:
-    st.info("오른쪽 상단의 '데이터 새로고침' 버튼을 눌러 데이터를 가져오세요.")
+    st.info("오른쪽 상단의 '🔄 데이터 새로고침' 버튼을 눌러 데이터를 가져오세요.")
+    st.stop()
+
+# API 키 확인
+if not api_key:
+    st.error("⚠️ YouTube API 키가 설정되지 않았습니다. Streamlit Cloud 설정에서 Secrets에 youtube_api_key를 추가하세요.")
     st.stop()
 
 with col_status:
@@ -66,11 +71,12 @@ with col_status:
         dt = datetime.fromisoformat(fetched_at).astimezone()
         st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')}")
 
-channels_df = pd.DataFrame(cache["channels"])
-videos_df = pd.DataFrame(cache["videos"])
+channels_df = pd.DataFrame(cache.get("channels", []))
+videos_df = pd.DataFrame(cache.get("videos", []))
 
-if videos_df.empty:
-    st.warning("영상 데이터가 없습니다.")
+if videos_df.empty or channels_df.empty:
+    st.warning("⚠️ 데이터가 없거나 불완전합니다. '🔄 데이터 새로고침' 버튼을 다시 눌러주세요.")
+    st.info("**문제 해결:**\n1. API 키가 올바른지 확인\n2. 채널 URL이 정확한지 확인\n3. YouTube API 할당량 초과 여부 확인")
     st.stop()
 
 videos_df["published_at"] = pd.to_datetime(videos_df["published_at"], utc=True)
@@ -109,23 +115,31 @@ with tab1:
 
     top_videos = filtered.nlargest(top_n, "view_count")
 
-    for _, row in top_videos.iterrows():
-        with st.container():
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                if row["thumbnail"]:
-                    st.image(row["thumbnail"], use_container_width=True)
-            with c2:
-                st.markdown(f"**[{row['title']}]({row['url']})**")
-                st.caption(
-                    f"📺 {row['channel_name']}  |  "
-                    f"👁️ {row['view_count']:,}회  |  "
-                    f"👍 {row['like_count']:,}  |  "
-                    f"💬 {row['comment_count']:,}  |  "
-                    f"📅 {row['published_at'].strftime('%Y-%m-%d')}  |  "
-                    f"{'🩳 쇼츠' if row['is_short'] else '🎬 롱폼'}"
-                )
-            st.divider()
+    if top_videos.empty:
+        st.info("해당 기준을 충족하는 영상이 없습니다. '데이터 새로고침' 버튼을 눌러주세요.")
+    else:
+        for _, row in top_videos.iterrows():
+            with st.container():
+                c1, c2 = st.columns([1, 4])
+                with c1:
+                    if row.get("thumbnail"):
+                        try:
+                            st.image(row["thumbnail"], use_container_width=True)
+                        except:
+                            st.write("🖼️")
+                    else:
+                        st.write("🖼️")
+                with c2:
+                    st.markdown(f"**[{row['title']}]({row['url']})**")
+                    st.caption(
+                        f"📺 {row.get('channel_name', 'Unknown')}  |  "
+                        f"👁️ {row['view_count']:,}회  |  "
+                        f"👍 {row['like_count']:,}  |  "
+                        f"💬 {row['comment_count']:,}  |  "
+                        f"📅 {row['published_at'].strftime('%Y-%m-%d')}  |  "
+                        f"{'🩳 쇼츠' if row['is_short'] else '🎬 롱폼'}"
+                    )
+                st.divider()
 
 # ── 탭2: 제목 패턴 분석 ────────────────────────────────────────
 with tab2:
