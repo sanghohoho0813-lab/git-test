@@ -22,6 +22,29 @@ STOP_WORDS = {
     "누가","뭔가","아직","이미","같은","다른","라는","라고","에도","에서는","으로는",
 }
 
+COPY_TEMPLATE_SETS = [
+    [
+        "{kw} 완벽 정리 | 소상공인이 절대 놓치면 안 되는 핵심",
+        "지금 당장 확인! {kw} — 이것만 알면 됩니다",
+        "{kw}, 사장님 유형별 대처법 총정리",
+    ],
+    [
+        "모르면 손해! {kw} 한 번에 정리해드립니다",
+        "{kw} 신청 전에 이것 먼저 보세요",
+        "사장님들 주목! {kw} A to Z 완벽 가이드",
+    ],
+    [
+        "{kw}, 지금 바로 확인하세요 | 실전 핵심 정리",
+        "{kw}으로 달라지는 것들 | 핵심만 짚어드립니다",
+        "꼭 알아야 할 {kw} | 놓치면 진짜 손해",
+    ],
+    [
+        "{kw} 완전 정복 | 처음부터 끝까지",
+        "{kw} 제대로 활용하는 법 | 실전 가이드",
+        "{kw} 핵심 포인트 3가지 | 사장님들 보세요",
+    ],
+]
+
 st.set_page_config(
     page_title="김팀장 벤치마킹 대시보드",
     page_icon="📊",
@@ -152,6 +175,22 @@ st.markdown("""
     font-weight: 700;
 }
 .kw-tag.top3 { background: #2d4080; color: #ffd700; font-size: 20px; }
+
+.topic-rec-card {
+    background: #0f1f3d;
+    border-radius: 14px;
+    padding: 20px 22px;
+    border: 1px solid #2a4a8a;
+    margin-bottom: 18px;
+    height: 100%;
+}
+.topic-rank   { font-size: 14px; color: #5577cc; font-weight: 700; margin-bottom: 4px; }
+.topic-keyword { font-size: 26px; font-weight: 900; color: #ffd700; margin-bottom: 10px; }
+.topic-stat   { font-size: 14px; color: #7799cc; margin-bottom: 8px; }
+.topic-rep    { font-size: 13px; color: #8888aa; margin-bottom: 14px; line-height: 1.5; }
+.topic-ideas-title { font-size: 14px; color: #aaccff; font-weight: 700; margin-bottom: 8px; }
+.topic-idea   { font-size: 14px; color: #cce0ff; margin-bottom: 6px; line-height: 1.5;
+                padding: 7px 12px; background: #1a2d5a; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -265,6 +304,73 @@ def render_keywords(df: pd.DataFrame):
         {tags}
     </div>""", unsafe_allow_html=True)
 
+# ── 주목 콘텐츠 추천 ──────────────────────────────────────────
+def render_topic_recommendations(df: pd.DataFrame):
+    """기간 내 주목 콘텐츠 주제 상위 4개를 카피라이팅 아이디어와 함께 표시."""
+    word_scores: Counter = Counter()
+    topic_data: dict = {}
+
+    for _, row in df.iterrows():
+        title = str(row["title"])
+        views = max(int(row.get("view_count", 1)), 1)
+        channel = str(row.get("channel_name", ""))
+        tokens = re.findall(r"[가-힣]{2,}", title)
+        filtered = [w for w in tokens if w not in STOP_WORDS]
+
+        for w in filtered:
+            word_scores[w] += views
+            if w not in topic_data:
+                topic_data[w] = {"videos": [], "channels": set()}
+            topic_data[w]["videos"].append((title, channel, views))
+            topic_data[w]["channels"].add(channel)
+
+        for i in range(len(filtered) - 1):
+            phrase = filtered[i] + " " + filtered[i + 1]
+            word_scores[phrase] += int(views * 1.3)
+            if phrase not in topic_data:
+                topic_data[phrase] = {"videos": [], "channels": set()}
+            topic_data[phrase]["videos"].append((title, channel, views))
+            topic_data[phrase]["channels"].add(channel)
+
+    top_topics = word_scores.most_common(8)[:4]
+    if not top_topics:
+        return
+
+    st.markdown("#### 📌 주목 콘텐츠 주제 추천")
+    left_col, right_col = st.columns(2)
+    col_pair = [left_col, right_col]
+
+    for rank, (keyword, _) in enumerate(top_topics):
+        data = topic_data[keyword]
+        vids = sorted(data["videos"], key=lambda x: x[2], reverse=True)
+        ch_count = len(data["channels"])
+        top_title, top_channel, top_views = vids[0]
+        avg_views = int(sum(v[2] for v in vids) / len(vids))
+
+        templates = COPY_TEMPLATE_SETS[rank % len(COPY_TEMPLATE_SETS)]
+        ideas_html = "".join(
+            f'<div class="topic-idea">· {t.format(kw=keyword)}</div>'
+            for t in templates
+        )
+        title_esc   = top_title.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+        channel_esc = top_channel.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+
+        card = (
+            f'<div class="topic-rec-card">'
+            f'<div class="topic-rank">#{rank + 1} 주목 주제</div>'
+            f'<div class="topic-keyword">🔥 {keyword}</div>'
+            f'<div class="topic-stat">{ch_count}개 채널 다룸 &nbsp;·&nbsp; 최고 {top_views:,}회 &nbsp;·&nbsp; 평균 {avg_views:,}회</div>'
+            f'<div class="topic-rep">대표 영상: <em>"{title_esc}"</em> ({channel_esc})</div>'
+            f'<div class="topic-ideas-title">📝 제목 아이디어</div>'
+            f'{ideas_html}'
+            f'</div>'
+        )
+        with col_pair[rank % 2]:
+            st.markdown(card, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
 NCOLS = 5
 
@@ -306,9 +412,9 @@ def build_card(rank: int, row) -> str:
         f'<div class="card-title">{title}</div>'
         f'</a>'
         f'<div class="card-stats">'
-        f'<span class="pill pill-view">👁 {views}</span>'
-        f'<span class="pill pill-like">👍 {likes}</span>'
-        f'<span class="pill pill-cmt">💬 {cmts}</span>'
+        f'<span class="pill pill-view">조회수 {views}</span>'
+        f'<span class="pill pill-like">좋아요 {likes}</span>'
+        f'<span class="pill pill-cmt">댓글 {cmts}</span>'
         f'<span class="pill {t_cls}">{t_txt}</span>'
         f'<span class="pill pill-date">📅 {date}</span>'
         f'{mine_pill}'
@@ -322,8 +428,9 @@ def render_grid(df: pd.DataFrame):
         st.info("해당 기간에 영상이 없습니다.")
         return
 
-    # 키워드는 기간 내 전체 영상 기준 (top_n 컷 전)
+    # 키워드 + 주제 추천은 기간 내 전체 영상 기준 (top_n 컷 전)
     render_keywords(df)
+    render_topic_recommendations(df)
 
     # 그리드 표시용: 조회수 상위 top_n 개만
     dsp = df.nlargest(top_n, "view_count").reset_index(drop=True)
