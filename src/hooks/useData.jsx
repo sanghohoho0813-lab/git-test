@@ -52,11 +52,13 @@ export function useData(orgId) {
   // ── Companies ─────────────────────────────────────────────
 
   async function addCompany(companyData) {
-    const id = uid();
-    const row = { id, org_id: orgId, data: { ...companyData, id }, company_id: null };
-    const { error } = await supabase.from("companies").insert({ id, org_id: orgId, data: { ...companyData, id } });
-    if (error) throw error;
+    const id = companyData.id || uid();
     setCompanies((prev) => [...prev, { ...companyData, id }]);
+    const { error } = await supabase.from("companies").insert({ id, org_id: orgId, data: { ...companyData, id } });
+    if (error) {
+      setCompanies((prev) => prev.filter((c) => c.id !== id));
+      throw error;
+    }
     return id;
   }
 
