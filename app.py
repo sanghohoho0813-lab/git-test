@@ -12,6 +12,7 @@ from youtube_api import fetch_all_data, load_cache
 MY_CHANNEL_ID = ""
 
 STOP_WORDS = {
+    # 기본 조사/어미
     "이","그","저","것","수","등","및","에","를","을","가","의","은","는","로","으로",
     "에서","와","과","도","만","하는","하기","있는","없는","합니다","입니다","됩니다",
     "대한","위한","통해","위해","하면","하고","이번","지금","바로","정말","드디어",
@@ -20,6 +21,18 @@ STOP_WORDS = {
     "사람","경우","우리","여기","어디","무엇","얼마","어떻게","하지","않는","없이",
     "있어","했다","된다","한다","않고","되고","하고","이런","그런","저런","어떤",
     "누가","뭔가","아직","이미","같은","다른","라는","라고","에도","에서는","으로는",
+    # 화폐단위 (제목에서 숫자가 제거된 뒤 남는 단위어 — "55만원" → "만원")
+    "만원","억원","천원","백원","십만","억대","만대","원짜리",
+    # 접속사/부사 파편
+    "그렇다면","이라면","따라서","그래서","하지만","그러나","그런데","그래도","이처럼",
+    # 일반 행정 단어 (단독으로는 주제가 안 됨)
+    "대상자","신청자","수혜자","수령자","신청하세요","확인하세요","보세요","아세요",
+    # 동사/명령형 파편 (클릭베이트 잔여)
+    "꺼두","켜두","쉬세요","십시오","겠습니까","드립니다","합니다만","봅니다",
+    # 시간
+    "올해","내년","작년","지난해","이번달","지난달","다음달","요즘","최근",
+    # 너무 일반적인 단일어
+    "정보","공지","발표","안내","시행","개정","최신","공개","단독","핵심","완벽",
 }
 
 COPY_TEMPLATE_SETS = [
@@ -328,9 +341,12 @@ def render_keywords(df: pd.DataFrame):
 
     if not word_scores:
         return
-    top_kw = word_scores.most_common(15)
+    # 2개 이상 영상에 등장한 키워드만 표시
+    qualified = [(w, s) for w, s in word_scores.most_common() if word_video_cnt[w] >= 2][:15]
+    if not qualified:
+        return
     tags = ""
-    for i, (word, _) in enumerate(top_kw):
+    for i, (word, _) in enumerate(qualified):
         cls = "kw-tag top3" if i < 3 else "kw-tag"
         cnt = word_video_cnt[word]
         tags += f'<span class="{cls}">#{word} <small style="opacity:.6">({cnt}영상)</small></span>'
@@ -341,9 +357,11 @@ def render_keywords(df: pd.DataFrame):
     </div>""", unsafe_allow_html=True)
 
 # ── 주목 콘텐츠 추천 ──────────────────────────────────────────
-def render_topic_recommendations(df: pd.DataFrame):
-    """기간 내 주목 콘텐츠 주제 상위 4개를 카피라이팅 아이디어와 함께 표시."""
+def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
+    """기간 내 주목 콘텐츠 주제 상위 4개를 카피라이팅 아이디어와 함께 표시.
+    2단어 구절(≥2 영상)을 우선 선택하고, 부족하면 단일어(≥3 영상)로 보완."""
     word_scores: Counter = Counter()
+    video_cnt: Counter = Counter()
     topic_data: dict = {}
 
     for _, row in df.iterrows():
@@ -352,9 +370,13 @@ def render_topic_recommendations(df: pd.DataFrame):
         channel = str(row.get("channel_name", ""))
         tokens = re.findall(r"[가-힣]{2,}", title)
         filtered = [w for w in tokens if w not in STOP_WORDS]
+        seen = set()
 
         for w in filtered:
             word_scores[w] += views
+            if w not in seen:
+                video_cnt[w] += 1
+                seen.add(w)
             if w not in topic_data:
                 topic_data[w] = {"videos": [], "channels": set()}
             topic_data[w]["videos"].append((title, channel, views))
@@ -363,20 +385,46 @@ def render_topic_recommendations(df: pd.DataFrame):
         for i in range(len(filtered) - 1):
             phrase = filtered[i] + " " + filtered[i + 1]
             word_scores[phrase] += int(views * 1.3)
+            if phrase not in seen:
+                video_cnt[phrase] += 1
+                seen.add(phrase)
             if phrase not in topic_data:
                 topic_data[phrase] = {"videos": [], "channels": set()}
             topic_data[phrase]["videos"].append((title, channel, views))
             topic_data[phrase]["channels"].add(channel)
 
-    top_topics = word_scores.most_common(8)[:4]
-    if not top_topics:
+    # 2단어 구절 우선 (≥2 영상), 부족하면 단일어(≥3 영상) 보완
+    phrases = [(w, s) for w, s in word_scores.most_common()
+               if " " in w and video_cnt[w] >= 2]
+    singles = [(w, s) for w, s in word_scores.most_common()
+               if " " not in w and video_cnt[w] >= 3]
+
+    seen_words: set = set()
+    candidates: list = []
+    for word, score in phrases:
+        if len(candidates) >= 4:
+            break
+        candidates.append((word, score))
+        for part in word.split():
+            seen_words.add(part)
+
+    for word, score in singles:
+        if len(candidates) >= 4:
+            break
+        if word not in seen_words:
+            candidates.append((word, score))
+
+    if not candidates:
+        st.info("이 기간 2개 이상 채널에서 다룬 공통 주제가 없습니다.")
         return
 
-    st.markdown("#### 📌 주목 콘텐츠 주제 추천")
+    if section_label:
+        st.markdown(f"##### {section_label}")
+
     left_col, right_col = st.columns(2)
     col_pair = [left_col, right_col]
 
-    for rank, (keyword, _) in enumerate(top_topics):
+    for rank, (keyword, _) in enumerate(candidates):
         data = topic_data[keyword]
         vids = sorted(data["videos"], key=lambda x: x[2], reverse=True)
         ch_count = len(data["channels"])
@@ -403,8 +451,6 @@ def render_topic_recommendations(df: pd.DataFrame):
         )
         with col_pair[rank % 2]:
             st.markdown(card, unsafe_allow_html=True)
-
-    st.markdown("---")
 
 
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
@@ -471,9 +517,8 @@ def render_grid(df: pd.DataFrame):
         st.info("해당 기간에 영상이 없습니다.")
         return
 
-    # 키워드 + 주제 추천은 기간 내 전체 영상 기준 (top_n 컷 전)
+    # 키워드는 기간 내 전체 영상 기준 (top_n 컷 전)
     render_keywords(df)
-    render_topic_recommendations(df)
 
     # 그리드 표시용: 조회수 상위 top_n 개만
     dsp = df.nlargest(top_n, "view_count").reset_index(drop=True)
@@ -525,10 +570,11 @@ def render_grid(df: pd.DataFrame):
             st.markdown("".join(cards), unsafe_allow_html=True)
 
 # ── 탭 ────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab_rec, tab4, tab5 = st.tabs([
     "🔥 이번 주 TOP",
     "📅 이번 달 TOP",
     "🏆 올해 TOP",
+    "📌 콘텐츠 추천",
     "📊 채널 현황",
     "🔍 심층 분석",
 ])
@@ -544,6 +590,21 @@ with tab2:
 with tab3:
     st.caption("최근 365일 이내 업로드 기준")
     render_grid(apply_filter(vdf[vdf["days_ago"] <= 365]))
+
+with tab_rec:
+    st.markdown("### 📌 콘텐츠 주제 추천")
+    st.caption("벤치마킹 채널에서 2개 이상 다룬 주제만 표시 · 2단어 구절 우선 선정 · 조회수 가중 점수 기준")
+    st.markdown("---")
+
+    rec_w7  = apply_filter(vdf[vdf["days_ago"] <= 7])
+    rec_w30 = apply_filter(vdf[vdf["days_ago"] <= 30])
+
+    st.markdown("#### 🔥 이번 주 주목 주제 (최근 7일)")
+    render_topic_recommendations(rec_w7)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("#### 📅 이번 달 주목 주제 (최근 30일)")
+    render_topic_recommendations(rec_w30)
 
 with tab4:
     st.subheader("벤치마킹 채널 현황")
