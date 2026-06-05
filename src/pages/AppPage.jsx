@@ -78,11 +78,13 @@ export default function AppPage() {
       orgRole={orgRole}
       onSignOut={signOut}
       onSaveCompany={data.addCompany}
-      onPatchCompany={data.updateCompany}
+      onPatchCompany={data.patchCompany}
       onDeleteCompany={data.deleteCompany}
       onSaveEmployee={data.addEmployee}
-      onPatchEmployee={data.updateEmployee}
+      onPatchEmployee={data.patchEmployee}
       onDeleteEmployee={data.deleteEmployee}
+      programs={profile?.settings?.customPrograms}
+      onSavePrograms={(map) => updateProfile({ settings: { ...(profile?.settings || {}), customPrograms: map } })}
       onSaveMemo={data.saveCalendarMemo}
       uploadFn={data.uploadFile}
       getUrlFn={data.getFileUrl}

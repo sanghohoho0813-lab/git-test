@@ -11,6 +11,11 @@ export function useData(orgId) {
   const [calendarMemos, setCalendarMemos] = useState({});
   const [loading, setLoading] = useState(true);
   const channelRef = useRef(null);
+  const companiesRef = useRef([]);
+  const employeesRef = useRef([]);
+
+  useEffect(() => { companiesRef.current = companies; }, [companies]);
+  useEffect(() => { employeesRef.current = employees; }, [employees]);
 
   const load = useCallback(async (showLoading = true) => {
     if (!orgId) { setLoading(false); return; }
@@ -72,6 +77,23 @@ export function useData(orgId) {
     setCompanies((prev) => prev.map((c) => (c.id === companyData.id ? companyData : c)));
   }
 
+  // (id, patch) 형태로 호출 — 기존 항목과 병합 후 저장
+  async function patchCompany(id, patch) {
+    const cur = companiesRef.current.find((c) => c.id === id);
+    if (!cur) return;
+    const merged = { ...cur, ...patch, id };
+    setCompanies((prev) => prev.map((c) => (c.id === id ? merged : c))); // 낙관적 반영
+    const { error } = await supabase
+      .from("companies")
+      .update({ data: merged, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("org_id", orgId);
+    if (error) {
+      setCompanies((prev) => prev.map((c) => (c.id === id ? cur : c))); // 롤백
+      throw error;
+    }
+  }
+
   async function deleteCompany(companyId) {
     // 소속 직원 먼저 삭제
     await supabase.from("employees").delete().eq("company_id", companyId).eq("org_id", orgId);
@@ -108,6 +130,23 @@ export function useData(orgId) {
       .eq("org_id", orgId);
     if (error) throw error;
     setEmployees((prev) => prev.map((e) => (e.id === empData.id ? empData : e)));
+  }
+
+  // (id, patch) 형태로 호출 — 기존 항목과 병합 후 저장
+  async function patchEmployee(id, patch) {
+    const cur = employeesRef.current.find((e) => e.id === id);
+    if (!cur) return;
+    const merged = { ...cur, ...patch, id, companyId: cur.companyId };
+    setEmployees((prev) => prev.map((e) => (e.id === id ? merged : e))); // 낙관적 반영
+    const { error } = await supabase
+      .from("employees")
+      .update({ data: merged, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("org_id", orgId);
+    if (error) {
+      setEmployees((prev) => prev.map((e) => (e.id === id ? cur : e))); // 롤백
+      throw error;
+    }
   }
 
   async function deleteEmployee(empId) {
@@ -148,8 +187,8 @@ export function useData(orgId) {
 
   return {
     companies, employees, calendarMemos, loading,
-    addCompany, updateCompany, deleteCompany,
-    addEmployee, updateEmployee, deleteEmployee,
+    addCompany, updateCompany, patchCompany, deleteCompany,
+    addEmployee, updateEmployee, patchEmployee, deleteEmployee,
     saveCalendarMemo,
     uploadFile, getFileUrl, deleteFile,
     reload: load,

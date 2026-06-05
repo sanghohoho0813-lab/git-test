@@ -147,19 +147,19 @@ function FileAt(props){
     <div>
       <input ref={ref} type="file" accept="image/*,.pdf,.doc,.docx" style={{display:"none"}} onChange={function(e){ if(disabled) return; var f=e.target.files&&e.target.files[0]; if(!f) return; handleFile(f,null); e.target.value=""; }}/>
       <input ref={camRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={function(e){ if(disabled) return; var f=e.target.files&&e.target.files[0]; if(!f) return; handleFile(f,"사진_"+fD(new Date())+".jpg"); e.target.value=""; }}/>
-      <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
         {(props.files||[]).map(function(f){
           var isImg=f.type&&f.type.startsWith("image/");
           var canView=isImg||f.storagePath||f.dataUrl;
-          return(<div key={f.id} style={{display:"inline-flex",alignItems:"center",gap:3,background:disabled?"#F1F5F9":"#EFF6FF",border:disabled?"1px solid #E2E8F0":"1px solid #BFDBFE",borderRadius:6,padding:"2px 7px",fontSize:11,opacity:disabled?0.6:1,cursor:canView?"pointer":"default"}} onClick={canView?function(){viewFile(f);}:undefined} title={f.name}>
-            <span style={{color:disabled?"#94A3B8":"#1D4ED8",maxWidth:70,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{isImg?"🖼️":"📎"}{f.name}</span>
-            {!disabled&&<button onClick={function(e){e.stopPropagation();props.onRemove(f.id);}} style={{background:"none",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:12,padding:0}}>×</button>}
+          return(<div key={f.id} style={{display:"inline-flex",alignItems:"center",gap:4,background:disabled?"#F1F5F9":"#EFF6FF",border:disabled?"1px solid #E2E8F0":"1px solid #BFDBFE",borderRadius:8,padding:"5px 10px",fontSize:15,opacity:disabled?0.6:1,cursor:canView?"pointer":"default"}} onClick={canView?function(){viewFile(f);}:undefined} title={f.name}>
+            <span style={{color:disabled?"#94A3B8":"#1D4ED8",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{isImg?"🖼️":"📎"}{f.name}</span>
+            {!disabled&&<button onClick={function(e){e.stopPropagation();props.onRemove(f.id);}} style={{background:"none",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:17,padding:0,lineHeight:1}}>×</button>}
           </div>);
         })}
-        {uploading&&<span style={{fontSize:11,color:"#94A3B8"}}>업로드 중...</span>}
+        {uploading&&<span style={{fontSize:15,color:"#94A3B8"}}>업로드 중...</span>}
         {!disabled&&!uploading&&(<React.Fragment>
-          <button onClick={function(){camRef.current&&camRef.current.click();}} style={{background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:6,padding:"2px 7px",fontSize:11,color:"#D97706",cursor:"pointer"}} title="카메라">📷</button>
-          <button onClick={function(){ref.current&&ref.current.click();}} style={{background:"#F8FAFC",border:"1px dashed #CBD5E1",borderRadius:6,padding:"2px 7px",fontSize:11,color:"#64748B",cursor:"pointer"}} title="파일">📁</button>
+          <button onClick={function(){camRef.current&&camRef.current.click();}} style={{background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:8,padding:"6px 11px",fontSize:16,color:"#D97706",cursor:"pointer"}} title="카메라 촬영">📷</button>
+          <button onClick={function(){ref.current&&ref.current.click();}} style={{background:"#F8FAFC",border:"1px dashed #CBD5E1",borderRadius:8,padding:"6px 11px",fontSize:16,color:"#64748B",cursor:"pointer"}} title="파일 첨부">📁</button>
         </React.Fragment>)}
       </div>
     </div>
@@ -169,13 +169,13 @@ function FileAt(props){
 function ChkItem(props){
   var item=props.item; var isDisabled=props.disabled;
   return(
-    <div style={{padding:"8px 12px",borderRadius:10,background:isDisabled?"#F1F5F9":(item.done?"#F0FDF4":"#FFFBEB"),border:isDisabled?"1px solid #E2E8F0":(item.done?"1px solid #BBF7D0":"1px solid #FDE68A"),opacity:isDisabled?0.6:1}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4,marginBottom:3}}>
-        <label style={{display:"flex",alignItems:"center",gap:8,cursor:isDisabled?"not-allowed":"pointer",flex:1}}>
-          <input type="checkbox" checked={item.done} onChange={isDisabled?undefined:props.onToggle} disabled={isDisabled} style={{width:16,height:16,accentColor:"#10B981"}}/>
-          <span style={{fontSize:13,color:isDisabled?"#94A3B8":(item.done?"#16A34A":"#92400E"),textDecoration:item.done?"line-through":"none"}}>{item.label}{item.isCustom&&<span style={{fontSize:9,color:"#94A3B8",marginLeft:3}}>(추가)</span>}</span>
+    <div style={{padding:"12px 14px",borderRadius:10,background:isDisabled?"#F1F5F9":(item.done?"#F0FDF4":"#FFFBEB"),border:isDisabled?"1px solid #E2E8F0":(item.done?"1px solid #BBF7D0":"1px solid #FDE68A"),opacity:isDisabled?0.6:1}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4,marginBottom:6}}>
+        <label style={{display:"flex",alignItems:"center",gap:10,cursor:isDisabled?"not-allowed":"pointer",flex:1}}>
+          <input type="checkbox" checked={item.done} onChange={isDisabled?undefined:props.onToggle} disabled={isDisabled} style={{width:20,height:20,accentColor:"#10B981",flexShrink:0}}/>
+          <span style={{fontSize:17,fontWeight:500,color:isDisabled?"#94A3B8":(item.done?"#16A34A":"#92400E"),textDecoration:item.done?"line-through":"none"}}>{item.label}{item.isCustom&&<span style={{fontSize:13,color:"#94A3B8",marginLeft:4}}>(추가)</span>}</span>
         </label>
-        {!isDisabled&&props.onDelete&&<button onClick={props.onDelete} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:13}} title="삭제">🗑️</button>}
+        {!isDisabled&&props.onDelete&&<button onClick={props.onDelete} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:18}} title="삭제">🗑️</button>}
       </div>
       {!isDisabled&&<div style={{marginLeft:24}}><FileAt files={item.files||[]} onAdd={props.onFA} onRemove={props.onFR} uploadFn={props.uploadFn} getUrlFn={props.getUrlFn}/></div>}
     </div>
@@ -191,25 +191,25 @@ function DocSection(props){
   function addDoc(name){ if(!name||!name.trim()) return; props.onChange(docs.concat([{id:uid(),label:name.trim(),done:false,files:[],isCustom:true}])); setNewName(""); setShowAdd(false); }
   function delDoc(idx){ props.onChange(docs.filter(function(_,i){return i!==idx;})); }
   return(
-    <Card style={{padding:"12px 16px",marginBottom:props.mb||12}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <h4 style={{margin:0,fontSize:13,fontWeight:700}}>{props.icon} {props.title}</h4>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+    <Card style={{padding:"18px 20px",marginBottom:props.mb||12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <h4 style={{margin:0,fontSize:19,fontWeight:700}}>{props.icon} {props.title}</h4>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <Badge color={done===docs.length&&docs.length>0?"#059669":"#D97706"} bg={done===docs.length&&docs.length>0?"#D1FAE5":"#FEF3C7"}>{done}/{docs.length}</Badge>
-          {!disabled&&<button style={Object.assign({},btnSm,{padding:"4px 10px",fontSize:11})} onClick={function(){setShowAdd(!showAdd);}}>+ 서류</button>}
+          {!disabled&&<button style={Object.assign({},btnSm,{padding:"8px 14px",fontSize:15})} onClick={function(){setShowAdd(!showAdd);}}>+ 서류</button>}
         </div>
       </div>
       {showAdd&&!disabled&&(
-        <div style={{marginBottom:8,padding:10,background:"#F8FAFC",borderRadius:8}}>
-          <div style={{display:"flex",gap:4,marginBottom:6}}>
-            <input style={Object.assign({},inpKo,{flex:1,fontSize:12,padding:"6px 10px"})} value={newName} onChange={function(e){setNewName(e.target.value);}} placeholder="추가할 서류명" onKeyDown={function(e){if(e.key==="Enter")addDoc(newName);}}/>
-            <button style={Object.assign({},btnP,{padding:"6px 12px",fontSize:11})} onClick={function(){addDoc(newName);}}>추가</button>
+        <div style={{marginBottom:12,padding:14,background:"#F8FAFC",borderRadius:10}}>
+          <div style={{display:"flex",gap:6,marginBottom:8}}>
+            <input style={Object.assign({},inpKo,{flex:1,fontSize:16,padding:"9px 12px"})} value={newName} onChange={function(e){setNewName(e.target.value);}} placeholder="추가할 서류명" onKeyDown={function(e){if(e.key==="Enter")addDoc(newName);}}/>
+            <button style={Object.assign({},btnP,{padding:"9px 16px",fontSize:16})} onClick={function(){addDoc(newName);}}>추가</button>
           </div>
-          <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{COMMON_EXTRA_DOCS.map(function(d){return <button key={d} onClick={function(){addDoc(d);}} style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:"1px solid #E2E8F0",background:"#fff",color:"#475569",cursor:"pointer"}}>+{d}</button>;})}</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{COMMON_EXTRA_DOCS.map(function(d){return <button key={d} onClick={function(){addDoc(d);}} style={{fontSize:14,padding:"6px 12px",borderRadius:8,border:"1px solid #E2E8F0",background:"#fff",color:"#475569",cursor:"pointer"}}>+{d}</button>;})}</div>
         </div>
       )}
-      {docs.length===0?<p style={{margin:0,fontSize:12,color:"#94A3B8"}}>서류 없음</p>:(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:3}}>
+      {docs.length===0?<p style={{margin:0,fontSize:16,color:"#94A3B8"}}>서류 없음</p>:(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:8}}>
           {docs.map(function(d,i){return <ChkItem key={d.id||i} item={d} disabled={disabled}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onToggle={function(){var ds=docs.slice();ds[i]=Object.assign({},ds[i],{done:!ds[i].done});props.onChange(ds);if(props.onLog)props.onLog("서류"+(ds[i].done?"✓":"○")+d.label);}}
@@ -503,7 +503,7 @@ function EmpModal(props){
     name:useState(init.name||""),
     programId:useState(init.programId||Object.keys(programs)[0]||""),
     startDate:useState(init.startDate||""),
-    birthDate:useState(init.birthDate||""),
+    birthDate:useState(init.birthDate||"2000-01-01"),
     gender:useState(init.gender||"male"),
     milSvc:useState(init.milSvc||0),
     status:useState(init.status||"active"),
@@ -512,7 +512,7 @@ function EmpModal(props){
     salary:useState(init.salary||""),
     weeklyHours:useState(init.weeklyHours||40),
     memo:useState(init.memo||""),
-    bd:useState(init.birthDate||""),
+    bd:useState(init.birthDate||"2000-01-01"),
     gen:useState(init.gender||"male"),
     mil:useState(init.milSvc||0),
     ec:useState(init.eligConds||{}),
@@ -581,12 +581,12 @@ function EmpModal(props){
         </div>
         <div>
           <Label>지원금 *</Label>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:6}}>
             {Object.values(programs).map(function(p){var on=st.programId[0]===p.id;var gp=GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"];return(
               <button key={p.id} onClick={function(){st.programId[1](p.id);}}
-                style={{padding:"8px 10px",borderRadius:8,fontSize:11,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
-                <div style={{fontWeight:on?700:500}}>{gp.icon} {p.name}</div>
-                <div style={{fontSize:10,color:on?gp.dark:"#94A3B8"}}>{fMan(p.totalAmount||0)}</div>
+                style={{padding:"12px 14px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
+                <div style={{fontWeight:on?700:500,fontSize:17,lineHeight:1.35}}>{gp.icon} {p.name}</div>
+                <div style={{fontSize:15,color:on?gp.dark:"#94A3B8",marginTop:3}}>{fMan(p.totalAmount||0)}</div>
               </button>
             );})}
           </div>
@@ -658,6 +658,19 @@ function CompDet(props){
   var st5=useState("active"); // status filter
   var st6=useState(false); // edit company modal
   var stTab=useState("overview"); // 개요/직원/서류
+  var stNote=useState(""); // 새 일지 입력
+
+  var notes=company.notes||[];
+  function addNote(){
+    var txt=stNote[0].trim(); if(!txt)return;
+    var author=(props.profile&&props.profile.display_name)||"";
+    var next=[{id:uid(),text:txt,at:new Date().toISOString(),author:author}].concat(notes);
+    props.onPatchCompany(company.id,{notes:next});
+    stNote[1]("");
+  }
+  function delNote(nid){
+    props.onPatchCompany(company.id,{notes:notes.filter(function(n){return n.id!==nid;})});
+  }
 
   var filteredEmps=compEmps.filter(function(e){
     if(st5[0]==="all")return true;
@@ -675,7 +688,8 @@ function CompDet(props){
   var upcoming=useMemo(function(){var list=[];compEmps.forEach(function(e){if(e.status==="resigned")return;var p=programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var ed=addMo(e.startDate,r.month);var dd=getDday(ed);list.push({empName:e.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:r.expectedAmount||r.amount||0});});});return list.sort(function(a,b){return(a.dday===null?9999:a.dday)-(b.dday===null?9999:b.dday);}).slice(0,8);},[compEmps,programs]);
 
   function handleSaveEmp(empData){
-    props.onSaveEmployee(empData);
+    if(st2[0]){ props.onPatchEmployee(empData.id, empData); } // 편집
+    else { props.onSaveEmployee(empData); }                   // 신규
     st1[1](false);
     st2[1](null);
   }
@@ -789,13 +803,40 @@ function CompDet(props){
               </div>
             );})}
           </Card>
-          <Card style={{padding:22}}>
+          <Card style={{padding:22,marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <h3 style={{margin:0,fontSize:20,fontWeight:700}}>📁 업체 서류 진행률</h3>
               <Badge color={docPct===100?"#059669":"#D97706"} bg={docPct===100?"#D1FAE5":"#FEF3C7"}>{docPct}%</Badge>
             </div>
             <div style={{height:10,background:"#F1F5F9",borderRadius:5,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:docPct+"%",background:docPct===100?"#059669":"#10B981",borderRadius:5,transition:"width 0.5s ease"}}/></div>
             <button style={Object.assign({},btnSm,{fontSize:15})} onClick={function(){stTab[1]("docs");}}>서류 관리하기 →</button>
+          </Card>
+          {/* 업체별 업무 일지 */}
+          <Card style={{padding:22}}>
+            <h3 style={{margin:"0 0 14px",fontSize:20,fontWeight:700}}>📝 업무 일지</h3>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              <input style={Object.assign({},inpKo,{flex:1})} value={stNote[0]} onChange={function(e){stNote[1](e.target.value);}} placeholder="진행 상황·통화 내용·제출 기록 등을 남겨보세요" onKeyDown={function(e){if(e.key==="Enter")addNote();}}/>
+              <button style={btnP} onClick={addNote}>기록</button>
+            </div>
+            {notes.length===0?(
+              <div style={{textAlign:"center",padding:"24px 0"}}><div style={{fontSize:34,marginBottom:8}}>🗒️</div><p style={{color:"#94A3B8",fontSize:16,margin:0}}>아직 기록이 없습니다. 첫 일지를 남겨보세요.</p></div>
+            ):(
+              <div style={{position:"relative",paddingLeft:20}}>
+                <div style={{position:"absolute",left:5,top:6,bottom:6,width:2,background:"#E2E8F0"}}/>
+                {notes.map(function(n){return(
+                  <div key={n.id} style={{position:"relative",marginBottom:16}}>
+                    <div style={{position:"absolute",left:-19,top:5,width:12,height:12,borderRadius:6,background:"#2563EB",border:"2px solid #fff",boxShadow:"0 0 0 2px #DBEAFE"}}/>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontSize:17,color:"#1E293B",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{n.text}</div>
+                        <div style={{fontSize:14,color:"#94A3B8",marginTop:3}}>{fDateTime(n.at)}{n.author?" · "+n.author:""}</div>
+                      </div>
+                      <button onClick={function(){delNote(n.id);}} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:16,flexShrink:0}} title="삭제">🗑️</button>
+                    </div>
+                  </div>
+                );})}
+              </div>
+            )}
           </Card>
         </div>
       )}
@@ -921,47 +962,68 @@ function CompanyEditModal(props){
 // ── ProgramsList ──────────────────────────────────────────
 function ProgramsList(props){
   var programs=props.programs,onUpdate=props.onUpdate;
-  var st1=useState(false); // add modal
-  var st2=useState(null);  // edit target
+  var st1=useState(false); // modal open
+  var st2=useState(null);  // edit target (null=신규 커스텀)
   var st={
     name:useState(""),
     group:useState("커스텀"),
     totalAmount:useState(""),
-    months:useState(""),
-    desc:useState("")
+    desc:useState(""),
+    note:useState(""),
+    applyUrl:useState(""),
+    rounds:useState([])  // [{month,label,amount}]
   };
-  function resetSt(){Object.values(st).forEach(function(s){s[1](s[0] instanceof Array?[]:""||"");});st.name[1]("");st.group[1]("커스텀");st.totalAmount[1]("");st.months[1]("");st.desc[1]("");}
-  function openEdit(p){st2[1](p);st.name[1](p.name);st.group[1](p.group||"커스텀");st.totalAmount[1](p.totalAmount||"");st.months[1]((p.rounds||[]).map(function(r){return r.month;}).join(","));st.desc[1](p.desc||"");}
-  function saveCustom(){
-    if(!st.name[0].trim())return;
-    var monthArr=(st.months[0]||"6,12").split(",").map(function(m){return parseInt(m.trim());}).filter(Boolean);
-    var total=Number(st.totalAmount[0])||0;
-    var perRound=monthArr.length>0?Math.round(total/monthArr.length):0;
-    var newP={
-      id:st2[0]?st2[0].id:"custom_"+uid(),
-      name:st.name[0].trim(),group:"커스텀",
-      totalAmount:total,desc:st.desc[0],
-      color:GROUP_COLORS["커스텀"].base,
-      rounds:monthArr.map(function(m,i){return{month:m,label:(i+1)+"회차",expectedAmount:perRound,amount:perRound};}),
-      companyDocs:[],employeeDocs:[]
-    };
+  function openNew(){st2[1](null);st.name[1]("");st.group[1]("커스텀");st.totalAmount[1]("");st.desc[1]("");st.note[1]("");st.applyUrl[1]("");st.rounds[1]([{month:6,label:"1회차",amount:0}]);st1[1](true);}
+  function openEdit(p){st2[1](p);st.name[1](p.name||"");st.group[1](p.group||"커스텀");st.totalAmount[1](p.totalAmount||"");st.desc[1](p.desc||"");st.note[1](p.note||"");st.applyUrl[1](p.applyUrl||"");st.rounds[1]((p.rounds||[]).map(function(r){return{month:r.month,label:r.label||"",amount:r.expectedAmount||r.amount||0};}));st1[1](true);}
+  function setRound(i,field,val){var rs=st.rounds[0].slice();rs[i]=Object.assign({},rs[i],{[field]:val});st.rounds[1](rs);}
+  function addRound(){st.rounds[1](st.rounds[0].concat([{month:12,label:(st.rounds[0].length+1)+"회차",amount:0}]));}
+  function delRound(i){st.rounds[1](st.rounds[0].filter(function(_,idx){return idx!==i;}));}
+  function autoTotal(){var sum=st.rounds[0].reduce(function(s,r){return s+(Number(r.amount)||0);},0);st.totalAmount[1](sum);}
+  function save(){
+    if(!st.name[0].trim()){alert("지원금명을 입력하세요");return;}
+    var existing=st2[0]||{};
+    var rounds=st.rounds[0].map(function(r,i){var amt=Number(r.amount)||0;return Object.assign({},existing.rounds&&existing.rounds[i]?existing.rounds[i]:{},{month:Number(r.month)||0,label:r.label||((i+1)+"회차"),expectedAmount:amt,amount:amt});});
+    var total=Number(st.totalAmount[0])||rounds.reduce(function(s,r){return s+r.amount;},0);
+    var newP=Object.assign({},existing,{
+      id:existing.id||("custom_"+uid()),
+      name:st.name[0].trim(),
+      group:existing.group||"커스텀",
+      totalAmount:total,
+      desc:st.desc[0],
+      note:st.note[0],
+      applyUrl:st.applyUrl[0],
+      color:existing.color||GROUP_COLORS[existing.group||"커스텀"].base,
+      rounds:rounds,
+      companyDocs:existing.companyDocs||[],
+      employeeDocs:existing.employeeDocs||[]
+    });
     var updated=Object.assign({},programs);
     updated[newP.id]=newP;
     onUpdate(updated);
     st1[1](false);st2[1](null);
   }
   function deleteCustom(pid){
-    if(!window.confirm("삭제?"))return;
+    if(!window.confirm("이 지원금을 목록에서 삭제할까요?"))return;
     var updated=Object.assign({},programs);
     delete updated[pid];
     onUpdate(updated);
   }
+  function resetBuiltins(){
+    if(!window.confirm("기본 15개 지원금을 처음 상태로 되돌립니다. (직접 추가한 커스텀은 유지) 진행할까요?"))return;
+    var updated=Object.assign({},programs);
+    Object.keys(DEFAULT_PROGRAMS).forEach(function(id){updated[id]=DEFAULT_PROGRAMS[id];});
+    onUpdate(updated);
+  }
   return(
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+    <div className="fade-in">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
         <h2 style={{margin:0,fontSize:24,fontWeight:800}}>⚙️ 지원금 관리</h2>
-        <button style={btnP} className="hover-lift" onClick={function(){resetSt();st1[1](true);st2[1](null);}}>+ 커스텀 추가</button>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button style={Object.assign({},btnS,{fontSize:17})} onClick={resetBuiltins}>↺ 기본값 복원</button>
+          <button style={btnP} className="hover-lift" onClick={openNew}>+ 커스텀 추가</button>
+        </div>
       </div>
+      <Notice>금액·회차·신청처는 매년 공고에 따라 바뀝니다. 카드의 <b>편집</b>으로 직접 수정하면 내 계정에 저장됩니다. 기본 15종도 모두 수정 가능합니다.</Notice>
       {["신규채용","재직자유지","육아","커스텀"].map(function(grp){
         var items=Object.values(programs).filter(function(p){return p.group===grp;});
         if(!items.length)return null;
@@ -985,14 +1047,13 @@ function ProgramsList(props){
                         <div style={{display:"flex",gap:12,fontSize:16,color:"#475569",flexWrap:"wrap"}}>
                           <span>🔢 {(p.rounds||[]).length}회차</span>
                           <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join(", ")}</span>
+                          {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                         </div>
                       </div>
-                      {isCustom&&(
-                        <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:12}}>
-                          <button style={Object.assign({},btnSm,{fontSize:16})} onClick={function(){openEdit(p);st1[1](true);}}>편집</button>
-                          <button style={Object.assign({},btnSm,{fontSize:16,color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>
-                        </div>
-                      )}
+                      <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:12}}>
+                        <button style={Object.assign({},btnSm,{fontSize:16})} onClick={function(){openEdit(p);}}>편집</button>
+                        {isCustom&&<button style={Object.assign({},btnSm,{fontSize:16,color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
+                      </div>
                     </div>
                   </Card>
                 );
@@ -1001,15 +1062,35 @@ function ProgramsList(props){
           </div>
         );
       })}
-      <Modal open={st1[0]} onClose={function(){st1[1](false);st2[1](null);}} title={(st2[0]?"커스텀 편집":"커스텀 지원금 추가")} width={440}>
-        <div style={{display:"grid",gap:12}}>
+      <Modal open={st1[0]} onClose={function(){st1[1](false);st2[1](null);}} title={(st2[0]?"지원금 편집":"커스텀 지원금 추가")} width={560}>
+        <div style={{display:"grid",gap:16}}>
           <div><Label>지원금명 *</Label><input style={inp} value={st.name[0]} onChange={function(e){st.name[1](e.target.value);}}/></div>
-          <div><Label>총 지원금액(원)</Label><input type="number" style={inp} value={st.totalAmount[0]} onChange={function(e){st.totalAmount[1](e.target.value);}} placeholder="3000000"/></div>
-          <div><Label>신청 회차 (입사 후 개월, 쉼표로 구분)</Label><input style={inp} value={st.months[0]} onChange={function(e){st.months[1](e.target.value);}} placeholder="6,12"/></div>
-          <div><Label>설명</Label><textarea style={Object.assign({},inp,{height:60,resize:"none"})} value={st.desc[0]} onChange={function(e){st.desc[1](e.target.value);}}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div><Label>총 지원금액(원)</Label><input type="number" style={inp} value={st.totalAmount[0]} onChange={function(e){st.totalAmount[1](e.target.value);}} placeholder="7200000"/></div>
+            <div><Label>신청처/URL</Label><input style={inp} value={st.applyUrl[0]} onChange={function(e){st.applyUrl[1](e.target.value);}} placeholder="고용24(work24.go.kr)"/></div>
+          </div>
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <Label>회차별 지급 (입사 후 개월 · 금액)</Label>
+              <button style={Object.assign({},btnSm,{fontSize:14})} onClick={autoTotal} title="회차 금액 합계를 총액에 반영">∑ 합계→총액</button>
+            </div>
+            <div style={{display:"grid",gap:8}}>
+              {st.rounds[0].map(function(r,i){return(
+                <div key={i} style={{display:"grid",gridTemplateColumns:"90px 1fr 130px 40px",gap:8,alignItems:"center"}}>
+                  <input type="number" style={Object.assign({},inp,{fontSize:16,padding:"9px 10px"})} value={r.month} onChange={function(e){setRound(i,"month",e.target.value);}} placeholder="개월"/>
+                  <input style={Object.assign({},inp,{fontSize:16,padding:"9px 10px"})} value={r.label} onChange={function(e){setRound(i,"label",e.target.value);}} placeholder={"라벨 (예: "+(i+1)+"차)"}/>
+                  <input type="number" style={Object.assign({},inp,{fontSize:16,padding:"9px 10px"})} value={r.amount} onChange={function(e){setRound(i,"amount",e.target.value);}} placeholder="금액"/>
+                  <button style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:18}} onClick={function(){delRound(i);}} title="회차 삭제">🗑️</button>
+                </div>
+              );})}
+            </div>
+            <button style={Object.assign({},btnSm,{fontSize:15,marginTop:8})} onClick={addRound}>+ 회차 추가</button>
+          </div>
+          <div><Label>한줄 설명</Label><input style={inp} value={st.desc[0]} onChange={function(e){st.desc[1](e.target.value);}} placeholder="목록 카드에 표시되는 짧은 설명"/></div>
+          <div><Label>상세 안내 / 비고</Label><textarea style={Object.assign({},inp,{height:90,resize:"vertical",fontSize:17,lineHeight:1.6})} value={st.note[0]} onChange={function(e){st.note[1](e.target.value);}} placeholder="자격요건·예산·주의사항 등 (진단·상세에 표시)"/></div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             <button style={btnS} onClick={function(){st1[1](false);st2[1](null);}}>취소</button>
-            <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={saveCustom}>저장</button>
+            <button style={Object.assign({},btnP,{padding:"12px 32px"})} onClick={save}>저장</button>
           </div>
         </div>
       </Modal>
