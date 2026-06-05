@@ -16,6 +16,10 @@ STOP_WORDS = {
     "에서","와","과","도","만","하는","하기","있는","없는","합니다","입니다","됩니다",
     "대한","위한","통해","위해","하면","하고","이번","지금","바로","정말","드디어",
     "속보","중요","긴급","총정리","요약","정리","방법","이유","결과","확인","신청",
+    "까지","부터","동안","이후","이전","최대","최소","모든","각종","관련","내용",
+    "사람","경우","우리","여기","어디","무엇","얼마","어떻게","하지","않는","없이",
+    "있어","했다","된다","한다","않고","되고","하고","이런","그런","저런","어떤",
+    "누가","뭔가","아직","이미","같은","다른","라는","라고","에도","에서는","으로는",
 }
 
 st.set_page_config(
@@ -218,24 +222,46 @@ def apply_filter(df: pd.DataFrame) -> pd.DataFrame:
         d = d[d["is_short"]]
     if sel_ch:
         d = d[d["channel_name"].isin(sel_ch)]
-    return d.nlargest(top_n, "view_count").reset_index(drop=True)
+    return d
 
 # ── 키워드 추출 ────────────────────────────────────────────────
 def render_keywords(df: pd.DataFrame):
-    words = []
-    for title in df["title"]:
-        tokens = re.findall(r"[가-힣]{2,}", str(title))
-        words.extend([w for w in tokens if w not in STOP_WORDS])
-    if not words:
+    """df는 해당 기간 전체 영상 (top_n 컷 전). 조회수 가중치 + 2단어 구절 지원."""
+    word_scores: Counter = Counter()
+    word_video_cnt: Counter = Counter()
+
+    for _, row in df.iterrows():
+        title = str(row["title"])
+        views = max(int(row.get("view_count", 1)), 1)
+        tokens = re.findall(r"[가-힣]{2,}", title)
+        filtered = [w for w in tokens if w not in STOP_WORDS]
+        seen = set()
+
+        for w in filtered:
+            word_scores[w] += views
+            if w not in seen:
+                word_video_cnt[w] += 1
+                seen.add(w)
+
+        # 2단어 구절 (조회수 1.3배 가중)
+        for i in range(len(filtered) - 1):
+            phrase = filtered[i] + " " + filtered[i + 1]
+            word_scores[phrase] += int(views * 1.3)
+            if phrase not in seen:
+                word_video_cnt[phrase] += 1
+                seen.add(phrase)
+
+    if not word_scores:
         return
-    top_kw = Counter(words).most_common(15)
+    top_kw = word_scores.most_common(15)
     tags = ""
-    for i, (word, cnt) in enumerate(top_kw):
+    for i, (word, _) in enumerate(top_kw):
         cls = "kw-tag top3" if i < 3 else "kw-tag"
-        tags += f'<span class="{cls}">#{word} <small style="opacity:.6">({cnt})</small></span>'
+        cnt = word_video_cnt[word]
+        tags += f'<span class="{cls}">#{word} <small style="opacity:.6">({cnt}영상)</small></span>'
     st.markdown(f"""
     <div class="keyword-section">
-        <div class="keyword-title">🔑 이 기간 인기 영상 핵심 키워드</div>
+        <div class="keyword-title">🔑 이 기간 인기 영상 핵심 키워드 (조회수 가중)</div>
         {tags}
     </div>""", unsafe_allow_html=True)
 
@@ -296,12 +322,16 @@ def render_grid(df: pd.DataFrame):
         st.info("해당 기간에 영상이 없습니다.")
         return
 
+    # 키워드는 기간 내 전체 영상 기준 (top_n 컷 전)
     render_keywords(df)
 
-    top_v = df.iloc[0]
-    avg_v = int(df["view_count"].mean())
-    total = len(df)
-    mine_rows = df[df["is_mine"]]
+    # 그리드 표시용: 조회수 상위 top_n 개만
+    dsp = df.nlargest(top_n, "view_count").reset_index(drop=True)
+
+    top_v = dsp.iloc[0]
+    avg_v = int(dsp["view_count"].mean())
+    total = len(dsp)
+    mine_rows = dsp[dsp["is_mine"]]
 
     s1, s2, s3 = st.columns(3)
     with s1:
@@ -326,7 +356,7 @@ def render_grid(df: pd.DataFrame):
                 <div class="summary-sub">👁 {int(best['view_count']):,}회</div>
             </div>""", unsafe_allow_html=True)
         else:
-            top2 = df.iloc[1] if len(df) > 1 else top_v
+            top2 = dsp.iloc[1] if len(dsp) > 1 else top_v
             st.markdown(f"""<div class="summary-box">
                 <div class="summary-label">🥈 조회수 2위</div>
                 <div class="summary-value">{int(top2['view_count']):,}회</div>
@@ -334,7 +364,7 @@ def render_grid(df: pd.DataFrame):
             </div>""", unsafe_allow_html=True)
 
     col_buckets: list[list[str]] = [[] for _ in range(NCOLS)]
-    for i, row in df.iterrows():
+    for i, row in dsp.iterrows():
         col_buckets[i % NCOLS].append(build_card(i + 1, row))
 
     cols = st.columns(NCOLS)
