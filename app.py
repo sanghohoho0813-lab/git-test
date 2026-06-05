@@ -317,12 +317,15 @@ with hc4:
         dt = datetime.fromisoformat(cache["fetched_at"]).astimezone(KST)
         st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')} (KST)")
 
-# ── 세션 첫 진입 시 자동 새로고침 ─────────────────────────────
-if not st.session_state.get("auto_refreshed") and api_key:
+# ── 세션 첫 진입 시 자동 새로고침 (캐시 파일 없을 때만) ───────────
+# 캐시 파일이 존재하면 자동 수집을 건너뜀 — 수동 새로고침 버튼으로 제어
+if not st.session_state.get("auto_refreshed") and api_key and cache is None:
     st.session_state.auto_refreshed = True
     with st.spinner("최신 데이터 불러오는 중..."):
         cache = fetch_all_data(api_key)
     st.rerun()
+else:
+    st.session_state.auto_refreshed = True  # 이후 세션 재진입 시 재발동 방지
 
 if do_refresh:
     if not api_key:
@@ -339,7 +342,12 @@ if not cache:
 channels_raw = cache.get("channels", [])
 videos_raw   = cache.get("videos", [])
 if not videos_raw:
-    st.warning("데이터가 없습니다. 새로고침을 눌러주세요.")
+    st.warning(
+        "**데이터 수집에 실패했습니다.**\n\n"
+        "원인은 대부분 **YouTube API 일일 할당량 초과(10,000 유닛/일)**입니다.  \n"
+        "자정(UTC 기준) 이후 할당량이 초기화되면 🔄 새로고침 버튼을 눌러주세요.  \n"
+        "한국 시간 기준으로 매일 **오전 9시** 이후 다시 시도하시면 됩니다."
+    )
     st.stop()
 
 # 내 채널 ID를 캐시된 채널 목록에서 핸들로 검색
