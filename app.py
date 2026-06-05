@@ -191,6 +191,33 @@ st.markdown("""
 .topic-ideas-title { font-size: 14px; color: #aaccff; font-weight: 700; margin-bottom: 8px; }
 .topic-idea   { font-size: 14px; color: #cce0ff; margin-bottom: 6px; line-height: 1.5;
                 padding: 7px 12px; background: #1a2d5a; border-radius: 8px; }
+
+.rising-badge {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    background: rgba(255, 80, 0, 0.92);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    padding: 3px 9px;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.analysis-section {
+    background: #16213e;
+    border-radius: 14px;
+    padding: 22px 26px;
+    border: 1px solid #2a2a5a;
+    margin-bottom: 28px;
+}
+.analysis-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #e8e8ff;
+    margin-bottom: 6px;
+}
+.analysis-desc { font-size: 14px; color: #7788aa; margin-bottom: 16px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -233,12 +260,21 @@ if not videos_raw:
     st.warning("데이터가 없습니다. 새로고침을 눌러주세요.")
     st.stop()
 
+def duration_bucket(sec: int) -> str:
+    if sec <= 60:   return "① 쇼츠 (1분 이하)"
+    if sec <= 300:  return "② 5분 이하"
+    if sec <= 900:  return "③ 5~15분"
+    if sec <= 1800: return "④ 15~30분"
+    return "⑤ 30분 이상"
+
 ch_map   = {r["channel_id"]: r["title"] for r in channels_raw}
 vdf      = pd.DataFrame(videos_raw)
-vdf["published_at"]  = pd.to_datetime(vdf["published_at"], utc=True)
-vdf["days_ago"]      = (datetime.now(KST) - vdf["published_at"].dt.tz_convert(KST)).dt.days
-vdf["channel_name"]  = vdf["channel_id"].map(ch_map).fillna("알 수 없음")
-vdf["is_mine"]       = (vdf["channel_id"] == MY_CHANNEL_ID) if MY_CHANNEL_ID else False
+vdf["published_at"]     = pd.to_datetime(vdf["published_at"], utc=True)
+vdf["days_ago"]         = (datetime.now(KST) - vdf["published_at"].dt.tz_convert(KST)).dt.days
+vdf["channel_name"]     = vdf["channel_id"].map(ch_map).fillna("알 수 없음")
+vdf["is_mine"]          = (vdf["channel_id"] == MY_CHANNEL_ID) if MY_CHANNEL_ID else False
+vdf["duration_bucket"]  = vdf["duration_sec"].apply(duration_bucket)
+vdf["weekday"]          = vdf["published_at"].dt.tz_convert(KST).dt.dayofweek
 
 # ── 필터 ────────────────────────────────────────────────────────
 st.markdown("---")
@@ -374,13 +410,14 @@ def render_topic_recommendations(df: pd.DataFrame):
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
 NCOLS = 5
 
-def build_card(rank: int, row) -> str:
+def build_card(rank: int, row, avg_views: int = 0) -> str:
     vid_id  = str(row.get("video_id", ""))
     thumb   = f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg" if vid_id else ""
     url     = str(row["url"])
     title   = str(row["title"]).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
     channel = str(row["channel_name"]).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
-    views   = f"{int(row['view_count']):,}"
+    raw_views = int(row["view_count"])
+    views   = f"{raw_views:,}"
     likes   = f"{int(row['like_count']):,}"
     cmts    = f"{int(row['comment_count']):,}"
     dt      = row["published_at"]
@@ -388,16 +425,21 @@ def build_card(rank: int, row) -> str:
     t_cls   = "pill-short" if row["is_short"] else "pill-long"
     t_txt   = "쇼츠" if row["is_short"] else "롱폼"
     is_mine = bool(row.get("is_mine", False))
+    is_rising = (
+        int(row.get("days_ago", 999)) <= 14
+        and avg_views > 0
+        and raw_views >= avg_views * 2
+    )
 
     if rank == 1:   rc = "#ffd700"
     elif rank == 2: rc = "#c0c0c0"
     elif rank == 3: rc = "#cd7f32"
     else:           rc = "#aaa"
 
-    mine_cls    = " mine" if is_mine else ""
-    # span 태그 사용 — div 중첩으로 인한 Streamlit 렌더링 오류 방지
-    mine_badge  = '<span class="mine-badge">👤 내 채널</span>' if is_mine else ""
-    mine_pill   = '<span class="pill pill-mine">👤 내 채널</span>' if is_mine else ""
+    mine_cls      = " mine" if is_mine else ""
+    mine_badge    = '<span class="mine-badge">👤 내 채널</span>' if is_mine else ""
+    rising_badge  = '<span class="rising-badge">🚀 급상승</span>' if is_rising else ""
+    mine_pill     = '<span class="pill pill-mine">👤 내 채널</span>' if is_mine else ""
 
     return (
         f'<div class="grid-card{mine_cls}">'
@@ -405,6 +447,7 @@ def build_card(rank: int, row) -> str:
         f'<img src="{thumb}" alt="thumbnail" loading="lazy">'
         f'<span class="rank-badge" style="color:{rc}">#{rank}</span>'
         f'{mine_badge}'
+        f'{rising_badge}'
         f'</a>'
         f'<div class="card-body">'
         f'<div class="card-channel">{channel}</div>'
@@ -470,9 +513,11 @@ def render_grid(df: pd.DataFrame):
                 <div class="summary-sub">{top2['channel_name']}</div>
             </div>""", unsafe_allow_html=True)
 
+    period_avg = int(df["view_count"].mean()) if not df.empty else 0
+
     col_buckets: list[list[str]] = [[] for _ in range(NCOLS)]
     for i, row in dsp.iterrows():
-        col_buckets[i % NCOLS].append(build_card(i + 1, row))
+        col_buckets[i % NCOLS].append(build_card(i + 1, row, period_avg))
 
     cols = st.columns(NCOLS)
     for col_widget, cards in zip(cols, col_buckets):
@@ -480,11 +525,12 @@ def render_grid(df: pd.DataFrame):
             st.markdown("".join(cards), unsafe_allow_html=True)
 
 # ── 탭 ────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔥 이번 주 TOP",
     "📅 이번 달 TOP",
     "🏆 올해 TOP",
     "📊 채널 현황",
+    "🔍 심층 분석",
 ])
 
 with tab1:
@@ -521,3 +567,80 @@ with tab4:
             }),
             use_container_width=True,
         )
+
+with tab5:
+    st.markdown("### 🔍 심층 분석")
+    st.caption("벤치마킹 채널 전체 수집 데이터 기준 (필터 미적용)")
+
+    # ── 1. 최적 업로드 요일 ───────────────────────────────────
+    st.markdown("""<div class="analysis-section">
+        <div class="analysis-title">📅 최적 업로드 요일</div>
+        <div class="analysis-desc">경쟁 채널들이 어느 요일에 올린 영상이 평균적으로 가장 많이 봤는지 보여줍니다.</div>
+    </div>""", unsafe_allow_html=True)
+
+    day_map = {0:"월요일", 1:"화요일", 2:"수요일", 3:"목요일", 4:"금요일", 5:"토요일", 6:"일요일"}
+    day_stats = (
+        vdf.groupby("weekday")["view_count"]
+        .agg(평균조회수="mean", 영상수="count", 최고조회수="max")
+        .round(0)
+        .astype(int)
+    )
+    day_stats.index = day_stats.index.map(day_map)
+    day_stats.columns = ["평균 조회수", "영상 수", "최고 조회수"]
+    day_stats = day_stats.sort_values("평균 조회수", ascending=False)
+    best_day = day_stats.index[0]
+    st.info(f"📌 평균 조회수 1위 요일: **{best_day}** — 이 요일에 업로드하면 노출 경쟁에서 유리할 수 있습니다.")
+    st.dataframe(
+        day_stats.style.format({"평균 조회수": "{:,}", "영상 수": "{:,}", "최고 조회수": "{:,}"}),
+        use_container_width=True,
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── 2. 롱폼 vs 쇼츠 채널별 비교 ─────────────────────────
+    st.markdown("""<div class="analysis-section">
+        <div class="analysis-title">📐 롱폼 vs 쇼츠 채널별 성과 비교</div>
+        <div class="analysis-desc">채널마다 롱폼과 쇼츠 중 어떤 포맷이 더 잘 되는지 비교합니다.</div>
+    </div>""", unsafe_allow_html=True)
+
+    fmt_grp = vdf.groupby(["channel_name", "is_short"])["view_count"].agg(["mean", "count"]).round(0)
+    fmt_avg = fmt_grp["mean"].unstack(level=1).fillna(0).astype(int)
+    fmt_cnt = fmt_grp["count"].unstack(level=1).fillna(0).astype(int)
+    fmt_avg.columns = [("쇼츠 평균조회수" if c else "롱폼 평균조회수") for c in fmt_avg.columns]
+    fmt_cnt.columns = [("쇼츠 편수" if c else "롱폼 편수") for c in fmt_cnt.columns]
+    fmt_df = pd.concat([fmt_avg, fmt_cnt], axis=1)
+    fmt_df = fmt_df[["롱폼 평균조회수", "쇼츠 평균조회수", "롱폼 편수", "쇼츠 편수"]].sort_values(
+        "롱폼 평균조회수", ascending=False
+    )
+    fmt_df.index.name = "채널명"
+    st.dataframe(
+        fmt_df.style.format({
+            "롱폼 평균조회수": "{:,}", "쇼츠 평균조회수": "{:,}",
+            "롱폼 편수": "{:,}", "쇼츠 편수": "{:,}",
+        }),
+        use_container_width=True,
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── 3. 영상 길이 구간별 성과 ─────────────────────────────
+    st.markdown("""<div class="analysis-section">
+        <div class="analysis-title">⏱ 영상 길이 구간별 성과</div>
+        <div class="analysis-desc">어느 길이의 영상이 가장 높은 조회수를 기록하는지 분석합니다.</div>
+    </div>""", unsafe_allow_html=True)
+
+    buck_stats = (
+        vdf.groupby("duration_bucket")["view_count"]
+        .agg(평균조회수="mean", 영상수="count", 최고조회수="max")
+        .round(0)
+        .astype(int)
+        .sort_index()
+    )
+    buck_stats.columns = ["평균 조회수", "영상 수", "최고 조회수"]
+    buck_stats.index.name = "길이 구간"
+    best_buck = buck_stats["평균 조회수"].idxmax()
+    st.info(f"📌 평균 조회수 최고 구간: **{best_buck}** — 이 길이 영상이 가장 높은 반응을 얻고 있습니다.")
+    st.dataframe(
+        buck_stats.style.format({"평균 조회수": "{:,}", "영상 수": "{:,}", "최고 조회수": "{:,}"}),
+        use_container_width=True,
+    )
