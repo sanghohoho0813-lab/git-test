@@ -42,6 +42,14 @@ STOP_WORDS = {
     "신청방법","신청날짜","신청기간","신청서류",
     # 동사 원형 파편
     "줍니다","드립니다","나왔습니다","됐습니다","했습니다",
+    # 사용자 지목 단어 — 너무 일반적이거나 채널명 파생
+    "때문에","연매출","사장님","지자체","생활문화","위험한",
+    "회계사","절세미녀","하이닉스","컨설턴트",
+    # 지시·강조 부사 (부사는 키워드 아님)
+    "이렇게","그렇게","저렇게","이러한","그러한","이러면","그러면",
+    "무조건","결국엔","솔직히","정직하게",
+    # 발화 동사 파편
+    "알려드림","설명드림","말씀드림","안내드림",
 }
 
 # 동사/형용사 어미로 끝나는 단어 필터 (보시고, 신청해야, 있을까 등)
@@ -50,12 +58,23 @@ _VERB_ENDINGS = re.compile(
     r'|는지|은지|을까|없을|합니다|됩니다|니까|아세요|이야기'
     r'|하면서|이므로|보면서|했더니|됐더니|한다면|이라며|라며'
     r'|려면|려고|더라도|더라면|했는데|됐는데|대해서'
-    r'|니다|지는|이는|으로|아요|어요|는데|은데|ㄴ다면)$'
+    r'|니다|지는|이는|으로|아요|어요|는데|은데|ㄴ다면'
+    # 추가: 동사·형용사 활용형 전반
+    r'|나요|리는|오는|하면|드는|르면|한다|된다'
+    r'|는|한|은)$'  # 관계절(-는), 형용사(-한), 주제격(-은) 어미
 )
+
+# 채널 제목에서 추출한 단어들 — 채널명 파편이 키워드로 오염되는 것 방지
+# ch_map 빌드 후 채워짐
+_CHANNEL_TITLE_WORDS: set = set()
 
 def is_meaningful(word: str) -> bool:
     """키워드로 표시할 가치가 있는 단어인지 판단."""
-    return word not in STOP_WORDS and not _VERB_ENDINGS.search(word)
+    return (
+        word not in STOP_WORDS
+        and not _VERB_ENDINGS.search(word)
+        and word not in _CHANNEL_TITLE_WORDS
+    )
 
 COPY_TEMPLATE_SETS = [
     [
@@ -313,6 +332,14 @@ def duration_bucket(sec: int) -> str:
     return "⑤ 30분 이상"
 
 ch_map   = {r["channel_id"]: r["title"] for r in channels_raw}
+
+# 채널 제목에서 4자+ 한글 단어를 추출 → 채널명 파편이 키워드로 노출되는 것 방지
+# (예: "절세미녀", "김팀장의경영노트" 등)
+_CHANNEL_TITLE_WORDS.clear()
+for _ct in ch_map.values():
+    for _cw in re.findall(r"[가-힣]{4,}", _ct):
+        _CHANNEL_TITLE_WORDS.add(_cw)
+
 vdf      = pd.DataFrame(videos_raw)
 vdf["published_at"]     = pd.to_datetime(vdf["published_at"], utc=True)
 vdf["days_ago"]         = (datetime.now(KST) - vdf["published_at"].dt.tz_convert(KST)).dt.days
