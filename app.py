@@ -273,19 +273,46 @@ st.markdown("""
     margin-bottom: 6px;
 }
 .analysis-desc { font-size: 14px; color: #7788aa; margin-bottom: 16px; }
+
+.weekly-banner { display: flex; gap: 10px; margin-bottom: 4px; }
+.weekly-mini-card {
+    flex: 1;
+    background: #0f1f3d;
+    border-radius: 10px;
+    padding: 8px 14px;
+    border: 1px solid #1e3a6a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.wmini-rank { font-size: 12px; color: #5577cc; font-weight: 800; white-space: nowrap; }
+.wmini-kw   { font-size: 15px; font-weight: 900; color: #ffd700; }
+.wmini-stat { font-size: 11px; color: #667799; margin-left: auto; white-space: nowrap; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── 헤더 ───────────────────────────────────────────────────────
 api_key = st.secrets.get("youtube_api_key", "")
+cache   = load_cache()
 
-hc1, hc2, hc3 = st.columns([4, 1, 2])
+hc1, hc2, hc3, hc4 = st.columns([4, 1, 1, 2])
 with hc1:
     st.markdown("## 📊 김팀장 벤치마킹 대시보드")
 with hc2:
     do_refresh = st.button("🔄 새로고침", use_container_width=True)
 with hc3:
-    cache = load_cache()
+    if cache:
+        _csv_bytes = (
+            pd.DataFrame(cache.get("videos", []))
+            .to_csv(index=False, encoding="utf-8-sig")
+            .encode("utf-8-sig")
+        )
+        st.download_button(
+            "📥 CSV", data=_csv_bytes,
+            file_name=f"videos_{datetime.now(KST).strftime('%Y%m%d')}.csv",
+            mime="text/csv", use_container_width=True,
+        )
+with hc4:
     if cache:
         dt = datetime.fromisoformat(cache["fetched_at"]).astimezone(KST)
         st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')} (KST)")
@@ -373,17 +400,16 @@ def apply_filter(df: pd.DataFrame) -> pd.DataFrame:
     return d
 
 # ── 키워드 추출 ────────────────────────────────────────────────
-def render_keywords(df: pd.DataFrame):
-    """조회수 가중 키워드. 3자 이상, 동사형 제외, 2개 이상 영상 + 2개 이상 채널."""
+def _extract_keyword_list(df: pd.DataFrame, max_kw: int = 15) -> list:
+    """조회수 가중 키워드 목록 [(word, video_count), ...] 반환."""
     word_scores: Counter = Counter()
     word_video_cnt: Counter = Counter()
-    word_ch_cnt: Counter = Counter()
+    word_channels: dict = {}   # word → set of channel names
 
     for _, row in df.iterrows():
         title = str(row["title"])
         views = max(int(row.get("view_count", 1)), 1)
         channel = str(row.get("channel_name", ""))
-        # 3자 이상 한글 단어만 추출
         tokens = re.findall(r"[가-힣]{3,}", title)
         filtered = [w for w in tokens if is_meaningful(w)]
         seen = set()
@@ -392,7 +418,7 @@ def render_keywords(df: pd.DataFrame):
             word_scores[w] += views
             if w not in seen:
                 word_video_cnt[w] += 1
-                word_ch_cnt[w] += 1 if channel not in seen else 0
+                word_channels.setdefault(w, set()).add(channel)
                 seen.add(w)
 
         for i in range(len(filtered) - 1):
@@ -400,32 +426,43 @@ def render_keywords(df: pd.DataFrame):
             word_scores[phrase] += int(views * 1.3)
             if phrase not in seen:
                 word_video_cnt[phrase] += 1
+                word_channels.setdefault(phrase, set()).add(channel)
                 seen.add(phrase)
 
-    if not word_scores:
-        return
-    # 3자 이상 단어, 2개 이상 영상, 2개 이상 채널
-    qualified = [
-        (w, s) for w, s in word_scores.most_common()
-        if word_video_cnt[w] >= 2 and word_ch_cnt.get(w, 1) >= 2
-    ][:15]
+    return [
+        (w, word_video_cnt[w]) for w, _ in word_scores.most_common()
+        if word_video_cnt[w] >= 2 and len(word_channels.get(w, set())) >= 2
+    ][:max_kw]
+
+
+def render_keywords(df: pd.DataFrame, tab_key: str = "") -> str | None:
+    """키워드 섹션 렌더링 + 클릭 필터 pills. 선택된 키워드(없으면 None) 반환."""
+    qualified = _extract_keyword_list(df)
     if not qualified:
-        return
+        return None
+
     tags = ""
-    for i, (word, _) in enumerate(qualified):
+    for i, (word, cnt) in enumerate(qualified):
         cls = "kw-tag top3" if i < 3 else "kw-tag"
-        cnt = word_video_cnt[word]
         tags += f'<span class="{cls}">#{word} <small style="opacity:.6">({cnt}영상)</small></span>'
     st.markdown(f"""
     <div class="keyword-section">
-        <div class="keyword-title">🔑 이 기간 인기 영상 핵심 키워드 (조회수 가중)</div>
+        <div class="keyword-title">🔑 이 기간 인기 영상 핵심 키워드 — 아래 키워드 클릭 시 관련 영상만 표시</div>
         {tags}
     </div>""", unsafe_allow_html=True)
 
+    selected = st.pills(
+        "키워드 필터 (클릭 → 관련 영상만  /  다시 클릭 → 전체 보기)",
+        [w for w, _ in qualified],
+        key=f"kw_pills_{tab_key or 'default'}",
+        selection_mode="single",
+        default=None,
+    )
+    return selected
+
 # ── 주목 콘텐츠 추천 ──────────────────────────────────────────
-def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
-    """기간 내 주목 콘텐츠 주제 상위 4개를 카피라이팅 아이디어와 함께 표시.
-    2단어 구절(≥2 영상)을 우선 선택하고, 부족하면 단일어(≥3 영상)로 보완."""
+def _extract_top_topics(df: pd.DataFrame, n: int = 4) -> list:
+    """상위 n개 주제 [(keyword, topic_data_dict), ...] 반환."""
     word_scores: Counter = Counter()
     video_cnt: Counter = Counter()
     topic_data: dict = {}
@@ -434,7 +471,6 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
         title = str(row["title"])
         views = max(int(row.get("view_count", 1)), 1)
         channel = str(row.get("channel_name", ""))
-        # 3자 이상 + 동사형 어미 제외
         tokens = re.findall(r"[가-힣]{3,}", title)
         filtered = [w for w in tokens if is_meaningful(w)]
         seen = set()
@@ -460,29 +496,33 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
             topic_data[phrase]["videos"].append((title, channel, views))
             topic_data[phrase]["channels"].add(channel)
 
-    # 2단어 구절 우선 — 반드시 2개 이상 채널이 다뤄야 함
     phrases = [(w, s) for w, s in word_scores.most_common()
                if " " in w and video_cnt[w] >= 2
                and len(topic_data[w]["channels"]) >= 2]
-    # 단일어 보완 — 2개 이상 채널 + 3개 이상 영상
     singles = [(w, s) for w, s in word_scores.most_common()
                if " " not in w and video_cnt[w] >= 3
                and len(topic_data[w]["channels"]) >= 2]
 
     seen_words: set = set()
     candidates: list = []
-    for word, score in phrases:
-        if len(candidates) >= 4:
+    for word, _ in phrases:
+        if len(candidates) >= n:
             break
-        candidates.append((word, score))
+        candidates.append((word, topic_data[word]))
         for part in word.split():
             seen_words.add(part)
-
-    for word, score in singles:
-        if len(candidates) >= 4:
+    for word, _ in singles:
+        if len(candidates) >= n:
             break
         if word not in seen_words:
-            candidates.append((word, score))
+            candidates.append((word, topic_data[word]))
+
+    return candidates
+
+
+def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
+    """상위 4개 주목 주제를 카피라이팅 아이디어와 함께 표시."""
+    candidates = _extract_top_topics(df, n=4)
 
     if not candidates:
         st.info("이 기간 2개 이상 채널에서 다룬 공통 주제가 없습니다.")
@@ -494,8 +534,7 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
     left_col, right_col = st.columns(2)
     col_pair = [left_col, right_col]
 
-    for rank, (keyword, _) in enumerate(candidates):
-        data = topic_data[keyword]
+    for rank, (keyword, data) in enumerate(candidates):
         vids = sorted(data["videos"], key=lambda x: x[2], reverse=True)
         ch_count = len(data["channels"])
         top_title, top_channel, top_views = vids[0]
@@ -586,16 +625,29 @@ def build_card(rank: int, row, avg_views: int = 0) -> str:
         f'</div>'
     )
 
-def render_grid(df: pd.DataFrame):
+def render_grid(df: pd.DataFrame, tab_key: str = "default"):
     if df.empty:
         st.info("해당 기간에 영상이 없습니다.")
         return
 
-    # 키워드는 기간 내 전체 영상 기준 (top_n 컷 전)
-    render_keywords(df)
+    # 키워드 섹션 + pills 클릭 필터
+    selected_kw = render_keywords(df, tab_key=tab_key)
+
+    # 키워드 선택 시 해당 키워드 포함 영상만
+    display_df = df
+    if selected_kw:
+        if " " in selected_kw:
+            parts = selected_kw.split()
+            mask = df["title"].apply(lambda t: all(p in str(t) for p in parts))
+        else:
+            mask = df["title"].str.contains(re.escape(selected_kw), na=False)
+        display_df = df[mask]
+        if display_df.empty:
+            st.info(f"'{selected_kw}' 포함 영상이 없습니다.")
+            return
 
     # 그리드 표시용: 조회수 상위 top_n 개만
-    dsp = df.nlargest(top_n, "view_count").reset_index(drop=True)
+    dsp = display_df.nlargest(top_n, "view_count").reset_index(drop=True)
 
     top_v = dsp.iloc[0]
     avg_v = int(dsp["view_count"].mean())
@@ -632,7 +684,7 @@ def render_grid(df: pd.DataFrame):
                 <div class="summary-sub">{top2['channel_name']}</div>
             </div>""", unsafe_allow_html=True)
 
-    period_avg = int(df["view_count"].mean()) if not df.empty else 0
+    period_avg = int(display_df["view_count"].mean()) if not display_df.empty else 0
 
     col_buckets: list[list[str]] = [[] for _ in range(NCOLS)]
     for i, row in dsp.iterrows():
@@ -642,6 +694,28 @@ def render_grid(df: pd.DataFrame):
     for col_widget, cards in zip(cols, col_buckets):
         with col_widget:
             st.markdown("".join(cards), unsafe_allow_html=True)
+
+# ── 이번 주 핫토픽 배너 ──────────────────────────────────────────
+_banner_topics = _extract_top_topics(vdf[vdf["days_ago"] <= 7], n=3)
+if _banner_topics:
+    _banner_html = ""
+    for _bi, (_bkw, _bdata) in enumerate(_banner_topics):
+        _bvids = sorted(_bdata["videos"], key=lambda x: x[2], reverse=True)
+        _btv   = _bvids[0][2] if _bvids else 0
+        _bcc   = len(_bdata["channels"])
+        _banner_html += (
+            f'<div class="weekly-mini-card">'
+            f'<span class="wmini-rank">#{_bi+1}</span>'
+            f'<span class="wmini-kw">{_bkw}</span>'
+            f'<span class="wmini-stat">{_bcc}채널 · {_btv:,}뷰</span>'
+            f'</div>'
+        )
+    st.markdown(
+        f'<div style="font-size:12px;color:#5577cc;font-weight:700;margin-bottom:6px;">'
+        f'⚡ 이번 주 주목 주제 TOP 3</div>'
+        f'<div class="weekly-banner">{_banner_html}</div>',
+        unsafe_allow_html=True,
+    )
 
 # ── 탭 ────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab_shorts, tab_rec, tab4, tab5 = st.tabs([
@@ -656,11 +730,11 @@ tab1, tab2, tab3, tab_shorts, tab_rec, tab4, tab5 = st.tabs([
 
 with tab1:
     st.caption("최근 7일 이내 업로드 기준")
-    render_grid(apply_filter(vdf[vdf["days_ago"] <= 7]))
+    render_grid(apply_filter(vdf[vdf["days_ago"] <= 7]), tab_key="week")
 
 with tab2:
     st.caption("최근 30일 이내 업로드 기준")
-    render_grid(apply_filter(vdf[vdf["days_ago"] <= 30]))
+    render_grid(apply_filter(vdf[vdf["days_ago"] <= 30]), tab_key="month")
 
 with tab3:
     st.caption("최근 365일 이내 업로드 기준 · 채널 선택 필터 적용")
@@ -671,14 +745,14 @@ with tab3:
         _df3 = _df3[_df3["is_short"]]
     if sel_ch:
         _df3 = _df3[_df3["channel_name"].isin(sel_ch)]
-    render_grid(_df3)
+    render_grid(_df3, tab_key="year")
 
 with tab_shorts:
     st.caption("최근 90일 쇼츠 영상 기준 · 채널 선택 필터 적용")
     shorts_df = vdf[(vdf["is_short"]) & (vdf["days_ago"] <= 90)].copy()
     if sel_ch:
         shorts_df = shorts_df[shorts_df["channel_name"].isin(sel_ch)]
-    render_grid(shorts_df)
+    render_grid(shorts_df, tab_key="shorts")
 
 with tab_rec:
     st.markdown("### 📌 콘텐츠 주제 추천")
@@ -721,6 +795,53 @@ with tab4:
 with tab5:
     st.markdown("### 🔍 심층 분석")
     st.caption("벤치마킹 채널 전체 수집 데이터 기준 (필터 미적용)")
+
+    # ── 0. 내 채널 vs 벤치마킹 비교 ──────────────────────────────
+    if MY_CHANNEL_ID:
+        st.markdown("""<div class="analysis-section">
+            <div class="analysis-title">👤 내 채널 vs 벤치마킹 평균 비교</div>
+            <div class="analysis-desc">내 채널의 주요 지표를 벤치마킹 채널 평균과 나란히 비교합니다.</div>
+        </div>""", unsafe_allow_html=True)
+
+        _my_info   = next((r for r in channels_raw if r["channel_id"] == MY_CHANNEL_ID), None)
+        _bench_chs = [r for r in channels_raw if r["channel_id"] != MY_CHANNEL_ID]
+
+        if _my_info and _bench_chs:
+            _my_vids    = vdf[vdf["channel_id"] == MY_CHANNEL_ID]
+            _bench_vids = vdf[vdf["channel_id"] != MY_CHANNEL_ID]
+
+            _my_avg_v    = int(_my_vids["view_count"].mean())    if not _my_vids.empty    else 0
+            _bench_avg_v = int(_bench_vids["view_count"].mean()) if not _bench_vids.empty else 0
+
+            _my_sr    = round(_my_vids["is_short"].mean() * 100, 1)    if not _my_vids.empty    else 0.0
+            _bench_sr = round(_bench_vids["is_short"].mean() * 100, 1) if not _bench_vids.empty else 0.0
+
+            _my_30      = int((_my_vids["days_ago"] <= 30).sum())
+            _b30        = _bench_vids[_bench_vids["days_ago"] <= 30]
+            _bench_30avg = round(_b30.groupby("channel_id").size().mean(), 1) if not _b30.empty else 0.0
+
+            _bench_subs_avg = int(
+                sum(r.get("subscriber_count", 0) for r in _bench_chs) / len(_bench_chs)
+            )
+
+            _cmp = pd.DataFrame({
+                "항목": ["구독자 수", "영상당 평균 조회수", "쇼츠 비율", "최근 30일 업로드"],
+                "내 채널": [
+                    f"{_my_info.get('subscriber_count', 0):,}명",
+                    f"{_my_avg_v:,}회",
+                    f"{_my_sr:.1f}%",
+                    f"{_my_30}편",
+                ],
+                "벤치마킹 평균": [
+                    f"{_bench_subs_avg:,}명",
+                    f"{_bench_avg_v:,}회",
+                    f"{_bench_sr:.1f}%",
+                    f"{_bench_30avg:.1f}편",
+                ],
+            }).set_index("항목")
+            st.dataframe(_cmp, use_container_width=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
     # ── 1. 최적 업로드 요일 ───────────────────────────────────
     st.markdown("""<div class="analysis-section">
