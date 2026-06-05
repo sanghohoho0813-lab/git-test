@@ -13,7 +13,7 @@ export function useData(orgId) {
   const channelRef = useRef(null);
 
   const load = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) { setLoading(false); return; }
     setLoading(true);
 
     const [{ data: comps }, { data: emps }, { data: memos }] = await Promise.all([
