@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
 
 from youtube_api import fetch_all_data, load_cache
 
@@ -115,8 +117,8 @@ with hc2:
 with hc3:
     cache = load_cache()
     if cache:
-        dt = datetime.fromisoformat(cache["fetched_at"]).astimezone()
-        st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')}")
+        dt = datetime.fromisoformat(cache["fetched_at"]).astimezone(KST)
+        st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')} (KST)")
 
 if do_refresh:
     if not api_key:
@@ -139,7 +141,7 @@ if not videos_raw:
 ch_map   = {r["channel_id"]: r["title"] for r in channels_raw}
 vdf      = pd.DataFrame(videos_raw)
 vdf["published_at"]  = pd.to_datetime(vdf["published_at"], utc=True)
-vdf["days_ago"]      = (datetime.now(timezone.utc) - vdf["published_at"]).dt.days
+vdf["days_ago"]      = (datetime.now(KST) - vdf["published_at"].dt.tz_convert(KST)).dt.days
 vdf["channel_name"]  = vdf["channel_id"].map(ch_map).fillna("알 수 없음")
 
 # ── 필터 ────────────────────────────────────────────────────────
