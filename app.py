@@ -36,6 +36,12 @@ STOP_WORDS = {
     "비밀번호","아이디","이메일",
     # YouTube 제목 관용구 (주제 아님)
     "알아보자","살펴보자","해봅시다","총망라","세금신고","서류제출",
+    # 화폐/금액 단위
+    "천만원","천만","수수료","수수료율",
+    # 행정 복합어 — 단독으론 주제 아님
+    "신청방법","신청날짜","신청기간","신청서류",
+    # 동사 원형 파편
+    "줍니다","드립니다","나왔습니다","됐습니다","했습니다",
 }
 
 # 동사/형용사 어미로 끝나는 단어 필터 (보시고, 신청해야, 있을까 등)
@@ -43,7 +49,8 @@ _VERB_ENDINGS = re.compile(
     r'(드림|드린|드릴|드렸|시고|세요|십시오|해야|이면|라면'
     r'|는지|은지|을까|없을|합니다|됩니다|니까|아세요|이야기'
     r'|하면서|이므로|보면서|했더니|됐더니|한다면|이라며|라며'
-    r'|려면|려고|더라도|더라면|했는데|됐는데|대해서)$'
+    r'|려면|려고|더라도|더라면|했는데|됐는데|대해서'
+    r'|니다|지는|이는|으로|아요|어요|는데|은데|ㄴ다면)$'
 )
 
 def is_meaningful(word: str) -> bool:
@@ -629,8 +636,15 @@ with tab2:
     render_grid(apply_filter(vdf[vdf["days_ago"] <= 30]))
 
 with tab3:
-    st.caption("최근 365일 이내 업로드 기준")
-    render_grid(apply_filter(vdf[vdf["days_ago"] <= 365]))
+    st.caption("최근 365일 이내 업로드 기준 · 채널 선택 필터 적용")
+    _df3 = vdf[vdf["days_ago"] <= 365].copy()
+    if type_filter == "롱폼만":
+        _df3 = _df3[~_df3["is_short"]]
+    elif type_filter == "쇼츠만":
+        _df3 = _df3[_df3["is_short"]]
+    if sel_ch:
+        _df3 = _df3[_df3["channel_name"].isin(sel_ch)]
+    render_grid(_df3)
 
 with tab_shorts:
     st.caption("최근 90일 쇼츠 영상 기준 · 채널 선택 필터 적용")

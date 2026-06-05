@@ -123,7 +123,7 @@ def fetch_recent_videos(yt, channel_id: str, max_results: int = 50) -> list[dict
             content = item.get("contentDetails", {})
             duration_str = content.get("duration", "PT0S")
             duration_sec = _parse_duration(duration_str)
-            is_short = duration_sec <= 60
+            is_short = duration_sec <= 180
             published = snippet.get("publishedAt", "")
             videos.append({
                 "video_id": vid_id,
