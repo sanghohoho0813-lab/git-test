@@ -38,10 +38,21 @@ export default function AppPage() {
       getFileUrl={data.getFileUrl}
       deleteFile={data.deleteFile}
       profile={profile}
-      updateProfile={updateProfile}
-      org={org}
+      onUpdateProfile={updateProfile}
+      orgName={org?.name}
       orgRole={orgRole}
-      signOut={signOut}
+      onSignOut={signOut}
+      onSaveCompany={data.addCompany}
+      onPatchCompany={data.updateCompany}
+      onDeleteCompany={data.deleteCompany}
+      onSaveEmployee={data.addEmployee}
+      onPatchEmployee={data.updateEmployee}
+      onDeleteEmployee={data.deleteEmployee}
+      onSaveMemo={data.saveCalendarMemo}
+      uploadFn={data.uploadFile}
+      getUrlFn={data.getFileUrl}
+      onOpenBilling={() => {}}
+      onOpenTeam={() => {}}
       trialDaysLeft={trialDaysLeft}
     />
   );
