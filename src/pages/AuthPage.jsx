@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 const FF = "'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
@@ -15,8 +16,13 @@ function Field({ label, type = "text", value, onChange, placeholder }) {
 }
 
 export default function AuthPage() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, session } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState("login"); // login | signup
+
+  useEffect(() => {
+    if (session) navigate("/", { replace: true });
+  }, [session]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
