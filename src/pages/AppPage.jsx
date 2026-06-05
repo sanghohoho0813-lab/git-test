@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useData } from "../hooks/useData";
 import { useSub } from "../hooks/useSub";
@@ -8,6 +9,7 @@ export default function AppPage() {
   const { org, profile, orgRole, signOut, updateProfile } = useAuth();
   const { isActive, trialDaysLeft, loading: subLoading } = useSub(org?.id);
   const data = useData(org?.id);
+  const [showBilling, setShowBilling] = useState(false);
 
   if (subLoading || data.loading) {
     return (
@@ -20,7 +22,7 @@ export default function AppPage() {
     );
   }
 
-  if (!isActive) return <BillingPage />;
+  if (!isActive || showBilling) return <BillingPage onBack={isActive ? () => setShowBilling(false) : null} />;
 
   return (
     <SubsidyApp
@@ -51,7 +53,7 @@ export default function AppPage() {
       onSaveMemo={data.saveCalendarMemo}
       uploadFn={data.uploadFile}
       getUrlFn={data.getFileUrl}
-      onOpenBilling={() => {}}
+      onOpenBilling={() => setShowBilling(true)}
       onOpenTeam={() => {}}
       trialDaysLeft={trialDaysLeft}
     />

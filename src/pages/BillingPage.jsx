@@ -26,7 +26,7 @@ const PLANS = [
   },
 ];
 
-export default function BillingPage() {
+export default function BillingPage({ onBack }) {
   const { org, profile, signOut } = useAuth();
   const { sub, trialDaysLeft } = useSub(org?.id);
   const [loading, setLoading] = useState(null);
@@ -70,6 +70,11 @@ export default function BillingPage() {
   return (
     <div style={{ fontFamily: FF, minHeight: "100vh", background: "#F8FAFC", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div style={{ width: "100%", maxWidth: 640 }}>
+        {onBack && (
+          <button onClick={onBack} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: 15, padding: "8px 0", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
+            ← 앱으로 돌아가기
+          </button>
+        )}
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 32, marginTop: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>📋</div>
