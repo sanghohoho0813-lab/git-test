@@ -13,6 +13,7 @@ var GROUP_COLORS = {
 };
 function gc(group,key){ var g=GROUP_COLORS[group]||GROUP_COLORS["커스텀"]; return g[key]||g.base; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).substr(2,6); }
+function ruuid(){ return crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
 function fD(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate(); }
 function fDFull(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일"; }
 function fMan(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000)+"만원":((n||0).toLocaleString())+"원"; }
@@ -431,9 +432,9 @@ function EmpModal(props){
     var p=programs[st.programId[0]];
     var rounds=init.rounds||(p?JSON.parse(JSON.stringify(p.rounds||[])).map(function(r){return Object.assign({},r,{isPaid:false,received:0});}):[]);
     var certDocs=init.certDocs||(p?(CERT_TYPES[st.programId[0]]||[]).map(function(ct){return{id:uid(),label:ct,done:false,files:[]};}):[]);
-    var empDocs=init.employeeDocs||(p?(p.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid(),done:false,files:[]});}):[]);
+    var empDocs=init.employeeDocs||(p?(p.employeeDocs||[]).map(function(d){return{id:uid(),label:typeof d==="string"?d:d.label||"",done:false,files:[]};}):[]);
     props.onSave({
-      id:init.id||uid(),
+      id:init.id||ruuid(),
       companyId:company.id,
       name:st.name[0].trim(),
       programId:st.programId[0],
@@ -587,7 +588,7 @@ function CompDet(props){
       if(!p)return;
       var rounds=(p.rounds||[]).map(function(r){return Object.assign({},r,{isPaid:false,received:0});});
       props.onSaveEmployee({
-        id:uid(),companyId:company.id,name:row.name,programId:row.programId||p.id,
+        id:ruuid(),companyId:company.id,name:row.name,programId:row.programId||p.id,
         startDate:row.startDate,birthDate:row.birthDate,gender:row.gender||"male",
         status:"active",phone:row.phone,email:row.email,
         totalExpected:p.totalAmount||0,rounds:rounds,
@@ -1085,7 +1086,7 @@ export default function SubsidyApp(props){
         <CompanyEditModal open={true} onClose={function(){stAddComp[1](false);}} company={null}
           onSave={function(data){
             var prog=Object.values(DEFAULT_PROGRAMS)[0];
-            var newComp=Object.assign({id:uid(),createdAt:new Date().toISOString(),companyDocs:(prog?prog.companyDocs||[]:[]).map(function(d){return Object.assign({},d,{id:uid(),done:false,files:[]});})},data);
+            var newComp=Object.assign({id:ruuid(),createdAt:new Date().toISOString(),companyDocs:(prog?prog.companyDocs||[]:[]).map(function(d){return{id:uid(),label:typeof d==="string"?d:d.label||"",done:false,files:[]};})},data);
             onSaveCompany(newComp);
             stAddComp[1](false);
             goCompany(newComp.id);

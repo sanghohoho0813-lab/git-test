@@ -52,7 +52,7 @@ export function useData(orgId) {
   // ── Companies ─────────────────────────────────────────────
 
   async function addCompany(companyData) {
-    const id = companyData.id || uid();
+    const id = companyData.id || crypto.randomUUID();
     setCompanies((prev) => [...prev, { ...companyData, id }]);
     const { error } = await supabase.from("companies").insert({ id, org_id: orgId, data: { ...companyData, id } });
     if (error) {
@@ -84,15 +84,19 @@ export function useData(orgId) {
   // ── Employees ─────────────────────────────────────────────
 
   async function addEmployee(empData) {
-    const id = uid();
+    const id = empData.id || crypto.randomUUID();
+    const empWithId = { ...empData, id };
+    setEmployees((prev) => [...prev, empWithId]);
     const { error } = await supabase.from("employees").insert({
       id,
       org_id: orgId,
       company_id: empData.companyId,
-      data: { ...empData, id },
+      data: empWithId,
     });
-    if (error) throw error;
-    setEmployees((prev) => [...prev, { ...empData, id }]);
+    if (error) {
+      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      throw error;
+    }
     return id;
   }
 
