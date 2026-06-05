@@ -8,7 +8,8 @@ KST = timezone(timedelta(hours=9))
 
 from youtube_api import fetch_all_data, load_cache
 
-MY_CHANNEL_ID = "UCnnqB7SaH8o-NHLonSFfE3A"  # 김팀장의 경영 노트
+# 김팀장 본인 채널 ID (채널 URL 확인 후 입력하세요)
+MY_CHANNEL_ID = ""
 
 STOP_WORDS = {
     "이","그","저","것","수","등","및","에","를","을","가","의","은","는","로","으로",
@@ -32,22 +33,9 @@ st.markdown("""
     overflow: hidden;
     border: 1px solid #2a2a5a;
     margin-bottom: 18px;
-    position: relative;
 }
 .grid-card:hover { border-color: #5a5aaa; }
-
-.my-channel-badge {
-    position: absolute;
-    top: 8px; right: 8px;
-    background: rgba(255,200,0,0.92);
-    color: #000;
-    font-size: 13px;
-    font-weight: 900;
-    padding: 3px 9px;
-    border-radius: 8px;
-    z-index: 20;
-    pointer-events: none;
-}
+.grid-card.mine  { border: 2px solid #ffd700; }
 
 .thumb-wrap {
     display: block;
@@ -69,6 +57,17 @@ st.markdown("""
     font-weight: 900;
     padding: 3px 12px;
     border-radius: 9px;
+    pointer-events: none;
+}
+.mine-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(255,200,0,0.92);
+    color: #000;
+    font-size: 13px;
+    font-weight: 900;
+    padding: 3px 9px;
+    border-radius: 8px;
     pointer-events: none;
 }
 
@@ -166,6 +165,13 @@ with hc3:
         dt = datetime.fromisoformat(cache["fetched_at"]).astimezone(KST)
         st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')} (KST)")
 
+# ── 세션 첫 진입 시 자동 새로고침 ─────────────────────────────
+if not st.session_state.get("auto_refreshed") and api_key:
+    st.session_state.auto_refreshed = True
+    with st.spinner("최신 데이터 불러오는 중..."):
+        cache = fetch_all_data(api_key)
+    st.rerun()
+
 if do_refresh:
     if not api_key:
         st.error("API 키가 설정되지 않았습니다.")
@@ -189,7 +195,7 @@ vdf      = pd.DataFrame(videos_raw)
 vdf["published_at"]  = pd.to_datetime(vdf["published_at"], utc=True)
 vdf["days_ago"]      = (datetime.now(KST) - vdf["published_at"].dt.tz_convert(KST)).dt.days
 vdf["channel_name"]  = vdf["channel_id"].map(ch_map).fillna("알 수 없음")
-vdf["is_mine"]       = vdf["channel_id"] == MY_CHANNEL_ID
+vdf["is_mine"]       = (vdf["channel_id"] == MY_CHANNEL_ID) if MY_CHANNEL_ID else False
 
 # ── 필터 ────────────────────────────────────────────────────────
 st.markdown("---")
@@ -219,7 +225,7 @@ def render_keywords(df: pd.DataFrame):
     words = []
     for title in df["title"]:
         tokens = re.findall(r"[가-힣]{2,}", str(title))
-        words.extend([w for w in tokens if w not in STOP_WORDS and len(w) >= 2])
+        words.extend([w for w in tokens if w not in STOP_WORDS])
     if not words:
         return
     top_kw = Counter(words).most_common(15)
@@ -239,9 +245,9 @@ NCOLS = 5
 def build_card(rank: int, row) -> str:
     vid_id  = str(row.get("video_id", ""))
     thumb   = f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg" if vid_id else ""
-    url     = row["url"]
-    title   = str(row["title"]).replace("<","&lt;").replace(">","&gt;")
-    channel = str(row["channel_name"]).replace("<","&lt;")
+    url     = str(row["url"])
+    title   = str(row["title"]).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+    channel = str(row["channel_name"]).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
     views   = f"{int(row['view_count']):,}"
     likes   = f"{int(row['like_count']):,}"
     cmts    = f"{int(row['comment_count']):,}"
@@ -256,46 +262,47 @@ def build_card(rank: int, row) -> str:
     elif rank == 3: rc = "#cd7f32"
     else:           rc = "#aaa"
 
-    mine_badge = '<div class="my-channel-badge">👤 내 채널</div>' if is_mine else ""
-    mine_pill  = '<span class="pill pill-mine">👤 내 채널</span>' if is_mine else ""
-    card_border = 'border: 2px solid #ffd700;' if is_mine else ''
+    mine_cls    = " mine" if is_mine else ""
+    # span 태그 사용 — div 중첩으로 인한 Streamlit 렌더링 오류 방지
+    mine_badge  = '<span class="mine-badge">👤 내 채널</span>' if is_mine else ""
+    mine_pill   = '<span class="pill pill-mine">👤 내 채널</span>' if is_mine else ""
 
-    return f"""
-<div class="grid-card" style="{card_border}">
-  {mine_badge}
-  <a class="thumb-wrap" href="{url}" target="_blank">
-    <img src="{thumb}" alt="thumbnail" loading="lazy">
-    <div class="rank-badge" style="color:{rc}">#{rank}</div>
-  </a>
-  <div class="card-body">
-    <div class="card-channel">{channel}</div>
-    <a href="{url}" target="_blank" style="text-decoration:none;">
-      <div class="card-title">{title}</div>
-    </a>
-    <div class="card-stats">
-      <span class="pill pill-view">👁️ {views}</span>
-      <span class="pill pill-like">👍 {likes}</span>
-      <span class="pill pill-cmt">💬 {cmts}</span>
-      <span class="pill {t_cls}">{t_txt}</span>
-      <span class="pill pill-date">📅 {date}</span>
-      {mine_pill}
-    </div>
-  </div>
-</div>"""
+    return (
+        f'<div class="grid-card{mine_cls}">'
+        f'<a class="thumb-wrap" href="{url}" target="_blank">'
+        f'<img src="{thumb}" alt="thumbnail" loading="lazy">'
+        f'<span class="rank-badge" style="color:{rc}">#{rank}</span>'
+        f'{mine_badge}'
+        f'</a>'
+        f'<div class="card-body">'
+        f'<div class="card-channel">{channel}</div>'
+        f'<a href="{url}" target="_blank" style="text-decoration:none;">'
+        f'<div class="card-title">{title}</div>'
+        f'</a>'
+        f'<div class="card-stats">'
+        f'<span class="pill pill-view">👁 {views}</span>'
+        f'<span class="pill pill-like">👍 {likes}</span>'
+        f'<span class="pill pill-cmt">💬 {cmts}</span>'
+        f'<span class="pill {t_cls}">{t_txt}</span>'
+        f'<span class="pill pill-date">📅 {date}</span>'
+        f'{mine_pill}'
+        f'</div>'
+        f'</div>'
+        f'</div>'
+    )
 
 def render_grid(df: pd.DataFrame):
     if df.empty:
         st.info("해당 기간에 영상이 없습니다.")
         return
 
-    # ① 키워드
     render_keywords(df)
 
-    # ② 요약 지표
     top_v = df.iloc[0]
     avg_v = int(df["view_count"].mean())
     total = len(df)
-    mine_in_top = df[df["is_mine"]]
+    mine_rows = df[df["is_mine"]]
+
     s1, s2, s3 = st.columns(3)
     with s1:
         st.markdown(f"""<div class="summary-box">
@@ -310,13 +317,13 @@ def render_grid(df: pd.DataFrame):
             <div class="summary-sub">분석 영상 {total}개</div>
         </div>""", unsafe_allow_html=True)
     with s3:
-        if not mine_in_top.empty:
-            best_mine = mine_in_top.iloc[0]
-            mine_rank = int(mine_in_top.index[0]) + 1
+        if not mine_rows.empty:
+            best = mine_rows.iloc[0]
+            best_rank = int(mine_rows.index[0]) + 1
             st.markdown(f"""<div class="summary-box" style="border-color:#ffd700;">
                 <div class="summary-label">👤 내 채널 최고 순위</div>
-                <div class="summary-value" style="color:#ffd700;">#{mine_rank}위</div>
-                <div class="summary-sub">👁️ {int(best_mine['view_count']):,}회</div>
+                <div class="summary-value" style="color:#ffd700;">#{best_rank}위</div>
+                <div class="summary-sub">👁 {int(best['view_count']):,}회</div>
             </div>""", unsafe_allow_html=True)
         else:
             top2 = df.iloc[1] if len(df) > 1 else top_v
@@ -326,7 +333,6 @@ def render_grid(df: pd.DataFrame):
                 <div class="summary-sub">{top2['channel_name']}</div>
             </div>""", unsafe_allow_html=True)
 
-    # ③ 5열 그리드
     col_buckets: list[list[str]] = [[] for _ in range(NCOLS)]
     for i, row in df.iterrows():
         col_buckets[i % NCOLS].append(build_card(i + 1, row))
@@ -359,14 +365,13 @@ with tab3:
 with tab4:
     st.subheader("벤치마킹 채널 현황")
     if channels_raw:
-        ch_df = pd.DataFrame(channels_raw)[["channel_id", "title", "subscriber_count", "video_count", "view_count"]]
-        # 구독자 대비 조회수 비율 (구독자 1명당 평균 조회수)
+        ch_df = pd.DataFrame(channels_raw)[["channel_id","title","subscriber_count","video_count","view_count"]]
         ch_df["구독자당 조회수"] = (
             ch_df["view_count"] / ch_df["subscriber_count"].replace(0, 1)
         ).round(1)
         ch_df["내 채널"] = ch_df["channel_id"].apply(lambda x: "👤" if x == MY_CHANNEL_ID else "")
         ch_df = ch_df.drop(columns=["channel_id"])
-        ch_df.columns = ["채널명", "구독자 수", "총 영상 수", "총 조회수", "구독자당 조회수", ""]
+        ch_df.columns = ["채널명","구독자 수","총 영상 수","총 조회수","구독자당 조회수",""]
         ch_df = ch_df.sort_values("구독자 수", ascending=False).reset_index(drop=True)
         ch_df.index += 1
         st.caption("구독자당 조회수: 총 조회수 ÷ 구독자 수 — 숫자가 클수록 구독자 규모 대비 영향력이 큰 채널")
