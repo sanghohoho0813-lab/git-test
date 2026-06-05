@@ -1176,6 +1176,112 @@ var SIDEBAR_NAV = [
   {key:"programs",  icon:"⚙️", label:"지원금 관리"},
 ];
 
+// ── Cmd+K 글로벌 검색 팔레트 ─────────────────────────────
+function CmdKSearch(props){
+  var open=props.open; var onClose=props.onClose;
+  var companies=props.companies||[]; var employees=props.employees||[];
+  var programs=props.programs||{}; var goCompany=props.goCompany;
+  var setView=props.setView;
+
+  var stQ=useState(""); var q=stQ[0]; var setQ=stQ[1];
+  var stSel=useState(0); var sel=stSel[0]; var setSel=stSel[1];
+  var inputRef=useRef();
+
+  useEffect(function(){
+    if(open){ setQ(""); setSel(0); setTimeout(function(){ inputRef.current&&inputRef.current.focus(); },30); }
+  },[open]);
+
+  var results=useMemo(function(){
+    var list=[];
+    var qn=q.trim().toLowerCase();
+    if(!qn) return list;
+    companies.forEach(function(c){
+      if((c.name||"").toLowerCase().indexOf(qn)>=0||
+         (c.bizNo||"").replace(/-/g,"").indexOf(qn.replace(/-/g,""))>=0){
+        list.push({type:"company",id:c.id,title:c.name,sub:c.bizNo||"",icon:"🏢"});
+      }
+    });
+    employees.forEach(function(e){
+      if((e.name||"").toLowerCase().indexOf(qn)>=0||
+         (e.phone||"").replace(/-/g,"").indexOf(qn.replace(/-/g,""))>=0){
+        var c=companies.find(function(x){return x.id===e.companyId;});
+        list.push({type:"employee",id:e.companyId,empId:e.id,title:e.name,sub:c?c.name:"",icon:"👤"});
+      }
+    });
+    Object.values(programs).forEach(function(p){
+      if((p.name||"").toLowerCase().indexOf(qn)>=0){
+        list.push({type:"program",id:"programs",title:p.name,sub:p.group||"",icon:"📋"});
+      }
+    });
+    return list.slice(0,12);
+  },[q,companies,employees,programs]);
+
+  useEffect(function(){ setSel(0); },[results]);
+
+  function activate(r){
+    if(!r) return;
+    if(r.type==="company"||r.type==="employee"){ goCompany(r.id); }
+    else if(r.type==="program"){ setView("programs"); }
+    onClose();
+  }
+
+  function onKey(e){
+    if(e.key==="ArrowDown"){ e.preventDefault(); setSel(function(s){return Math.min(s+1,results.length-1);}); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); setSel(function(s){return Math.max(s-1,0);}); }
+    else if(e.key==="Enter"){ e.preventDefault(); activate(results[sel]); }
+    else if(e.key==="Escape"){ onClose(); }
+  }
+
+  if(!open) return null;
+
+  var TYPE_LABEL={company:"업체",employee:"직원",program:"지원금"};
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(15,23,42,0.55)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"80px 16px 16px"}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:560,boxShadow:"0 20px 60px rgba(15,23,42,0.3)",overflow:"hidden"}} onClick={function(e){e.stopPropagation();}}>
+        {/* 검색 입력 */}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"16px 20px",borderBottom:"1px solid #F1F5F9"}}>
+          <span style={{fontSize:20,color:"#94A3B8",flexShrink:0}}>🔍</span>
+          <input ref={inputRef} value={q} onChange={function(e){setQ(e.target.value);}} onKeyDown={onKey}
+            placeholder="업체명, 직원명, 지원금명으로 검색…"
+            style={{flex:1,border:"none",outline:"none",fontSize:17,fontFamily:FF,color:"#1E293B",background:"transparent"}}/>
+          <kbd style={{fontSize:13,color:"#94A3B8",background:"#F1F5F9",border:"1px solid #E2E8F0",borderRadius:5,padding:"2px 7px",flexShrink:0}}>ESC</kbd>
+        </div>
+        {/* 결과 목록 */}
+        <div style={{maxHeight:360,overflowY:"auto",padding:q?"8px 0":"0"}}>
+          {q&&results.length===0&&(
+            <div style={{padding:"28px 20px",textAlign:"center",fontSize:16,color:"#94A3B8"}}>검색 결과가 없습니다</div>
+          )}
+          {!q&&(
+            <div style={{padding:"24px 20px",textAlign:"center",fontSize:16,color:"#94A3B8",lineHeight:1.8}}>
+              <div style={{fontSize:28,marginBottom:8}}>⌘</div>
+              업체명, 직원명, 지원금명을 입력하세요<br/>
+              <span style={{fontSize:14}}>↑↓ 선택 · Enter 이동 · ESC 닫기</span>
+            </div>
+          )}
+          {results.map(function(r,i){
+            var active=i===sel;
+            return(
+              <div key={r.type+"-"+(r.empId||r.id)+"-"+i}
+                style={{display:"flex",alignItems:"center",gap:12,padding:"11px 20px",cursor:"pointer",background:active?"#EFF6FF":"transparent",transition:"background 0.1s"}}
+                onMouseEnter={function(){setSel(i);}}
+                onClick={function(){activate(r);}}>
+                <span style={{fontSize:22,flexShrink:0}}>{r.icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:16,fontWeight:600,color:active?"#2563EB":"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.title}</div>
+                  {r.sub&&<div style={{fontSize:14,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.sub}</div>}
+                </div>
+                <span style={{fontSize:13,color:active?"#2563EB":"#CBD5E1",background:active?"#DBEAFE":"#F8FAFC",border:"1px solid "+(active?"#BFDBFE":"#E2E8F0"),borderRadius:5,padding:"2px 8px",flexShrink:0,fontWeight:500}}>{TYPE_LABEL[r.type]}</span>
+                {active&&<span style={{fontSize:14,color:"#93C5FD",flexShrink:0}}>↵</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SubsidyApp(props){
   var companies=props.companies||[];
   var employees=props.employees||[];
@@ -1197,6 +1303,7 @@ export default function SubsidyApp(props){
   var onUpdateProfile=props.onUpdateProfile||function(){};
 
   var stView=useState("dashboard");
+  var stCmdK=useState(false);
   var stCompany=useState(null);
   var stAddComp=useState(false);
   var stProfileOpen=useState(false);
@@ -1205,6 +1312,17 @@ export default function SubsidyApp(props){
   function goCompany(id){stCompany[1](id);stView[1]("company");}
   function goBack(){stView[1]("dashboard");stCompany[1](null);}
   function addLog(){}
+
+  useEffect(function(){
+    function handler(e){
+      if((e.metaKey||e.ctrlKey)&&e.key==="k"){
+        e.preventDefault();
+        stCmdK[1](function(o){return !o;});
+      }
+    }
+    window.addEventListener("keydown",handler);
+    return function(){ window.removeEventListener("keydown",handler); };
+  },[]);
 
   var selectedCompany=stCompany[0]?companies.find(function(c){return c.id===stCompany[0];})||null:null;
   var stPN=useState(profile.display_name||"");
@@ -1314,6 +1432,12 @@ export default function SubsidyApp(props){
             )}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+            <button onClick={function(){stCmdK[1](true);}} title="통합 검색 (Ctrl+K)"
+              style={{display:"flex",alignItems:"center",gap:7,padding:"9px 16px",borderRadius:10,border:"1.5px solid #E2E8F0",background:"#F8FAFC",color:"#64748B",fontSize:15,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"}}>
+              <span>🔍</span>
+              <span className="hide-mobile">검색</span>
+              <kbd style={{fontSize:12,background:"#E2E8F0",border:"1px solid #CBD5E1",borderRadius:4,padding:"1px 5px",color:"#94A3B8",fontFamily:"monospace"}} className="hide-mobile">⌘K</kbd>
+            </button>
             <NotifBell employees={employees} companies={companies} programs={programs} goCompany={goCompany} settings={profile.settings||{}}/>
             {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
               <button style={btnP} className="hover-lift" onClick={function(){stAddComp[1](true);}}>+ 업체 추가</button>
@@ -1396,6 +1520,17 @@ export default function SubsidyApp(props){
           }}
         />
       )}
+
+      {/* Cmd+K 검색 팔레트 */}
+      <CmdKSearch
+        open={stCmdK[0]}
+        onClose={function(){stCmdK[1](false);}}
+        companies={companies}
+        employees={employees}
+        programs={programs}
+        goCompany={goCompany}
+        setView={function(v){stView[1](v);stCompany[1](null);}}
+      />
 
       {/* Profile Modal */}
       <Modal open={stProfileOpen[0]} onClose={function(){stProfileOpen[1](false);}} title="👤 프로필 설정" width={420}>
