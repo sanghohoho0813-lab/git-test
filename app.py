@@ -451,14 +451,16 @@ def render_keywords(df: pd.DataFrame, tab_key: str = "") -> str | None:
         {tags}
     </div>""", unsafe_allow_html=True)
 
-    selected = st.pills(
-        "키워드 필터 (클릭 → 관련 영상만  /  다시 클릭 → 전체 보기)",
-        [w for w, _ in qualified],
+    kw_options = ["전체 보기"] + [w for w, _ in qualified]
+    choice = st.radio(
+        "키워드 필터 (선택 → 관련 영상만 / 전체 보기 → 전체)",
+        kw_options,
+        horizontal=True,
+        index=0,
         key=f"kw_pills_{tab_key or 'default'}",
-        selection_mode="single",
-        default=None,
+        label_visibility="collapsed",
     )
-    return selected
+    return None if choice == "전체 보기" else choice
 
 # ── 주목 콘텐츠 추천 ──────────────────────────────────────────
 def _extract_top_topics(df: pd.DataFrame, n: int = 4) -> list:
