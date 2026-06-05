@@ -5,6 +5,9 @@ from datetime import datetime, timezone
 from googleapiclient.discovery import build
 
 CHANNELS = [
+    # ── 내 채널 ─────────────────────────────────────────────────
+    {"url": "https://www.youtube.com/@김팀장의경영노트", "handle": "@김팀장의경영노트"},
+    # ── 벤치마킹 채널 ────────────────────────────────────────────
     {"url": "https://www.youtube.com/channel/UCnnqB7SaH8o-NHLonSFfE3A", "id": "UCnnqB7SaH8o-NHLonSFfE3A"},
     {"url": "https://www.youtube.com/@소상공인도우미", "handle": "@소상공인도우미"},
     {"url": "https://www.youtube.com/@onetop-1", "handle": "@onetop-1"},
@@ -19,6 +22,11 @@ CHANNELS = [
     {"url": "https://www.youtube.com/@사장님성장솔루션", "handle": "@사장님성장솔루션"},
     {"url": "https://www.youtube.com/@사장노트", "handle": "@사장노트"},
     {"url": "https://www.youtube.com/@슬기로운정책지원", "handle": "@슬기로운정책지원"},
+    {"url": "https://www.youtube.com/@rodemtax", "handle": "@rodemtax"},
+    {"url": "https://www.youtube.com/@nicetax", "handle": "@nicetax"},
+    {"url": "https://www.youtube.com/@세금전문회계사김희연", "handle": "@세금전문회계사김희연"},
+    {"url": "https://www.youtube.com/@dowssem", "handle": "@dowssem"},
+    {"url": "https://www.youtube.com/@세무사", "handle": "@세무사"},
 ]
 
 CACHE_FILE = "data/cache.json"

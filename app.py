@@ -8,8 +8,7 @@ KST = timezone(timedelta(hours=9))
 
 from youtube_api import fetch_all_data, load_cache
 
-# 김팀장 본인 채널 ID (채널 URL 확인 후 입력하세요)
-MY_CHANNEL_ID = ""
+MY_CHANNEL_HANDLE = "김팀장의경영노트"  # @핸들에서 @ 제거한 값
 
 STOP_WORDS = {
     # 조사/어미
@@ -172,6 +171,7 @@ st.markdown("""
 .pill-long  { background:#103030; color:#60d8e8; }
 .pill-date  { background:#222; color:#aaa; font-size:18px; }
 .pill-mine  { background:#3a3000; color:#ffd700; font-weight:800; }
+.pill-rate  { background:#1a3a1a; color:#80e060; font-size:18px; font-weight:700; }
 
 .summary-box {
     background: #16213e;
@@ -288,6 +288,15 @@ videos_raw   = cache.get("videos", [])
 if not videos_raw:
     st.warning("데이터가 없습니다. 새로고침을 눌러주세요.")
     st.stop()
+
+# 내 채널 ID를 캐시된 채널 목록에서 핸들로 검색
+_my_ch = next(
+    (r for r in channels_raw
+     if r.get("custom_url", "").lower() == MY_CHANNEL_HANDLE.lower()
+     or MY_CHANNEL_HANDLE.lower() in r.get("title", "").lower()),
+    None
+)
+MY_CHANNEL_ID = _my_ch["channel_id"] if _my_ch else ""
 
 def duration_bucket(sec: int) -> str:
     if sec <= 60:   return "① 쇼츠 (1분 이하)"
@@ -489,10 +498,13 @@ def build_card(rank: int, row, avg_views: int = 0) -> str:
     url     = str(row["url"])
     title   = str(row["title"]).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
     channel = str(row["channel_name"]).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
-    raw_views = int(row["view_count"])
-    views   = f"{raw_views:,}"
-    likes   = f"{int(row['like_count']):,}"
-    cmts    = f"{int(row['comment_count']):,}"
+    raw_views  = int(row["view_count"])
+    raw_likes  = int(row["like_count"])
+    views      = f"{raw_views:,}"
+    likes      = f"{raw_likes:,}"
+    cmts       = f"{int(row['comment_count']):,}"
+    like_rate  = round(raw_likes / raw_views * 100, 1) if raw_views > 0 else 0.0
+    rate_str   = f"{like_rate:.1f}%"
     dt      = row["published_at"]
     date    = f"{dt.year}년 {dt.month}월 {dt.day}일"
     t_cls   = "pill-short" if row["is_short"] else "pill-long"
@@ -531,6 +543,7 @@ def build_card(rank: int, row, avg_views: int = 0) -> str:
         f'<span class="pill pill-view">조회수 {views}</span>'
         f'<span class="pill pill-like">좋아요 {likes}</span>'
         f'<span class="pill pill-cmt">댓글 {cmts}</span>'
+        f'<span class="pill pill-rate">좋아요율 {rate_str}</span>'
         f'<span class="pill {t_cls}">{t_txt}</span>'
         f'<span class="pill pill-date">📅 {date}</span>'
         f'{mine_pill}'
@@ -597,10 +610,11 @@ def render_grid(df: pd.DataFrame):
             st.markdown("".join(cards), unsafe_allow_html=True)
 
 # ── 탭 ────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab_rec, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab_shorts, tab_rec, tab4, tab5 = st.tabs([
     "🔥 이번 주 TOP",
     "📅 이번 달 TOP",
     "🏆 올해 TOP",
+    "⚡ 쇼츠 TOP",
     "📌 콘텐츠 추천",
     "📊 채널 현황",
     "🔍 심층 분석",
@@ -617,6 +631,13 @@ with tab2:
 with tab3:
     st.caption("최근 365일 이내 업로드 기준")
     render_grid(apply_filter(vdf[vdf["days_ago"] <= 365]))
+
+with tab_shorts:
+    st.caption("최근 90일 쇼츠 영상 기준 · 채널 선택 필터 적용")
+    shorts_df = vdf[(vdf["is_short"]) & (vdf["days_ago"] <= 90)].copy()
+    if sel_ch:
+        shorts_df = shorts_df[shorts_df["channel_name"].isin(sel_ch)]
+    render_grid(shorts_df)
 
 with tab_rec:
     st.markdown("### 📌 콘텐츠 주제 추천")
@@ -754,5 +775,42 @@ with tab5:
     st.info(f"📌 평균 조회수 최고 구간: **{best_buck}** — 이 길이 영상이 가장 높은 반응을 얻고 있습니다.")
     st.dataframe(
         buck_stats.style.format({"평균 조회수": "{:,}", "영상 수": "{:,}", "최고 조회수": "{:,}"}),
+        use_container_width=True,
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── 4. 채널별 업로드 주기 ────────────────────────────────
+    st.markdown("""<div class="analysis-section">
+        <div class="analysis-title">📆 채널별 업로드 주기</div>
+        <div class="analysis-desc">경쟁 채널들이 얼마나 자주 영상을 올리는지 분석합니다. 숫자가 낮을수록 업로드가 잦습니다.</div>
+    </div>""", unsafe_allow_html=True)
+
+    freq_rows = []
+    for ch_name, grp in vdf.groupby("channel_name"):
+        dates = grp["published_at"].dt.tz_convert(KST).sort_values()
+        recent7  = int((grp["days_ago"] <= 7).sum())
+        recent30 = int((grp["days_ago"] <= 30).sum())
+        if len(dates) >= 2:
+            diffs = dates.diff().dt.total_seconds().dropna() / 86400
+            avg_days = round(diffs.mean(), 1)
+        else:
+            avg_days = None
+        freq_rows.append({
+            "채널명": ch_name,
+            "수집 영상": len(grp),
+            "최근 7일 업로드": recent7,
+            "최근 30일 업로드": recent30,
+            "평균 업로드 주기(일)": avg_days,
+        })
+    freq_df = pd.DataFrame(freq_rows).sort_values("평균 업로드 주기(일)").reset_index(drop=True)
+    freq_df.index += 1
+    st.dataframe(
+        freq_df.style.format({
+            "수집 영상": "{:,}",
+            "최근 7일 업로드": "{:,}",
+            "최근 30일 업로드": "{:,}",
+            "평균 업로드 주기(일)": lambda x: f"{x:.1f}일" if x is not None and x == x else "데이터 부족",
+        }),
         use_container_width=True,
     )
