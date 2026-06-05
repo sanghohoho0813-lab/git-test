@@ -98,11 +98,11 @@ var COMMON_EXTRA_DOCS = ["신분증 사본","근로자 통장사본","연차사�
 
 // ── 스타일 상수 ──────────────────────────────────────────
 var FF = "'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
-var inp = {width:"100%",padding:"10px 14px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:FF};
+var inp = {width:"100%",padding:"11px 15px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:15,outline:"none",boxSizing:"border-box",fontFamily:FF,color:"#1E293B",background:"#fff",transition:"border-color 0.15s"};
 var inpKo = Object.assign({},inp,{lang:"ko"});
-var btnP = {background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FF};
-var btnS = {background:"#F1F5F9",color:"#475569",border:"1px solid #E2E8F0",borderRadius:10,padding:"10px 20px",fontSize:14,fontWeight:500,cursor:"pointer",fontFamily:FF};
-var btnSm = Object.assign({},btnS,{padding:"6px 14px",fontSize:12});
+var btnP = {background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",border:"none",borderRadius:10,padding:"11px 22px",fontSize:15,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"};
+var btnS = {background:"#fff",color:"#475569",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"11px 22px",fontSize:15,fontWeight:500,cursor:"pointer",fontFamily:FF};
+var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontFamily:FF};
 
 // ── 기본 UI 컴포넌트 ─────────────────────────────────────
 function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||600,maxHeight:"90vh",overflow:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"18px 24px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:17,fontWeight:700}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#94A3B8"}}>✕</button></div><div style={{padding:24}}>{props.children}</div></div></div>); }
@@ -869,6 +869,16 @@ function ProgramsList(props){
 }
 
 // ── Main SubsidyApp export ────────────────────────────────
+// ── 사이드바 네비 아이템 ──────────────────────────────────
+var SIDEBAR_NAV = [
+  {key:"dashboard", icon:"📊", label:"대시보드"},
+  {key:"company",   icon:"🏢", label:"업체 관리"},
+  {key:"wage",      icon:"🧮", label:"급여 계산기"},
+  {key:"simulator", icon:"📈", label:"수령액 시뮬"},
+  {key:"diagnosis", icon:"🎯", label:"채용 진단"},
+  {key:"programs",  icon:"⚙️", label:"지원금 관리"},
+];
+
 export default function SubsidyApp(props){
   var companies=props.companies||[];
   var employees=props.employees||[];
@@ -887,106 +897,176 @@ export default function SubsidyApp(props){
   var onSavePrograms=props.onSavePrograms||function(){};
   var onSaveMemo=props.onSaveMemo||function(){};
   var onSignOut=props.onSignOut||function(){};
-  var onOpenBilling=props.onOpenBilling||function(){};
-  var onOpenTeam=props.onOpenTeam||function(){};
   var onUpdateProfile=props.onUpdateProfile||function(){};
 
-  var stView=useState("dashboard"); // dashboard | company | tools | programs
-  var stCompany=useState(null);     // selected company id
-  var stAddComp=useState(false);    // add company modal
-  var stProfileOpen=useState(false);// profile modal
-  var stLog=useState([]);           // activity log
-
-  var TAB=[
-    {key:"dashboard",label:"📊 대시보드"},
-    {key:"tools",label:"🛠 도구"},
-    {key:"programs",label:"⚙️ 지원금"}
-  ];
+  var stView=useState("dashboard");
+  var stCompany=useState(null);
+  var stAddComp=useState(false);
+  var stProfileOpen=useState(false);
+  var stMobileNav=useState(false);
 
   function goCompany(id){stCompany[1](id);stView[1]("company");}
   function goBack(){stView[1]("dashboard");stCompany[1](null);}
-  function addLog(txt){stLog[1](function(prev){return [{text:txt,at:new Date().toISOString()}].concat(prev).slice(0,50);});}
+  function addLog(){}
 
   var selectedCompany=stCompany[0]?companies.find(function(c){return c.id===stCompany[0];})||null:null;
-
-  // Profile modal state
   var stPN=useState(profile.display_name||"");
   var stPT=useState(profile.title||"");
   var stDDA=useState((profile.settings&&profile.settings.ddayAlert)||7);
   function saveProfile(){onUpdateProfile({display_name:stPN[0],title:stPT[0],settings:Object.assign({},profile.settings||{},{ddayAlert:stDDA[0]})});stProfileOpen[1](false);}
 
+  // 현재 활성 탭
+  var activeKey=stView[0]==="company"?"company":stView[0];
+
+  // 사이드바 스타일
+  var SB={
+    wrap:{width:240,minHeight:"100vh",background:"#1E293B",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,fontFamily:FF},
+    brand:{padding:"24px 20px 20px",borderBottom:"1px solid rgba(255,255,255,0.08)"},
+    brandTitle:{fontSize:17,fontWeight:800,color:"#fff",letterSpacing:"-0.3px"},
+    brandSub:{fontSize:12,color:"#64748B",marginTop:3},
+    nav:{flex:1,padding:"12px 0",overflowY:"auto"},
+    item:function(active){return{display:"flex",alignItems:"center",gap:10,padding:"11px 20px",fontSize:14,fontWeight:active?600:400,color:active?"#fff":"#94A3B8",background:active?"rgba(37,99,235,0.3)":"transparent",borderLeft:active?"3px solid #3B82F6":"3px solid transparent",cursor:"pointer",transition:"all 0.15s",userSelect:"none"};},
+    icon:{fontSize:16,width:22,textAlign:"center"},
+    bottom:{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,0.08)"},
+    user:{display:"flex",alignItems:"center",gap:10,marginBottom:14},
+    avatar:{width:36,height:36,borderRadius:18,background:"linear-gradient(135deg,#3B82F6,#1D4ED8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:"#fff",fontWeight:700,flexShrink:0},
+    userName:{fontSize:14,fontWeight:600,color:"#E2E8F0",lineHeight:1.3},
+    userRole:{fontSize:12,color:"#64748B"},
+    actions:{display:"flex",gap:6},
+    actionBtn:function(c){return{flex:1,padding:"7px 0",fontSize:12,fontWeight:500,borderRadius:7,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:c||"#94A3B8",cursor:"pointer",textAlign:"center"};},
+  };
+
+  function NavItem(p){
+    return(
+      <div style={SB.item(p.active)} onClick={p.onClick}
+        onMouseEnter={function(e){if(!p.active)e.currentTarget.style.background="rgba(255,255,255,0.05)";}}
+        onMouseLeave={function(e){if(!p.active)e.currentTarget.style.background="transparent";}}>
+        <span style={SB.icon}>{p.icon}</span>
+        <span>{p.label}</span>
+      </div>
+    );
+  }
+
+  var trialDays=props.trialDaysLeft;
+
   return(
-    <div style={{minHeight:"100vh",background:"#F8FAFC",fontFamily:FF}}>
-      {/* Top Nav */}
-      <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"0 16px",position:"sticky",top:0,zIndex:100}}>
-        <div style={{maxWidth:960,margin:"0 auto",display:"flex",alignItems:"center",gap:12,height:52}}>
-          <div style={{fontSize:16,fontWeight:800,color:"#1E293B",whiteSpace:"nowrap"}}>
-            🏛 고용지원금 Pro
+    <div style={{minHeight:"100vh",background:"#F1F5F9",fontFamily:FF,display:"flex"}}>
+
+      {/* ── 사이드바 ── */}
+      <div style={SB.wrap}>
+        {/* 브랜드 */}
+        <div style={SB.brand}>
+          <div style={SB.brandTitle}>🏛 고용지원금 Pro</div>
+          {orgName&&<div style={SB.brandSub}>{orgName}</div>}
+          {trialDays!==null&&trialDays!==undefined&&(
+            <div style={{marginTop:8,display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,background:"rgba(251,191,36,0.15)",border:"1px solid rgba(251,191,36,0.3)"}}>
+              <span style={{fontSize:10}}>⏳</span>
+              <span style={{fontSize:11,color:"#FCD34D",fontWeight:600}}>무료체험 {trialDays}일 남음</span>
+            </div>
+          )}
+        </div>
+
+        {/* 네비 */}
+        <div style={SB.nav}>
+          {SIDEBAR_NAV.map(function(n){
+            return(
+              <NavItem key={n.key} icon={n.icon} label={n.label} active={activeKey===n.key}
+                onClick={function(){stView[1](n.key);stCompany[1](null);}}
+              />
+            );
+          })}
+        </div>
+
+        {/* 하단: 유저 정보 + 버튼 */}
+        <div style={SB.bottom}>
+          <div style={SB.user} onClick={function(){stProfileOpen[1](true);}} title="프로필 설정">
+            <div style={SB.avatar}>{(profile.display_name||"?").charAt(0)}</div>
+            <div style={{minWidth:0}}>
+              <div style={SB.userName}>{profile.display_name||"사용자"}</div>
+              <div style={SB.userRole}>{profile.title||"담당자"}</div>
+            </div>
           </div>
-          {orgName&&<div style={{fontSize:12,color:"#64748B",background:"#F1F5F9",padding:"3px 8px",borderRadius:4}}>{orgName}</div>}
-          <div style={{flex:1}}/>
-          <div style={{display:"flex",gap:2}}>
-            {TAB.map(function(t){return(
-              <button key={t.key} onClick={function(){stView[1](t.key);stCompany[1](null);}}
-                style={{padding:"6px 12px",borderRadius:6,fontSize:12,cursor:"pointer",fontWeight:stView[0]===t.key&&stCompany[0]===null?700:400,background:stView[0]===t.key&&stCompany[0]===null?"#EFF6FF":"transparent",color:stView[0]===t.key&&stCompany[0]===null?"#2563EB":"#64748B",border:"none"}}>
-                {t.label}
-              </button>
-            );})}
+          <div style={SB.actions}>
+            <button style={SB.actionBtn()} onClick={function(){stProfileOpen[1](true);}}>설정</button>
+            <button style={SB.actionBtn("#FCA5A5")} onClick={onSignOut}>로그아웃</button>
           </div>
-          <button onClick={function(){stProfileOpen[1](true);}} style={Object.assign({},btnSm,{fontSize:11})}>
-            {profile.display_name||"프로필"}
-          </button>
-          <button onClick={onOpenTeam} style={Object.assign({},btnSm,{fontSize:11})}>팀 설정</button>
-          <button onClick={onOpenBilling} style={Object.assign({},btnSm,{fontSize:11,background:"#FFFBEB",color:"#D97706",border:"1px solid #FDE68A"})}>구독</button>
-          <button onClick={onSignOut} style={Object.assign({},btnSm,{fontSize:11,color:"#DC2626",border:"1px solid #FECACA"})}>로그아웃</button>
         </div>
       </div>
 
-      {/* Main */}
-      <div style={{maxWidth:960,margin:"0 auto",padding:"20px 16px"}}>
-        {/* Dashboard view */}
-        {stView[0]==="dashboard"&&stCompany[0]===null&&(
+      {/* ── 콘텐츠 영역 ── */}
+      <div style={{marginLeft:240,flex:1,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+        {/* 상단 헤더바 */}
+        <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"0 32px",height:60,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
           <div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-              <h1 style={{margin:0,fontSize:20,fontWeight:800}}>대시보드</h1>
+            {stView[0]==="company"&&selectedCompany?(
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <button onClick={goBack} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:14,padding:0}}>← 업체 목록</button>
+                <span style={{color:"#CBD5E1"}}>/</span>
+                <span style={{fontSize:16,fontWeight:700,color:"#1E293B"}}>{selectedCompany.name}</span>
+              </div>
+            ):(
+              <span style={{fontSize:17,fontWeight:700,color:"#1E293B"}}>
+                {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).icon}&nbsp;
+                {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).label}
+              </span>
+            )}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
               <button style={btnP} onClick={function(){stAddComp[1](true);}}>+ 업체 추가</button>
-            </div>
+            )}
+          </div>
+        </div>
+
+        {/* 페이지 콘텐츠 */}
+        <div style={{flex:1,padding:"28px 32px",maxWidth:1100,width:"100%"}}>
+
+          {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
             <Dashboard
               companies={companies} employees={employees} programs={programs}
               calendarMemos={calendarMemos} onSaveMemo={onSaveMemo}
               goCompany={goCompany} settings={profile.settings||{}}
             />
-          </div>
-        )}
+          )}
 
-        {/* Company detail view */}
-        {stView[0]==="company"&&selectedCompany&&(
-          <CompDet
-            company={selectedCompany} programs={programs} employees={employees}
-            uploadFn={uploadFn} getUrlFn={getUrlFn} profile={profile}
-            goBack={goBack}
-            onSaveEmployee={onSaveEmployee}
-            onPatchEmployee={onPatchEmployee}
-            onDeleteEmployee={onDeleteEmployee}
-            onPatchCompany={onPatchCompany}
-            onLog={addLog}
-          />
-        )}
+          {stView[0]==="company"&&selectedCompany&&(
+            <CompDet
+              company={selectedCompany} programs={programs} employees={employees}
+              uploadFn={uploadFn} getUrlFn={getUrlFn} profile={profile}
+              goBack={goBack}
+              onSaveEmployee={onSaveEmployee}
+              onPatchEmployee={onPatchEmployee}
+              onDeleteEmployee={onDeleteEmployee}
+              onPatchCompany={onPatchCompany}
+              onLog={addLog}
+            />
+          )}
 
-        {/* Tools view */}
-        {stView[0]==="tools"&&(
-          <div>
-            <h1 style={{margin:"0 0 16px",fontSize:20,fontWeight:800}}>🛠 도구</h1>
-            <WageCalc/>
-            <Simulator programs={programs}/>
-            <HiringDiagnosis programs={programs}/>
-          </div>
-        )}
+          {stView[0]==="wage"&&(
+            <div style={{maxWidth:700}}>
+              <p style={{margin:"0 0 20px",color:"#64748B",fontSize:15}}>2026년 최저임금 기준으로 급여 적정성을 판단합니다.</p>
+              <WageCalc/>
+            </div>
+          )}
 
-        {/* Programs view */}
-        {stView[0]==="programs"&&(
-          <ProgramsList programs={programs} onUpdate={onSavePrograms}/>
-        )}
+          {stView[0]==="simulator"&&(
+            <div style={{maxWidth:800}}>
+              <p style={{margin:"0 0 20px",color:"#64748B",fontSize:15}}>채용 인원과 입사일을 입력하면 월별 수령 예상액을 계산합니다.</p>
+              <Simulator programs={programs}/>
+            </div>
+          )}
+
+          {stView[0]==="diagnosis"&&(
+            <div style={{maxWidth:800}}>
+              <p style={{margin:"0 0 20px",color:"#64748B",fontSize:15}}>채용 조건을 입력하면 신청 가능한 지원금을 진단합니다.</p>
+              <HiringDiagnosis programs={programs}/>
+            </div>
+          )}
+
+          {stView[0]==="programs"&&(
+            <ProgramsList programs={programs} onUpdate={onSavePrograms}/>
+          )}
+        </div>
       </div>
 
       {/* Add Company Modal */}
@@ -1003,14 +1083,14 @@ export default function SubsidyApp(props){
       )}
 
       {/* Profile Modal */}
-      <Modal open={stProfileOpen[0]} onClose={function(){stProfileOpen[1](false);}} title="👤 프로필 설정" width={400}>
-        <div style={{display:"grid",gap:14}}>
+      <Modal open={stProfileOpen[0]} onClose={function(){stProfileOpen[1](false);}} title="👤 프로필 설정" width={420}>
+        <div style={{display:"grid",gap:16}}>
           <div><Label>이름/담당자명</Label><input style={inp} value={stPN[0]} onChange={function(e){stPN[1](e.target.value);}} placeholder="홍길동"/></div>
           <div><Label>직함</Label><input style={inp} value={stPT[0]} onChange={function(e){stPT[1](e.target.value);}} placeholder="공인노무사 / 팀장 ..."/></div>
           <div><Label>D-Day 알림 기준 (일)</Label><input type="number" style={inp} value={stDDA[0]} onChange={function(e){stDDA[1](Number(e.target.value));}} min={1} max={30}/></div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             <button style={btnS} onClick={function(){stProfileOpen[1](false);}}>취소</button>
-            <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={saveProfile}>저장</button>
+            <button style={Object.assign({},btnP,{padding:"11px 32px"})} onClick={saveProfile}>저장</button>
           </div>
         </div>
       </Modal>
