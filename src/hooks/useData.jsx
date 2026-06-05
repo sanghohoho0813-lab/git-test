@@ -12,9 +12,9 @@ export function useData(orgId) {
   const [loading, setLoading] = useState(true);
   const channelRef = useRef(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoading = true) => {
     if (!orgId) { setLoading(false); return; }
-    setLoading(true);
+    if (showLoading) setLoading(true);
 
     const [{ data: comps }, { data: emps }, { data: memos }] = await Promise.all([
       supabase.from("companies").select("id, data").eq("org_id", orgId).order("created_at"),
@@ -35,12 +35,12 @@ export function useData(orgId) {
   useEffect(() => {
     load();
 
-    // Realtime: 팀원 변경사항 실시간 반영
+    // Realtime: 팀원 변경사항 실시간 반영 (silent — no loading screen)
     if (orgId) {
       const channel = supabase
         .channel(`org-${orgId}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "companies", filter: `org_id=eq.${orgId}` }, load)
-        .on("postgres_changes", { event: "*", schema: "public", table: "employees", filter: `org_id=eq.${orgId}` }, load)
+        .on("postgres_changes", { event: "*", schema: "public", table: "companies", filter: `org_id=eq.${orgId}` }, () => load(false))
+        .on("postgres_changes", { event: "*", schema: "public", table: "employees", filter: `org_id=eq.${orgId}` }, () => load(false))
         .subscribe();
       channelRef.current = channel;
     }
