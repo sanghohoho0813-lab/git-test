@@ -12,7 +12,7 @@ from youtube_api import fetch_all_data, load_cache
 MY_CHANNEL_ID = ""
 
 STOP_WORDS = {
-    # 기본 조사/어미
+    # 조사/어미
     "이","그","저","것","수","등","및","에","를","을","가","의","은","는","로","으로",
     "에서","와","과","도","만","하는","하기","있는","없는","합니다","입니다","됩니다",
     "대한","위한","통해","위해","하면","하고","이번","지금","바로","정말","드디어",
@@ -21,19 +21,35 @@ STOP_WORDS = {
     "사람","경우","우리","여기","어디","무엇","얼마","어떻게","하지","않는","없이",
     "있어","했다","된다","한다","않고","되고","하고","이런","그런","저런","어떤",
     "누가","뭔가","아직","이미","같은","다른","라는","라고","에도","에서는","으로는",
-    # 화폐단위 (제목에서 숫자가 제거된 뒤 남는 단위어 — "55만원" → "만원")
+    # 화폐단위 — 숫자 제거 후 남는 단위어 ("55만원" → "만원")
     "만원","억원","천원","백원","십만","억대","만대","원짜리",
     # 접속사/부사 파편
     "그렇다면","이라면","따라서","그래서","하지만","그러나","그런데","그래도","이처럼",
-    # 일반 행정 단어 (단독으로는 주제가 안 됨)
+    # 행정 단어 (단독으로는 주제 아님)
     "대상자","신청자","수혜자","수령자","신청하세요","확인하세요","보세요","아세요",
-    # 동사/명령형 파편 (클릭베이트 잔여)
+    # 동사/명령형 파편
     "꺼두","켜두","쉬세요","십시오","겠습니까","드립니다","합니다만","봅니다",
+    "알려드림","알려드린","정리드림","설명드림","말씀드림","안내드림",
     # 시간
     "올해","내년","작년","지난해","이번달","지난달","다음달","요즘","최근",
-    # 너무 일반적인 단일어
+    # 과도하게 일반적인 단어
     "정보","공지","발표","안내","시행","개정","최신","공개","단독","핵심","완벽",
+    "비밀번호","아이디","이메일",
+    # YouTube 제목 관용구 (주제 아님)
+    "알아보자","살펴보자","해봅시다","총망라","세금신고","서류제출",
 }
+
+# 동사/형용사 어미로 끝나는 단어 필터 (보시고, 신청해야, 있을까 등)
+_VERB_ENDINGS = re.compile(
+    r'(드림|드린|드릴|드렸|시고|세요|십시오|해야|이면|라면'
+    r'|는지|은지|을까|없을|합니다|됩니다|니까|아세요|이야기'
+    r'|하면서|이므로|보면서|했더니|됐더니|한다면|이라며|라며'
+    r'|려면|려고|더라도|더라면|했는데|됐는데|대해서)$'
+)
+
+def is_meaningful(word: str) -> bool:
+    """키워드로 표시할 가치가 있는 단어인지 판단."""
+    return word not in STOP_WORDS and not _VERB_ENDINGS.search(word)
 
 COPY_TEMPLATE_SETS = [
     [
@@ -288,6 +304,7 @@ vdf["channel_name"]     = vdf["channel_id"].map(ch_map).fillna("알 수 없음")
 vdf["is_mine"]          = (vdf["channel_id"] == MY_CHANNEL_ID) if MY_CHANNEL_ID else False
 vdf["duration_bucket"]  = vdf["duration_sec"].apply(duration_bucket)
 vdf["weekday"]          = vdf["published_at"].dt.tz_convert(KST).dt.dayofweek
+vdf["upload_hour"]      = vdf["published_at"].dt.tz_convert(KST).dt.hour
 
 # ── 필터 ────────────────────────────────────────────────────────
 st.markdown("---")
@@ -314,24 +331,27 @@ def apply_filter(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── 키워드 추출 ────────────────────────────────────────────────
 def render_keywords(df: pd.DataFrame):
-    """df는 해당 기간 전체 영상 (top_n 컷 전). 조회수 가중치 + 2단어 구절 지원."""
+    """조회수 가중 키워드. 3자 이상, 동사형 제외, 2개 이상 영상 + 2개 이상 채널."""
     word_scores: Counter = Counter()
     word_video_cnt: Counter = Counter()
+    word_ch_cnt: Counter = Counter()
 
     for _, row in df.iterrows():
         title = str(row["title"])
         views = max(int(row.get("view_count", 1)), 1)
-        tokens = re.findall(r"[가-힣]{2,}", title)
-        filtered = [w for w in tokens if w not in STOP_WORDS]
+        channel = str(row.get("channel_name", ""))
+        # 3자 이상 한글 단어만 추출
+        tokens = re.findall(r"[가-힣]{3,}", title)
+        filtered = [w for w in tokens if is_meaningful(w)]
         seen = set()
 
         for w in filtered:
             word_scores[w] += views
             if w not in seen:
                 word_video_cnt[w] += 1
+                word_ch_cnt[w] += 1 if channel not in seen else 0
                 seen.add(w)
 
-        # 2단어 구절 (조회수 1.3배 가중)
         for i in range(len(filtered) - 1):
             phrase = filtered[i] + " " + filtered[i + 1]
             word_scores[phrase] += int(views * 1.3)
@@ -341,8 +361,11 @@ def render_keywords(df: pd.DataFrame):
 
     if not word_scores:
         return
-    # 2개 이상 영상에 등장한 키워드만 표시
-    qualified = [(w, s) for w, s in word_scores.most_common() if word_video_cnt[w] >= 2][:15]
+    # 3자 이상 단어, 2개 이상 영상, 2개 이상 채널
+    qualified = [
+        (w, s) for w, s in word_scores.most_common()
+        if word_video_cnt[w] >= 2 and word_ch_cnt.get(w, 1) >= 2
+    ][:15]
     if not qualified:
         return
     tags = ""
@@ -368,8 +391,9 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
         title = str(row["title"])
         views = max(int(row.get("view_count", 1)), 1)
         channel = str(row.get("channel_name", ""))
-        tokens = re.findall(r"[가-힣]{2,}", title)
-        filtered = [w for w in tokens if w not in STOP_WORDS]
+        # 3자 이상 + 동사형 어미 제외
+        tokens = re.findall(r"[가-힣]{3,}", title)
+        filtered = [w for w in tokens if is_meaningful(w)]
         seen = set()
 
         for w in filtered:
@@ -393,11 +417,14 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
             topic_data[phrase]["videos"].append((title, channel, views))
             topic_data[phrase]["channels"].add(channel)
 
-    # 2단어 구절 우선 (≥2 영상), 부족하면 단일어(≥3 영상) 보완
+    # 2단어 구절 우선 — 반드시 2개 이상 채널이 다뤄야 함
     phrases = [(w, s) for w, s in word_scores.most_common()
-               if " " in w and video_cnt[w] >= 2]
+               if " " in w and video_cnt[w] >= 2
+               and len(topic_data[w]["channels"]) >= 2]
+    # 단일어 보완 — 2개 이상 채널 + 3개 이상 영상
     singles = [(w, s) for w, s in word_scores.most_common()
-               if " " not in w and video_cnt[w] >= 3]
+               if " " not in w and video_cnt[w] >= 3
+               and len(topic_data[w]["channels"]) >= 2]
 
     seen_words: set = set()
     candidates: list = []
@@ -653,6 +680,30 @@ with tab5:
     st.info(f"📌 평균 조회수 1위 요일: **{best_day}** — 이 요일에 업로드하면 노출 경쟁에서 유리할 수 있습니다.")
     st.dataframe(
         day_stats.style.format({"평균 조회수": "{:,}", "영상 수": "{:,}", "최고 조회수": "{:,}"}),
+        use_container_width=True,
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── 1-2. 최적 업로드 시간대 ──────────────────────────────
+    st.markdown("""<div class="analysis-section">
+        <div class="analysis-title">🕐 최적 업로드 시간대 (KST)</div>
+        <div class="analysis-desc">경쟁 채널들이 어느 시간에 올린 영상이 평균적으로 가장 많이 봤는지 보여줍니다.</div>
+    </div>""", unsafe_allow_html=True)
+
+    hour_stats = (
+        vdf.groupby("upload_hour")["view_count"]
+        .agg(평균조회수="mean", 영상수="count", 최고조회수="max")
+        .round(0).astype(int)
+    )
+    hour_stats.index = hour_stats.index.map(lambda h: f"{h:02d}:00~{h:02d}:59")
+    hour_stats.columns = ["평균 조회수", "영상 수", "최고 조회수"]
+    hour_stats = hour_stats[hour_stats["영상 수"] >= 2]  # 샘플 2개 이상만
+    best_hour = hour_stats["평균 조회수"].idxmax() if not hour_stats.empty else "정보 없음"
+    st.info(f"📌 평균 조회수 1위 시간대: **{best_hour}** — 이 시간대 업로드 영상이 평균적으로 가장 많이 봤습니다.")
+    st.dataframe(
+        hour_stats.sort_values("평균 조회수", ascending=False)
+        .style.format({"평균 조회수": "{:,}", "영상 수": "{:,}", "최고 조회수": "{:,}"}),
         use_container_width=True,
     )
 
