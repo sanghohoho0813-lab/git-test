@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useSub } from "../hooks/useSub";
 import { supabase } from "../lib/supabase";
 
-const FF = "'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+const FF = "'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 
 const PLANS = [
   {
