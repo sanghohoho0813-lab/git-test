@@ -1,10 +1,21 @@
+import re
 import streamlit as st
 import pandas as pd
+from collections import Counter
 from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 
 from youtube_api import fetch_all_data, load_cache
+
+MY_CHANNEL_ID = "UCnnqB7SaH8o-NHLonSFfE3A"  # 김팀장의 경영 노트
+
+STOP_WORDS = {
+    "이","그","저","것","수","등","및","에","를","을","가","의","은","는","로","으로",
+    "에서","와","과","도","만","하는","하기","있는","없는","합니다","입니다","됩니다",
+    "대한","위한","통해","위해","하면","하고","이번","지금","바로","정말","드디어",
+    "속보","중요","긴급","총정리","요약","정리","방법","이유","결과","확인","신청",
+}
 
 st.set_page_config(
     page_title="김팀장 벤치마킹 대시보드",
@@ -21,8 +32,22 @@ st.markdown("""
     overflow: hidden;
     border: 1px solid #2a2a5a;
     margin-bottom: 18px;
+    position: relative;
 }
 .grid-card:hover { border-color: #5a5aaa; }
+
+.my-channel-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(255,200,0,0.92);
+    color: #000;
+    font-size: 13px;
+    font-weight: 900;
+    padding: 3px 9px;
+    border-radius: 8px;
+    z-index: 20;
+    pointer-events: none;
+}
 
 .thumb-wrap {
     display: block;
@@ -91,6 +116,7 @@ st.markdown("""
 .pill-short { background:#3a1030; color:#ff80c0; }
 .pill-long  { background:#103030; color:#60d8e8; }
 .pill-date  { background:#222; color:#aaa; font-size:18px; }
+.pill-mine  { background:#3a3000; color:#ffd700; font-weight:800; }
 
 .summary-box {
     background: #16213e;
@@ -103,6 +129,26 @@ st.markdown("""
 .summary-label { font-size: 18px; color: #888; margin-bottom: 4px; }
 .summary-value { font-size: 30px; font-weight: 900; color: #e8e8ff; }
 .summary-sub   { font-size: 15px; color: #666; margin-top: 3px; }
+
+.keyword-section {
+    background: #16213e;
+    border-radius: 14px;
+    padding: 18px 22px;
+    border: 1px solid #2a2a5a;
+    margin-bottom: 22px;
+}
+.keyword-title { font-size: 18px; color: #888; margin-bottom: 12px; font-weight: 600; }
+.kw-tag {
+    display: inline-block;
+    background: #1e2d5a;
+    color: #90c8ff;
+    border-radius: 20px;
+    padding: 5px 14px;
+    margin: 4px;
+    font-size: 17px;
+    font-weight: 700;
+}
+.kw-tag.top3 { background: #2d4080; color: #ffd700; font-size: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -143,6 +189,7 @@ vdf      = pd.DataFrame(videos_raw)
 vdf["published_at"]  = pd.to_datetime(vdf["published_at"], utc=True)
 vdf["days_ago"]      = (datetime.now(KST) - vdf["published_at"].dt.tz_convert(KST)).dt.days
 vdf["channel_name"]  = vdf["channel_id"].map(ch_map).fillna("알 수 없음")
+vdf["is_mine"]       = vdf["channel_id"] == MY_CHANNEL_ID
 
 # ── 필터 ────────────────────────────────────────────────────────
 st.markdown("---")
@@ -167,6 +214,25 @@ def apply_filter(df: pd.DataFrame) -> pd.DataFrame:
         d = d[d["channel_name"].isin(sel_ch)]
     return d.nlargest(top_n, "view_count").reset_index(drop=True)
 
+# ── 키워드 추출 ────────────────────────────────────────────────
+def render_keywords(df: pd.DataFrame):
+    words = []
+    for title in df["title"]:
+        tokens = re.findall(r"[가-힣]{2,}", str(title))
+        words.extend([w for w in tokens if w not in STOP_WORDS and len(w) >= 2])
+    if not words:
+        return
+    top_kw = Counter(words).most_common(15)
+    tags = ""
+    for i, (word, cnt) in enumerate(top_kw):
+        cls = "kw-tag top3" if i < 3 else "kw-tag"
+        tags += f'<span class="{cls}">#{word} <small style="opacity:.6">({cnt})</small></span>'
+    st.markdown(f"""
+    <div class="keyword-section">
+        <div class="keyword-title">🔑 이 기간 인기 영상 핵심 키워드</div>
+        {tags}
+    </div>""", unsafe_allow_html=True)
+
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
 NCOLS = 5
 
@@ -183,14 +249,20 @@ def build_card(rank: int, row) -> str:
     date    = f"{dt.year}년 {dt.month}월 {dt.day}일"
     t_cls   = "pill-short" if row["is_short"] else "pill-long"
     t_txt   = "쇼츠" if row["is_short"] else "롱폼"
+    is_mine = bool(row.get("is_mine", False))
 
     if rank == 1:   rc = "#ffd700"
     elif rank == 2: rc = "#c0c0c0"
     elif rank == 3: rc = "#cd7f32"
     else:           rc = "#aaa"
 
+    mine_badge = '<div class="my-channel-badge">👤 내 채널</div>' if is_mine else ""
+    mine_pill  = '<span class="pill pill-mine">👤 내 채널</span>' if is_mine else ""
+    card_border = 'border: 2px solid #ffd700;' if is_mine else ''
+
     return f"""
-<div class="grid-card">
+<div class="grid-card" style="{card_border}">
+  {mine_badge}
   <a class="thumb-wrap" href="{url}" target="_blank">
     <img src="{thumb}" alt="thumbnail" loading="lazy">
     <div class="rank-badge" style="color:{rc}">#{rank}</div>
@@ -206,6 +278,7 @@ def build_card(rank: int, row) -> str:
       <span class="pill pill-cmt">💬 {cmts}</span>
       <span class="pill {t_cls}">{t_txt}</span>
       <span class="pill pill-date">📅 {date}</span>
+      {mine_pill}
     </div>
   </div>
 </div>"""
@@ -215,10 +288,14 @@ def render_grid(df: pd.DataFrame):
         st.info("해당 기간에 영상이 없습니다.")
         return
 
-    # 요약 지표
+    # ① 키워드
+    render_keywords(df)
+
+    # ② 요약 지표
     top_v = df.iloc[0]
     avg_v = int(df["view_count"].mean())
     total = len(df)
+    mine_in_top = df[df["is_mine"]]
     s1, s2, s3 = st.columns(3)
     with s1:
         st.markdown(f"""<div class="summary-box">
@@ -233,19 +310,26 @@ def render_grid(df: pd.DataFrame):
             <div class="summary-sub">분석 영상 {total}개</div>
         </div>""", unsafe_allow_html=True)
     with s3:
-        top2 = df.iloc[1] if len(df) > 1 else top_v
-        st.markdown(f"""<div class="summary-box">
-            <div class="summary-label">🥈 조회수 2위</div>
-            <div class="summary-value">{int(top2['view_count']):,}회</div>
-            <div class="summary-sub">{top2['channel_name']}</div>
-        </div>""", unsafe_allow_html=True)
+        if not mine_in_top.empty:
+            best_mine = mine_in_top.iloc[0]
+            mine_rank = int(mine_in_top.index[0]) + 1
+            st.markdown(f"""<div class="summary-box" style="border-color:#ffd700;">
+                <div class="summary-label">👤 내 채널 최고 순위</div>
+                <div class="summary-value" style="color:#ffd700;">#{mine_rank}위</div>
+                <div class="summary-sub">👁️ {int(best_mine['view_count']):,}회</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            top2 = df.iloc[1] if len(df) > 1 else top_v
+            st.markdown(f"""<div class="summary-box">
+                <div class="summary-label">🥈 조회수 2위</div>
+                <div class="summary-value">{int(top2['view_count']):,}회</div>
+                <div class="summary-sub">{top2['channel_name']}</div>
+            </div>""", unsafe_allow_html=True)
 
-    # 컬럼별로 카드 HTML을 미리 수집한 뒤 한 번에 렌더링
-    # → 이렇게 해야 이미지와 텍스트가 절대 어긋나지 않음
+    # ③ 5열 그리드
     col_buckets: list[list[str]] = [[] for _ in range(NCOLS)]
     for i, row in df.iterrows():
-        rank = i + 1
-        col_buckets[i % NCOLS].append(build_card(rank, row))
+        col_buckets[i % NCOLS].append(build_card(i + 1, row))
 
     cols = st.columns(NCOLS)
     for col_widget, cards in zip(cols, col_buckets):
@@ -275,11 +359,23 @@ with tab3:
 with tab4:
     st.subheader("벤치마킹 채널 현황")
     if channels_raw:
-        ch_df = pd.DataFrame(channels_raw)[["title", "subscriber_count", "video_count", "view_count"]]
-        ch_df.columns = ["채널명", "구독자 수", "총 영상 수", "총 조회수"]
+        ch_df = pd.DataFrame(channels_raw)[["channel_id", "title", "subscriber_count", "video_count", "view_count"]]
+        # 구독자 대비 조회수 비율 (구독자 1명당 평균 조회수)
+        ch_df["구독자당 조회수"] = (
+            ch_df["view_count"] / ch_df["subscriber_count"].replace(0, 1)
+        ).round(1)
+        ch_df["내 채널"] = ch_df["channel_id"].apply(lambda x: "👤" if x == MY_CHANNEL_ID else "")
+        ch_df = ch_df.drop(columns=["channel_id"])
+        ch_df.columns = ["채널명", "구독자 수", "총 영상 수", "총 조회수", "구독자당 조회수", ""]
         ch_df = ch_df.sort_values("구독자 수", ascending=False).reset_index(drop=True)
         ch_df.index += 1
+        st.caption("구독자당 조회수: 총 조회수 ÷ 구독자 수 — 숫자가 클수록 구독자 규모 대비 영향력이 큰 채널")
         st.dataframe(
-            ch_df.style.format({"구독자 수": "{:,}", "총 영상 수": "{:,}", "총 조회수": "{:,}"}),
+            ch_df.style.format({
+                "구독자 수": "{:,}",
+                "총 영상 수": "{:,}",
+                "총 조회수": "{:,}",
+                "구독자당 조회수": "{:.1f}",
+            }),
             use_container_width=True,
         )
