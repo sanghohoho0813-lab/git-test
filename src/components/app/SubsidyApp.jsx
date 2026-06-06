@@ -1928,6 +1928,48 @@ function NotifBell(props){
   </div>);
 }
 
+var SAMPLE_DATA = [
+  {
+    company:{isSample:true,name:"한라식품 주식회사",bizNo:"123-45-67890",ceoName:"박성준",address:"서울 마포구 합정동 123-4",corpType:"법인",industry:"식품제조",empCount:18,phone:"02-1234-5678",
+      notes:[{id:"sn1",date:"2026-04-15",content:"청년채용 사전신청 완료, 박준혁 2차 지급 신청 준비 중"}],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"박준혁",birthDate:"1998-03-15",gender:"male",startDate:"2025-10-01",programId:"youth_jump",status:"inprogress",totalExpected:7200000,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidDate:"2026-04-05",received:3600000},{month:9,amount:1800000,label:"2차(9개월)",isPaid:false},{month:12,amount:1800000,label:"3차(12개월)",isPaid:false}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]},{label:"최종학력확인서(졸업증명서)",done:true,files:[]}]},
+      {isSample:true,name:"이민지",birthDate:"1992-07-22",gender:"female",startDate:"2024-03-01",programId:"parental_leave",status:"approved",totalExpected:3600000,
+        rounds:[{month:3,amount:900000,label:"1차(3개월)",isPaid:true,paidDate:"2026-01-15",received:900000},{month:6,amount:900000,label:"2차(6개월)",isPaid:false},{month:9,amount:900000,label:"3차(9개월)",isPaid:false},{month:12,amount:900000,label:"4차(12개월)",isPaid:false}],
+        employeeDocs:[{label:"육아휴직 신청서",done:true,files:[]},{label:"가족관계증명서",done:true,files:[]},{label:"휴직 발령 증빙",done:true,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"제이에스엔지니어링",bizNo:"234-56-78901",ceoName:"최정우",address:"경기 수원시 영통구 매탄동 45",corpType:"개인",industry:"건설업",empCount:7,phone:"031-234-5678",
+      notes:[],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"최동우",birthDate:"1985-11-08",gender:"male",startDate:"2026-02-15",programId:"emp_promo",status:"submitted",totalExpected:7200000,
+        rounds:[{month:6,amount:3600000,label:"1회차(6개월)",isPaid:false},{month:12,amount:3600000,label:"2회차(12개월)",isPaid:false}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별급여대장",done:false,files:[]},{label:"급여이체증빙",done:false,files:[]},{label:"취업지원프로그램 이수증",done:true,files:[]}]},
+      {isSample:true,name:"윤서현",birthDate:"1995-05-30",gender:"female",startDate:"2025-06-01",programId:"regular_convert",status:"reviewing",totalExpected:7200000,
+        rounds:[{month:3,amount:1800000,label:"1차(3개월)",isPaid:false},{month:6,amount:1800000,label:"2차(6개월)",isPaid:false},{month:9,amount:1800000,label:"3차(9개월)",isPaid:false},{month:12,amount:1800000,label:"4차(12개월)",isPaid:false}],
+        employeeDocs:[{label:"전환 전 근로계약서",done:true,files:[]},{label:"전환 후 근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"아람나눔 사회적협동조합",bizNo:"345-67-89012",ceoName:"윤혜진",address:"부산 연제구 연산동 78-2",corpType:"법인",industry:"사회서비스",empCount:12,phone:"051-345-6789",
+      notes:[{id:"sn2",date:"2026-03-20",content:"장애인 고용 의무 달성, 신규 채용 준비 중"}],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"강태양",birthDate:"1958-04-12",gender:"male",startDate:"2025-04-01",programId:"senior_intern",status:"inprogress",totalExpected:5500000,
+        rounds:[{month:3,amount:1200000,label:"1단계(3개월)",isPaid:true,paidDate:"2025-07-10",received:1200000},{month:9,amount:1500000,label:"2단계(6개월)",isPaid:true,paidDate:"2026-01-15",received:1500000},{month:18,amount:900000,label:"3단계(18개월)",isPaid:false},{month:24,amount:900000,label:"3단계(24개월)",isPaid:false},{month:36,amount:1000000,label:"3단계(36개월)",isPaid:false}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"사전교육 이수증",done:true,files:[]},{label:"월별급여대장",done:true,files:[]}]},
+      {isSample:true,name:"오하린",birthDate:"1988-09-25",gender:"female",startDate:"2024-09-01",programId:"saeil_women",status:"completed",totalExpected:4000000,
+        rounds:[{month:1,amount:800000,label:"인턴1개월",isPaid:true,paidDate:"2024-10-08",received:800000},{month:2,amount:800000,label:"인턴2개월",isPaid:true,paidDate:"2024-11-10",received:800000},{month:3,amount:800000,label:"인턴3개월",isPaid:true,paidDate:"2024-12-12",received:800000},{month:9,amount:800000,label:"고용유지1차",isPaid:true,paidDate:"2025-06-15",received:800000},{month:15,amount:800000,label:"고용유지2차",isPaid:true,paidDate:"2025-12-10",received:800000}],
+        employeeDocs:[{label:"구직등록확인서",done:true,files:[]},{label:"근로계약서",done:true,files:[]},{label:"임금대장",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]}]},
+      {isSample:true,name:"정민준",birthDate:"1990-02-18",gender:"male",startDate:"2026-05-01",programId:"disabled_emp",status:"preparing",totalExpected:5400000,
+        rounds:[{month:1,amount:450000,label:"1월",isPaid:false},{month:2,amount:450000,label:"2월",isPaid:false},{month:3,amount:450000,label:"3월",isPaid:false},{month:4,amount:450000,label:"4월",isPaid:false},{month:5,amount:450000,label:"5월",isPaid:false},{month:6,amount:450000,label:"6월",isPaid:false}],
+        employeeDocs:[{label:"장애인증명서",done:false,files:[]},{label:"근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]}
+    ]
+  }
+];
+
 var SIDEBAR_NAV = [
   {key:"dashboard", icon:"📊", label:"대시보드"},
   {key:"company",   icon:"🏢", label:"업체 관리"},
@@ -2292,6 +2334,26 @@ export default function SubsidyApp(props){
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
 
+  function loadSampleData(){
+    SAMPLE_DATA.forEach(function(item){
+      var cId=ruuid();
+      var comp=Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()});
+      onSaveCompany(comp);
+      item.employees.forEach(function(emp){
+        var rounds=(emp.rounds||[]).map(function(r){return Object.assign({},r,{id:uid()});});
+        var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
+        onSaveEmployee(Object.assign({},emp,{id:ruuid(),companyId:cId,rounds:rounds,employeeDocs:empDocs}));
+      });
+    });
+  }
+
+  function deleteSampleData(){
+    employees.filter(function(e){return e.isSample;}).forEach(function(e){onDeleteEmployee(e.id);});
+    companies.filter(function(c){return c.isSample;}).forEach(function(c){onDeleteCompany(c.id);});
+  }
+
+  var hasSample=companies.some(function(c){return c.isSample;});
+
   function goCompany(id){stCompany[1](id);stView[1]("company");}
   function goBack(){stView[1]("dashboard");stCompany[1](null);}
   function addLog(){}
@@ -2465,10 +2527,34 @@ export default function SubsidyApp(props){
           </div>
         </div>
 
+        {/* 샘플 데이터 배너 */}
+        {hasSample&&(
+          <div style={{background:"linear-gradient(90deg,#FFFBEB,#FFF7ED)",borderBottom:"1px solid #FDE68A",padding:"11px 48px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <span style={{fontSize:20,flexShrink:0}}>🎮</span>
+            <div style={{flex:1,minWidth:200}}>
+              <span style={{fontSize:15,fontWeight:700,color:"#92400E"}}>샘플 데이터로 체험 중입니다 </span>
+              <span style={{fontSize:14,color:"#A16207"}}>— 한라식품·제이에스엔지니어링·아람나눔 3개 업체 가상 데이터입니다. 실제 업체 정보를 입력할 준비가 됐다면 아래 버튼을 누르세요.</span>
+            </div>
+            <button onClick={deleteSampleData} style={{background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"9px 20px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>🗑️ 샘플 데이터 모두 삭제</button>
+          </div>
+        )}
+
         {/* 페이지 콘텐츠 */}
         <div className="app-page" style={{flex:1,padding:"32px 48px",width:"100%",maxWidth:1440,margin:"0 auto",boxSizing:"border-box"}}>
 
           <div key={stView[0]+(stCompany[0]||"")} className="page-enter">
+
+          {companies.length===0&&(
+            <div style={{background:"linear-gradient(135deg,#EFF6FF,#F5F3FF)",border:"2px dashed #C7D2FE",borderRadius:20,padding:"44px 32px",marginBottom:32,textAlign:"center"}}>
+              <div style={{fontSize:52,marginBottom:16}}>✨</div>
+              <h3 style={{margin:"0 0 10px",fontSize:24,fontWeight:800,color:"#0F172A"}}>처음이신가요?</h3>
+              <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>가상의 <strong>3개 업체, 7명 직원</strong> 데이터로 어떻게 사용하는지 먼저 살펴보세요.<br/>청년채용·정규직전환·육아휴직·시니어인턴십 등 다양한 지원금이 준비되어 있어요.</p>
+              <p style={{margin:"0 0 28px",fontSize:14,color:"#94A3B8"}}>완료 후 "샘플 데이터 삭제" 버튼 한 번이면 깔끔하게 초기화됩니다.</p>
+              <button onClick={loadSampleData} style={{background:"linear-gradient(135deg,#4F46E5,#7C3AED)",color:"#fff",border:"none",borderRadius:14,padding:"16px 40px",fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 6px 20px rgba(79,70,229,0.35)",display:"inline-flex",alignItems:"center",gap:10}}>
+                <span>🎮</span><span>샘플 데이터로 둘러보기</span>
+              </button>
+            </div>
+          )}
 
           {stView[0]==="dashboard"&&(
             <Dashboard
