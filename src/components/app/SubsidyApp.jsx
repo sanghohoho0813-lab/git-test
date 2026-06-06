@@ -99,6 +99,28 @@ var CERT_TYPES = [
 ];
 var COMMON_EXTRA_DOCS = ["신분증 사본","근로자 통장사본","연차사용 증빙","재직증명서","사직서","육아휴직서","주민등록등본","원천징수영수증","4대보험 가입확인서","운영기관 자체 서식"];
 
+// 업무 일지 유형
+var NOTE_TYPES = [
+  {id:"전화",icon:"📞"},{id:"카톡",icon:"💬"},{id:"이메일",icon:"✉️"},
+  {id:"서류요청",icon:"📤"},{id:"서류수령",icon:"📥"},{id:"신청완료",icon:"📨"},
+  {id:"지급확인",icon:"💸"},{id:"고객미응답",icon:"🔕"},{id:"보완요청",icon:"📝"},
+  {id:"수수료청구",icon:"🧾"},{id:"수수료입금",icon:"💰"},{id:"상태변경",icon:"🔄"},{id:"기타",icon:"🗒️"}
+];
+function noteTypeMeta(id){ return NOTE_TYPES.find(function(t){return t.id===id;})||NOTE_TYPES[NOTE_TYPES.length-1]; }
+
+// 서류 진행 상태 (체크박스 done 과 병행)
+var DOC_STATUS = [
+  {id:"none",label:"미요청",color:"#94A3B8",bg:"#F1F5F9"},
+  {id:"requested",label:"요청완료",color:"#2563EB",bg:"#DBEAFE"},
+  {id:"submitted",label:"제출완료",color:"#0EA5E9",bg:"#E0F2FE"},
+  {id:"revise",label:"보완필요",color:"#D97706",bg:"#FEF3C7"},
+  {id:"confirmed",label:"확인완료",color:"#059669",bg:"#D1FAE5"}
+];
+function docStatusMeta(id){ return DOC_STATUS.find(function(s){return s.id===id;})||DOC_STATUS[0]; }
+// 서류 done(boolean) ↔ status(string) 동기화 유틸
+function docEffStatus(d){ if(d.status)return d.status; return d.done?"confirmed":"none"; }
+function docIsDone(d){ var s=docEffStatus(d); return s==="submitted"||s==="confirmed"||d.done===true&&!d.status; }
+
 // ── 스타일 상수 ──────────────────────────────────────────
 var FF = "'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 var inp = {width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:22,outline:"none",boxSizing:"border-box",fontFamily:FF,color:"#1E293B",background:"#fff",transition:"border-color 0.15s"};
@@ -106,6 +128,45 @@ var inpKo = Object.assign({},inp,{lang:"ko"});
 var btnP = {background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",border:"none",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"};
 var btnS = {background:"#fff",color:"#475569",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:500,cursor:"pointer",fontFamily:FF};
 var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:8,padding:"10px 18px",fontSize:19,cursor:"pointer",fontFamily:FF};
+
+// ── 전역 토스트 ───────────────────────────────────────────
+var _toastFn=null;
+function toast(msg,type){ if(_toastFn)_toastFn(msg,type||"success"); }
+function ToastHost(){
+  var st=useState([]);
+  useEffect(function(){
+    _toastFn=function(msg,type){
+      var id=Date.now()+"-"+Math.random();
+      st[1](function(a){return a.concat([{id:id,msg:msg,type:type}]);});
+      setTimeout(function(){ st[1](function(a){return a.filter(function(t){return t.id!==id;});}); },3400);
+    };
+    return function(){_toastFn=null;};
+  },[]);
+  var C={success:{bg:"#ECFDF5",bd:"#6EE7B7",c:"#047857",i:"✅"},warn:{bg:"#FFFBEB",bd:"#FDE68A",c:"#B45309",i:"⚠️"},error:{bg:"#FEF2F2",bd:"#FECACA",c:"#DC2626",i:"⛔"},info:{bg:"#EFF6FF",bd:"#BFDBFE",c:"#1D4ED8",i:"ℹ️"}};
+  return(<div style={{position:"fixed",bottom:24,right:24,zIndex:6000,display:"flex",flexDirection:"column",gap:10,pointerEvents:"none"}}>
+    {st[0].map(function(t){var s=C[t.type]||C.success;return(
+      <div key={t.id} className="slide-in" style={{display:"flex",alignItems:"center",gap:10,background:s.bg,border:"1.5px solid "+s.bd,color:s.c,borderRadius:12,padding:"13px 18px",fontSize:15,fontWeight:600,fontFamily:FF,boxShadow:"0 8px 28px rgba(15,23,42,0.16)",maxWidth:400}}>
+        <span style={{fontSize:18,flexShrink:0}}>{s.i}</span><span style={{lineHeight:1.4}}>{t.msg}</span>
+      </div>
+    );})}
+  </div>);
+}
+
+// ── 요금제(플랜) 기능 게이트 ───────────────────────────────
+var PLAN_TIERS={
+  individual:{key:"individual",label:"개인 업체",maxCompanies:1,maxEmployees:Infinity,reportPerMonth:Infinity,
+    feat:{commission:false,advancedAlerts:false,bulkUpload:true,agencyReport:true,team:false}},
+  light:{key:"light",label:"컨설턴트 라이트",maxCompanies:5,maxEmployees:30,reportPerMonth:3,
+    feat:{commission:false,advancedAlerts:false,bulkUpload:true,agencyReport:true,team:false}},
+  pro:{key:"pro",label:"컨설턴트 프로",maxCompanies:Infinity,maxEmployees:Infinity,reportPerMonth:Infinity,
+    feat:{commission:true,advancedAlerts:true,bulkUpload:true,agencyReport:true,team:false}},
+  team:{key:"team",label:"팀 · 노무법인",maxCompanies:Infinity,maxEmployees:Infinity,reportPerMonth:Infinity,
+    feat:{commission:true,advancedAlerts:true,bulkUpload:true,agencyReport:true,team:true}}
+};
+// sub.plan_type(individual|agency) + 체험여부 → 유효 등급
+function effPlanKey(planType,isTrial){ if(isTrial)return "pro"; if(planType==="agency")return "pro"; return "individual"; }
+function planTier(planType,isTrial){ return PLAN_TIERS[effPlanKey(planType,isTrial)]||PLAN_TIERS.individual; }
+function PlanBadge(props){ return <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"#EDE9FE",color:"#7C3AED",marginLeft:6,verticalAlign:"middle"}}>{props.label||"PRO"}</span>; }
 
 // ── 기본 UI 컴포넌트 ─────────────────────────────────────
 function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,maxHeight:"90vh",overflow:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"22px 28px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:25,fontWeight:700}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:30,cursor:"pointer",color:"#94A3B8"}}>✕</button></div><div style={{padding:28}}>{props.children}</div></div></div>); }
@@ -129,7 +190,8 @@ function FileAt(props){
         var f2 = nameOverride ? new File([file],nameOverride,{type:file.type}) : file;
         var obj = await uploadFn(f2);
         props.onAdd(obj);
-      }catch(e){ alert("파일 업로드 실패: "+(e.message||"오류")); }
+        toast("파일 업로드가 완료되었습니다.","success");
+      }catch(e){ toast("파일 업로드 실패: "+(e.message||"오류"),"error"); }
       finally{ setUploading(false); }
     }else{
       var r=new FileReader();
@@ -141,7 +203,7 @@ function FileAt(props){
   async function viewFile(f){
     if(f.storagePath&&getUrlFn){
       try{ var url=await getUrlFn(f.storagePath); if(url) window.open(url,"_blank"); }
-      catch(e){ alert("파일 열기 실패"); }
+      catch(e){ toast("파일 열기 실패","error"); }
     }else if(f.dataUrl){ window.open(f.dataUrl,"_blank"); }
   }
 
@@ -170,16 +232,27 @@ function FileAt(props){
 
 function ChkItem(props){
   var item=props.item; var isDisabled=props.disabled;
+  var done=docIsDone(item); var eff=docEffStatus(item); var sm=docStatusMeta(eff);
   return(
-    <div style={{padding:"12px 14px",borderRadius:10,background:isDisabled?"#F1F5F9":(item.done?"#F0FDF4":"#FFFBEB"),border:isDisabled?"1px solid #E2E8F0":(item.done?"1px solid #BBF7D0":"1px solid #FDE68A"),opacity:isDisabled?0.6:1}}>
+    <div style={{padding:"12px 14px",borderRadius:10,background:isDisabled?"#F1F5F9":(done?"#F0FDF4":"#FFFBEB"),border:isDisabled?"1px solid #E2E8F0":(done?"1px solid #BBF7D0":"1px solid #FDE68A"),opacity:isDisabled?0.6:1}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4,marginBottom:6}}>
-        <label style={{display:"flex",alignItems:"center",gap:10,cursor:isDisabled?"not-allowed":"pointer",flex:1}}>
-          <input type="checkbox" checked={item.done} onChange={isDisabled?undefined:props.onToggle} disabled={isDisabled} style={{width:20,height:20,accentColor:"#10B981",flexShrink:0}}/>
-          <span style={{fontSize:17,fontWeight:500,color:isDisabled?"#94A3B8":(item.done?"#16A34A":"#92400E"),textDecoration:item.done?"line-through":"none"}}>{item.label}{item.isCustom&&<span style={{fontSize:13,color:"#94A3B8",marginLeft:4}}>(추가)</span>}</span>
+        <label style={{display:"flex",alignItems:"center",gap:10,cursor:isDisabled?"not-allowed":"pointer",flex:1,minWidth:0}}>
+          <input type="checkbox" checked={done} onChange={isDisabled?undefined:props.onToggle} disabled={isDisabled} style={{width:20,height:20,accentColor:"#10B981",flexShrink:0}}/>
+          <span style={{fontSize:16,fontWeight:500,color:isDisabled?"#94A3B8":(done?"#16A34A":"#92400E"),textDecoration:done?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}{item.isCustom&&<span style={{fontSize:13,color:"#94A3B8",marginLeft:4}}>(추가)</span>}</span>
         </label>
-        {!isDisabled&&props.onDelete&&<button onClick={props.onDelete} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:18}} title="삭제">🗑️</button>}
+        <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+          {!isDisabled&&props.onCopyReq&&<button onClick={props.onCopyReq} style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:7,color:"#1D4ED8",cursor:"pointer",fontSize:13,padding:"3px 7px"}} title="이 서류 요청 문구 복사">📋</button>}
+          {!isDisabled&&props.onDelete&&<button onClick={props.onDelete} style={{background:"none",border:"none",color:"#CBD5E1",cursor:"pointer",fontSize:17}} title="삭제">🗑️</button>}
+        </div>
       </div>
-      {!isDisabled&&<div style={{marginLeft:24}}><FileAt files={item.files||[]} onAdd={props.onFA} onRemove={props.onFR} uploadFn={props.uploadFn} getUrlFn={props.getUrlFn}/></div>}
+      {!isDisabled&&(
+        <div style={{marginLeft:24,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <select value={eff} onChange={props.onStatus} style={{fontSize:13,fontWeight:700,padding:"4px 8px",borderRadius:7,border:"1px solid "+sm.bg,background:sm.bg,color:sm.color,cursor:"pointer",fontFamily:FF,outline:"none"}}>
+            {DOC_STATUS.map(function(s){return <option key={s.id} value={s.id}>{s.label}</option>;})}
+          </select>
+          <FileAt files={item.files||[]} onAdd={props.onFA} onRemove={props.onFR} uploadFn={props.uploadFn} getUrlFn={props.getUrlFn}/>
+        </div>
+      )}
     </div>
   );
 }
@@ -189,15 +262,20 @@ function DocSection(props){
   var uploadFn=props.uploadFn; var getUrlFn=props.getUrlFn;
   var st1=useState(false); var showAdd=st1[0],setShowAdd=st1[1];
   var st2=useState(""); var newName=st2[0],setNewName=st2[1];
-  var done=docs.filter(function(d){return d.done;}).length;
-  function addDoc(name){ if(!name||!name.trim()) return; props.onChange(docs.concat([{id:uid(),label:name.trim(),done:false,files:[],isCustom:true}])); setNewName(""); setShowAdd(false); }
+  var done=docs.filter(function(d){return docIsDone(d);}).length;
+  var missing=docs.filter(function(d){return !docIsDone(d);});
+  function addDoc(name){ if(!name||!name.trim()) return; props.onChange(docs.concat([{id:uid(),label:name.trim(),done:false,status:"none",files:[],isCustom:true}])); setNewName(""); setShowAdd(false); }
   function delDoc(idx){ props.onChange(docs.filter(function(_,i){return i!==idx;})); }
+  function buildReq(list){ var names=list.map(function(d){return "- "+d.label;}).join("\n"); var head=(props.progName?props.progName+" ":"고용지원금 ")+"신청을 위해 아래 서류가 필요합니다."; return "대표님, "+head+"\n\n"+names+"\n\n가능하실 때 전달 부탁드립니다. 감사합니다."; }
+  function copyMissing(){ if(missing.length===0){toast("미제출 서류가 없습니다.","info");return;} navigator.clipboard.writeText(buildReq(missing)).then(function(){toast("서류 요청 문구가 복사되었습니다.","success");}); if(props.onLog)props.onLog("미제출 서류 "+missing.length+"건 요청 문구 생성","서류요청"); }
+  function copyOne(d){ navigator.clipboard.writeText(buildReq([d])).then(function(){toast("서류 요청 문구가 복사되었습니다.","success");}); if(props.onLog)props.onLog("'"+d.label+"' 요청 문구 생성","서류요청"); }
   return(
     <Card style={{padding:"18px 20px",marginBottom:props.mb||12}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
         <h4 style={{margin:0,fontSize:19,fontWeight:700}}>{props.icon} {props.title}</h4>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           <Badge color={done===docs.length&&docs.length>0?"#059669":"#D97706"} bg={done===docs.length&&docs.length>0?"#D1FAE5":"#FEF3C7"}>{done}/{docs.length}</Badge>
+          {!disabled&&missing.length>0&&<button style={Object.assign({},btnSm,{padding:"8px 14px",fontSize:14,background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE"})} onClick={copyMissing}>📤 미제출 {missing.length}건 요청 문구</button>}
           {!disabled&&<button style={Object.assign({},btnSm,{padding:"8px 14px",fontSize:15})} onClick={function(){setShowAdd(!showAdd);}}>+ 서류</button>}
         </div>
       </div>
@@ -211,10 +289,12 @@ function DocSection(props){
         </div>
       )}
       {docs.length===0?<p style={{margin:0,fontSize:16,color:"#94A3B8"}}>서류 없음</p>:(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:8}}>
           {docs.map(function(d,i){return <ChkItem key={d.id||i} item={d} disabled={disabled}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
-            onToggle={function(){var ds=docs.slice();ds[i]=Object.assign({},ds[i],{done:!ds[i].done});props.onChange(ds);if(props.onLog)props.onLog("서류"+(ds[i].done?"✓":"○")+d.label);}}
+            onToggle={function(){var ds=docs.slice();var nd=!docIsDone(ds[i]);ds[i]=Object.assign({},ds[i],{done:nd,status:nd?"confirmed":"none"});props.onChange(ds);}}
+            onStatus={function(e){var v=e.target.value;var ds=docs.slice();ds[i]=Object.assign({},ds[i],{status:v,done:(v==="confirmed"||v==="submitted")});props.onChange(ds);if(props.onLog)props.onLog("'"+d.label+"' 서류 "+docStatusMeta(v).label,"상태변경");}}
+            onCopyReq={function(){copyOne(d);}}
             onDelete={function(){delDoc(i);}}
             onFA={function(f){var ds=docs.slice();ds[i]=Object.assign({},ds[i],{files:(ds[i].files||[]).concat([f])});props.onChange(ds);}}
             onFR={function(fid){var ds=docs.slice();ds[i]=Object.assign({},ds[i],{files:(ds[i].files||[]).filter(function(f){return f.id!==fid;})});props.onChange(ds);}}/>;
@@ -253,7 +333,7 @@ function HiringDiagnosis(props){ var programs=props.programs; var st1=useState("
       {[["채용 전(사전신청 가능)",st9],["최근 감원 이력 없음",st10],["월보수 124만원 이상",st11]].map(function(arr,i){var st=arr[1];return(<label key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:10,background:st[0]?"#F0FDF4":"#FEF2F2",border:st[0]?"1px solid #BBF7D0":"1px solid #FECACA",cursor:"pointer",fontSize:17}}><input type="checkbox" checked={st[0]} onChange={function(){st[1](!st[0]);}} style={{width:18,height:18,accentColor:"#10B981"}}/><span style={{color:st[0]?"#16A34A":"#DC2626"}}>{arr[0]}</span></label>);})}
       {st2[0].indexOf("청년")>=0&&st6[0]==="수도권"&&(<label style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:10,background:st12[0]?"#F0FDF4":"#FEF2F2",border:st12[0]?"1px solid #BBF7D0":"1px solid #FECACA",cursor:"pointer",fontSize:17}}><input type="checkbox" checked={st12[0]} onChange={function(){st12[1](!st12[0]);}} style={{width:18,height:18,accentColor:"#10B981"}}/><span style={{color:st12[0]?"#16A34A":"#DC2626"}}>취업애로요건 해당(청년·수도권)</span></label>)}
     </div>
-    <button style={Object.assign({},btnP,{width:"100%",padding:16,fontSize:20})} onClick={runDiagnose}>🎯 진단하기</button>
+    <button style={Object.assign({},btnP,{width:"100%",padding:16,fontSize:20})} onClick={runDiagnose}>🎯 지원금 가능성 진단</button>
   </Card>
   {result&&(<div>{recommend.length>0&&(<Card style={{padding:20,marginBottom:16,border:"2px solid #6EE7B7"}}><h4 style={{margin:"0 0 12px",fontSize:20,fontWeight:700,color:"#059669"}}>✅ 가능성 높음 ({recommend.length})</h4>{recommend.map(function(r){return <DiagRow key={r.program.id} r={r}/>;})}</Card>)}{maybe.length>0&&(<Card style={{padding:20,marginBottom:16,border:"1px solid #FDE68A"}}><h4 style={{margin:"0 0 12px",fontSize:20,fontWeight:700,color:"#D97706"}}>⚠️ 조건 확인 필요 ({maybe.length})</h4>{maybe.map(function(r){return <DiagRow key={r.program.id} r={r}/>;})}</Card>)}{recommend.length===0&&maybe.length===0&&(<Card style={{padding:36,textAlign:"center"}}><div style={{fontSize:40,marginBottom:10}}>🔍</div><p style={{color:"#94A3B8",fontSize:18,margin:0}}>입력 조건에 뚜렷하게 맞는 지원금이 없어요.</p></Card>)}<Notice>진단 결과는 가능성 안내이며 확정이 아닙니다. 실제 신청 전 최신 공고를 확인하세요.</Notice></div>)}</div>);
 }
@@ -478,7 +558,7 @@ function WageCalc(){
 function Simulator(props){ var programs=props.programs; var st1=useState("youth_jump"),st2=useState(1),st3=useState(""); var selectedProgram=programs[st1[0]]; var results=useMemo(function(){if(!selectedProgram||!st2[0])return{monthly:[],total:0}; var count=parseInt(st2[0])||0; var startDate=st3[0]||new Date().toISOString().split("T")[0]; var monthly=[]; var totalAmount=0; for(var i=0;i<count;i++){(selectedProgram.rounds||[]).forEach(function(r){var eligDate=addMo(startDate,r.month);var ym=eligDate.substring(0,7);var existing=monthly.find(function(m){return m.month===ym;});if(existing){existing.amount+=r.amount;existing.count++;}else{monthly.push({month:ym,amount:r.amount,count:1});}totalAmount+=r.amount;});} return{monthly:monthly.sort(function(a,b){return a.month.localeCompare(b.month);}),total:totalAmount,perPerson:selectedProgram.totalAmount||0};}, [selectedProgram,st2[0],st3[0]]);
   return(<Card style={{padding:24,marginBottom:20}}><h4 style={{margin:"0 0 20px",fontSize:22,fontWeight:800}}>📊 예상 수령액 시뮬레이터</h4><div style={{marginBottom:18}}><Label>지원금 선택</Label>{["신규채용","재직자유지","육아"].map(function(grp){var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];var items=Object.values(programs).filter(function(p){return p.group===grp;});if(!items.length)return null;return(<div key={grp} style={{marginBottom:12,padding:"14px 16px",borderRadius:12,background:gp.badge,border:"1.5px solid "+gp.light}}><div style={{fontSize:17,fontWeight:700,color:gp.dark,marginBottom:10}}>{gp.icon} {grp}</div><div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{items.map(function(p){var on=st1[0]===p.id;return(<button key={p.id} onClick={function(){st1[1](p.id);}} style={{padding:"8px 16px",borderRadius:8,fontSize:17,cursor:"pointer",fontWeight:on?700:400,background:on?gp.base:"#fff",color:on?"#fff":gp.text,border:on?"none":"1.5px solid "+gp.light}}>{p.name}</button>);})}</div></div>);})}</div>
   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}><div><Label>채용 예정 인원</Label><input type="number" style={inp} value={st2[0]} onChange={function(e){st2[1](e.target.value);}} min="1" placeholder="1"/></div><div><Label>예상 입사일</Label><input type="date" style={inp} value={st3[0]} onChange={function(e){st3[1](e.target.value);}}/></div></div>
-  {results.total>0&&(<React.Fragment>{(function(){var sg=GROUP_COLORS[(programs[st1[0]]||{}).group]||GROUP_COLORS["커스텀"];return(<div style={{padding:"20px 24px",background:"linear-gradient(135deg,"+sg.dark+","+sg.base+")",borderRadius:14,color:"#fff",marginBottom:20,textAlign:"center"}}><div style={{fontSize:18,opacity:0.85,marginBottom:6,fontWeight:600}}>예상 총 수령액(최대치)</div><div style={{fontSize:46,fontWeight:800,letterSpacing:"-1px"}}>{fMan(results.total)}</div><div style={{fontSize:17,opacity:0.75,marginTop:6}}>1인당 {fMan(results.perPerson)} × {st2[0]}명</div></div>);})()}<div style={{fontSize:18,fontWeight:700,marginBottom:10}}>📅 월별 예상 수령</div><div style={{maxHeight:280,overflow:"auto",display:"grid",gap:4}}>{results.monthly.map(function(m,i){var d=new Date(m.month+"-01");return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:i%2===0?"#F8FAFC":"#fff",borderRadius:8,border:"1px solid #F1F5F9"}}><span style={{fontSize:18,color:"#475569",fontWeight:500}}>{d.getFullYear()}년 {d.getMonth()+1}월</span><div style={{textAlign:"right"}}><span style={{fontSize:20,fontWeight:700,color:"#2563EB"}}>{fMan(m.amount)}</span><span style={{fontSize:15,color:"#94A3B8",marginLeft:8}}>({m.count}건)</span></div></div>);})}</div><div style={{marginTop:16,display:"flex",gap:10,flexWrap:"wrap"}}><button style={Object.assign({},btnP,{padding:"12px 22px",fontSize:15})} onClick={function(){var pname=(programs[st1[0]]||{}).name||"";var lines=results.monthly.map(function(m){var d=new Date(m.month+"-01");return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+fMan(m.amount);});var txt="대표님, 현재 "+pname+" 기준으로 "+st2[0]+"명을 채용하실 경우\n총 예상 지원금은 최대 "+fMan(results.total)+"이며,\n"+lines.join(", ")+" 순으로 수령 가능성이 있습니다.\n단, 실제 지급 여부는 요건 충족 및 기관 심사 결과에 따라 달라질 수 있습니다.";navigator.clipboard.writeText(txt).then(function(){alert("상담용 문구가 복사되었습니다.\n고객에게 카톡·문자로 바로 보내세요.");});}}>📋 상담용 문구 복사</button></div><div style={{marginTop:14,padding:"12px 16px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:13,color:"#64748B",lineHeight:1.7}}>※ 예상 수령액은 공고 기준과 입력값을 바탕으로 계산한 <strong>참고 금액</strong>입니다. 실제 지급액은 심사 결과·예산·고용 유지 여부 등에 따라 달라질 수 있습니다.</div></React.Fragment>)}</Card>); }
+  {results.total>0&&(<React.Fragment>{(function(){var sg=GROUP_COLORS[(programs[st1[0]]||{}).group]||GROUP_COLORS["커스텀"];return(<div style={{padding:"20px 24px",background:"linear-gradient(135deg,"+sg.dark+","+sg.base+")",borderRadius:14,color:"#fff",marginBottom:20,textAlign:"center"}}><div style={{fontSize:18,opacity:0.85,marginBottom:6,fontWeight:600}}>예상 총 수령액(최대치)</div><div style={{fontSize:46,fontWeight:800,letterSpacing:"-1px"}}>{fMan(results.total)}</div><div style={{fontSize:17,opacity:0.75,marginTop:6}}>1인당 {fMan(results.perPerson)} × {st2[0]}명</div></div>);})()}<div style={{fontSize:18,fontWeight:700,marginBottom:10}}>📅 월별 예상 수령</div><div style={{maxHeight:280,overflow:"auto",display:"grid",gap:4}}>{results.monthly.map(function(m,i){var d=new Date(m.month+"-01");return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:i%2===0?"#F8FAFC":"#fff",borderRadius:8,border:"1px solid #F1F5F9"}}><span style={{fontSize:18,color:"#475569",fontWeight:500}}>{d.getFullYear()}년 {d.getMonth()+1}월</span><div style={{textAlign:"right"}}><span style={{fontSize:20,fontWeight:700,color:"#2563EB"}}>{fMan(m.amount)}</span><span style={{fontSize:15,color:"#94A3B8",marginLeft:8}}>({m.count}건)</span></div></div>);})}</div><div style={{marginTop:16,display:"flex",gap:10,flexWrap:"wrap"}}><button style={Object.assign({},btnP,{padding:"12px 22px",fontSize:15})} onClick={function(){var pname=(programs[st1[0]]||{}).name||"";var lines=results.monthly.map(function(m){var d=new Date(m.month+"-01");return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+fMan(m.amount);});var txt="대표님, 현재 "+pname+" 기준으로 "+st2[0]+"명을 채용하실 경우\n총 예상 지원금은 최대 "+fMan(results.total)+"이며,\n"+lines.join(", ")+" 순으로 수령 가능성이 있습니다.\n단, 실제 지급 여부는 요건 충족 및 기관 심사 결과에 따라 달라질 수 있습니다.";navigator.clipboard.writeText(txt).then(function(){toast("상담용 문구가 복사되었습니다. 고객에게 바로 보내세요.","success");});}}>📋 상담용 문구 복사</button></div><div style={{marginTop:14,padding:"12px 16px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:13,color:"#64748B",lineHeight:1.7}}>※ 예상 수령액은 공고 기준과 입력값을 바탕으로 계산한 <strong>참고 금액</strong>입니다. 실제 지급액은 심사 결과·예산·고용 유지 여부 등에 따라 달라질 수 있습니다.</div></React.Fragment>)}</Card>); }
 
 // ── 보조 컴포넌트 ─────────────────────────────────────────
 function JuminInput(props){ var st1=useState(""); function handleChange(e){ var val=e.target.value.replace(/[^0-9]/g,"").substring(0,7); st1[1](val); if(val.length>=7){var parsed=parseJumin(val);if(parsed){props.onParsed(parsed);}}} return(<div><Label color="#1D4ED8">주민번호 앞 7자리 (자동입력)</Label><input style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff"})} value={st1[0]} onChange={handleChange} placeholder="9501011" maxLength={7}/>{st1[0].length===7&&(<div style={{fontSize:11,color:"#059669",marginTop:4}}>✅ 생년월일/성별 자동 입력됨</div>)}<div style={{fontSize:10,color:"#94A3B8",marginTop:3}}>* 앞 7자리만 입력. 고용이력 조회는 운영기관 전산에서 별도로 하세요.</div></div>); }
@@ -487,10 +567,10 @@ function EligChk(props){ var bd=props.bd,gen=props.gen,mil=props.mil,ec=props.ec
   return(<div style={{border:"2px solid #BFDBFE",borderRadius:10,padding:12,background:"#F0F7FF"}}><div style={{fontSize:14,fontWeight:700,color:"#1D4ED8",marginBottom:8}}>🔍 청년도약 자격요건</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}><div><Label color="#1D4ED8">생년월일</Label><input type="date" style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff",fontSize:12,padding:"8px 10px"})} value={bd||"2000-01-01"} onChange={function(e){props.setBd(e.target.value);}}/></div><div><Label color="#1D4ED8">성별</Label><div style={{display:"flex",gap:3}}>{[["male","남"],["female","여"]].map(function(arr){return <button key={arr[0]} onClick={function(){props.setGen(arr[0]);}} style={Object.assign({},btnSm,{flex:1,background:gen===arr[0]?"#DBEAFE":"#fff",color:gen===arr[0]?"#2563EB":"#64748B",border:gen===arr[0]?"2px solid #93C5FD":"1px solid #E2E8F0",fontSize:11})}>{arr[1]}</button>;})}</div></div>{gen==="male"&&<div><Label color="#1D4ED8">군복무(월)</Label><input type="number" style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff",fontSize:12,padding:"8px 10px"})} value={mil||""} onChange={function(e){props.setMil(Number(e.target.value));}} placeholder="18"/></div>}</div>{age!==null&&<div style={{padding:"4px 8px",borderRadius:4,marginBottom:6,background:aOk?"#D1FAE5":"#FEE2E2",fontSize:12,fontWeight:600}}>{aOk?<span style={{color:"#059669"}}>✅ 만{age}세 (상한: {maxLabel})</span>:<span style={{color:"#DC2626"}}>❌ 만{age}세 미충족</span>}</div>}{nearBorder&&<div style={{padding:"4px 8px",borderRadius:4,marginBottom:6,background:"#FEF3C7",fontSize:11,color:"#92400E"}}>⚠️ 경계선 — 관할기관 확인 필요</div>}<div style={{marginBottom:8}}><div style={{fontSize:12,fontWeight:600,marginBottom:4,color:"#1D4ED8"}}>📋 취업애로요건 (1개↑)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>{ELIG.map(function(e){var isChecked=!!ec[e.id];return(<label key={e.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 6px",borderRadius:4,cursor:"pointer",background:isChecked?"#D1FAE5":"#fff",border:isChecked?"1px solid #6EE7B7":"1px solid #E2E8F0",fontSize:11}} title={e.desc}><input type="checkbox" checked={isChecked} onChange={function(){props.setEc(function(p){var n=Object.assign({},p);n[e.id]=!p[e.id];return n;});}} style={{accentColor:"#10B981",width:12,height:12}}/><span style={{color:isChecked?"#059669":"#475569"}}>{e.label}</span></label>);})}</div></div><div style={{marginBottom:8}}><div style={{fontSize:12,fontWeight:600,marginBottom:4,color:"#DC2626"}}>🚫 제외요건 확인</div><div style={{display:"grid",gap:3}}>{EXCL.map(function(x){var isChecked=!!xc[x.id];return(<label key={x.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 6px",borderRadius:4,cursor:"pointer",background:isChecked?"#D1FAE5":"#FEF2F2",border:isChecked?"1px solid #6EE7B7":"1px solid #FECACA",fontSize:11}} title={x.desc}><input type="checkbox" checked={isChecked} onChange={function(){props.setXc(function(p){var n=Object.assign({},p);n[x.id]=!p[x.id];return n;});}} style={{accentColor:"#10B981",width:12,height:12}}/><span style={{color:isChecked?"#059669":"#DC2626"}}>{x.label}</span></label>);})}</div></div>{has&&failedX.length>0&&<div style={{padding:"6px 8px",marginBottom:6,borderRadius:4,background:"#FEF3C7",fontSize:11,color:"#92400E"}}>⚠️ 미충족 제외요건 {failedX.length}개 — 진행 전 확인 필요</div>}<div style={{padding:"8px",borderRadius:6,textAlign:"center",background:ok?"#D1FAE5":has?"#FEF3C7":"#F1F5F9",fontSize:13,fontWeight:700}}>{ok?<span style={{color:"#059669"}}>✅ 대상자 예상</span>:has?<span style={{color:"#D97706"}}>⚠️ 일부 요건 확인 필요</span>:<span style={{color:"#64748B"}}>정보입력</span>}</div></div>);
 }
 
-function BulkUpload(props){ var programs=props.programs,onUpload=props.onUpload; var st1=useState(false),st2=useState(""),st3=useState([]),st4=useState(""); function parseData(){if(!st2[0].trim()){st4[1]("데이터를 붙여넣어 주세요");return;}var parsed=parseExcelData(st2[0],programs);if(parsed.length===0){st4[1]("유효한 데이터가 없습니다.");return;}st3[1](parsed);st4[1]("");} function doUpload(){if(st3[0].length===0)return;onUpload(st3[0]);st1[1](false);st2[1]("");st3[1]([]);} function copyTemplate(){navigator.clipboard.writeText(makeExcelTemplate());alert("양식이 복사되었습니다.");} return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#D1FAE5",color:"#059669",border:"1px solid #6EE7B7"})} onClick={function(){st1[1](true);st2[1]("");st3[1]([]);st4[1]("");}}>📥 일괄등록</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📥 직원 일괄 등록" width={600}><div style={{display:"grid",gap:16}}><div style={{padding:14,background:"#EFF6FF",borderRadius:10,border:"1px solid #BFDBFE"}}><div style={{fontSize:14,fontWeight:700,color:"#2563EB",marginBottom:8}}>Step 1. 양식 복사</div><button style={btnSm} onClick={copyTemplate}>📋 양식 복사</button></div><div style={{padding:14,background:"#F0FDF4",borderRadius:10,border:"1px solid #BBF7D0"}}><div style={{fontSize:14,fontWeight:700,color:"#059669",marginBottom:8}}>Step 2. 데이터 붙여넣기</div><textarea style={Object.assign({},inp,{height:110,resize:"none",fontFamily:"monospace",fontSize:11})} value={st2[0]} onChange={function(e){st2[1](e.target.value);st3[1]([]);}} placeholder={"이름\t주민번호앞7자리\t입사일\t연락처\t이메일\t지원금ID"}/>{st4[0]&&<p style={{fontSize:12,color:"#DC2626",marginTop:4}}>{st4[0]}</p>}<button style={Object.assign({},btnP,{marginTop:8})} onClick={parseData}>데이터 확인</button></div>{st3[0].length>0&&(<div style={{padding:14,background:"#FEF3C7",borderRadius:10,border:"1px solid #FDE68A"}}><div style={{fontSize:14,fontWeight:700,color:"#D97706",marginBottom:8}}>Step 3. 확인 및 등록 ({st3[0].length}명)</div><div style={{maxHeight:150,overflow:"auto",marginBottom:8}}>{st3[0].map(function(row,i){return(<div key={i} style={{fontSize:11,padding:"4px 0",borderBottom:"1px solid #FEF3C7"}}>{row.name} · {row.birthDate} · {row.startDate} · {row.phone}</div>);})}</div><button style={Object.assign({},btnP,{width:"100%"})} onClick={doUpload}>✅ {st3[0].length}명 등록하기</button></div>)}</div></Modal></React.Fragment>); }
+function BulkUpload(props){ var programs=props.programs,onUpload=props.onUpload; var st1=useState(false),st2=useState(""),st3=useState([]),st4=useState(""); function parseData(){if(!st2[0].trim()){st4[1]("데이터를 붙여넣어 주세요");return;}var parsed=parseExcelData(st2[0],programs);if(parsed.length===0){st4[1]("유효한 데이터가 없습니다.");return;}st3[1](parsed);st4[1]("");} function doUpload(){if(st3[0].length===0)return;var n=st3[0].length;onUpload(st3[0]);st1[1](false);st2[1]("");st3[1]([]);toast(n+"명이 등록되었습니다.","success");} function copyTemplate(){navigator.clipboard.writeText(makeExcelTemplate());toast("엑셀 양식이 복사되었습니다.","success");} return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#D1FAE5",color:"#059669",border:"1px solid #6EE7B7"})} onClick={function(){st1[1](true);st2[1]("");st3[1]([]);st4[1]("");}}>📥 일괄등록</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📥 직원 일괄 등록" width={600}><div style={{display:"grid",gap:16}}><div style={{padding:14,background:"#EFF6FF",borderRadius:10,border:"1px solid #BFDBFE"}}><div style={{fontSize:14,fontWeight:700,color:"#2563EB",marginBottom:8}}>Step 1. 양식 복사</div><button style={btnSm} onClick={copyTemplate}>📋 양식 복사</button></div><div style={{padding:14,background:"#F0FDF4",borderRadius:10,border:"1px solid #BBF7D0"}}><div style={{fontSize:14,fontWeight:700,color:"#059669",marginBottom:8}}>Step 2. 데이터 붙여넣기</div><textarea style={Object.assign({},inp,{height:110,resize:"none",fontFamily:"monospace",fontSize:11})} value={st2[0]} onChange={function(e){st2[1](e.target.value);st3[1]([]);}} placeholder={"이름\t주민번호앞7자리\t입사일\t연락처\t이메일\t지원금ID"}/>{st4[0]&&<p style={{fontSize:12,color:"#DC2626",marginTop:4}}>{st4[0]}</p>}<button style={Object.assign({},btnP,{marginTop:8})} onClick={parseData}>데이터 확인</button></div>{st3[0].length>0&&(<div style={{padding:14,background:"#FEF3C7",borderRadius:10,border:"1px solid #FDE68A"}}><div style={{fontSize:14,fontWeight:700,color:"#D97706",marginBottom:8}}>Step 3. 확인 및 등록 ({st3[0].length}명)</div><div style={{maxHeight:150,overflow:"auto",marginBottom:8}}>{st3[0].map(function(row,i){return(<div key={i} style={{fontSize:11,padding:"4px 0",borderBottom:"1px solid #FEF3C7"}}>{row.name} · {row.birthDate} · {row.startDate} · {row.phone}</div>);})}</div><button style={Object.assign({},btnP,{width:"100%"})} onClick={doUpload}>✅ {st3[0].length}명 등록하기</button></div>)}</div></Modal></React.Fragment>); }
 
 function PDFReport(props){ var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile; var st1=useState(false); var rd=useMemo(function(){ var emps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";}); var totalReceived=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0); var totalExpected=emps.reduce(function(s,e){return s+(e.totalExpected||0);},0); var upcoming=[]; emps.forEach(function(e){var p=programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var ed=addMo(e.startDate,r.month);var dd=getDday(ed);if(dd!==null&&dd>=0&&dd<=90)upcoming.push({empName:e.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:r.expectedAmount});});}); upcoming.sort(function(a,b){return a.dday-b.dday;}); return{empCount:emps.length,totalExpected:totalExpected,totalReceived:totalReceived,remaining:totalExpected-totalReceived,upcomingRounds:upcoming.slice(0,10),employees:emps}; },[company,employees,programs]);
-  function generatePDF(){ var cl=company.corpType==="법인"?(company.juPosition==="앞"?"(주)"+company.name:company.name+"(주)"):company.name; var today=new Date(); var rd2=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일"; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+cl+' 고용지원금 현황</title><style>body{font-family:-apple-system,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#1E293B}h1{font-size:24px;border-bottom:3px solid #2563EB;padding-bottom:10px;margin-bottom:20px}h2{font-size:16px;color:#2563EB;margin-top:30px;border-left:4px solid #2563EB;padding-left:10px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px}.sc{background:#F8FAFC;border-radius:8px;padding:15px;text-align:center}.sc .l{font-size:12px;color:#64748B}.sc .v{font-size:24px;font-weight:700;color:#2563EB}table{width:100%;border-collapse:collapse}th,td{border:1px solid #E2E8F0;padding:8px 12px;text-align:left;font-size:13px}th{background:#F8FAFC}@media print{body{padding:20px}}</style></head><body>'; html+='<h1>📋 '+cl+' 고용지원금 현황</h1><p style="color:#64748B;font-size:13px">작성일: '+rd2+' | 작성자: '+(profile.display_name||"")+" "+(profile.title||"")+'</p>'; html+='<div class="summary"><div class="sc"><div class="l">대상자</div><div class="v">'+rd.empCount+'명</div></div><div class="sc"><div class="l">수령완료</div><div class="v">'+fMan(rd.totalReceived)+'</div></div><div class="sc"><div class="l">수령예정</div><div class="v">'+fMan(rd.remaining)+'</div></div></div>'; if(rd.upcomingRounds.length>0){html+='<h2>🔔 향후 90일 내 신청 예정</h2><table><tr><th>직원</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th>예상금액</th></tr>';rd.upcomingRounds.forEach(function(r){html+='<tr><td>'+r.empName+'</td><td>'+r.roundLabel+'</td><td>'+fD(r.eligDate)+'</td><td>D-'+r.dday+'</td><td>'+fMan(r.amount)+'</td></tr>';});html+='</table>';} html+='<h2>👤 직원별 현황</h2><table><tr><th>이름</th><th>지원금</th><th>상태</th><th>입사일</th><th>수령액</th></tr>';rd.employees.forEach(function(e){var p2=programs[e.programId];var s2=STS.find(function(s){return s.key===e.status;});var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);html+='<tr><td>'+e.name+'</td><td>'+(p2?p2.name:"")+'</td><td>'+(s2?s2.label:"")+'</td><td>'+(e.startDate||"-")+'</td><td>'+fMan(rcv)+'</td></tr>';});html+='</table>'; html+='<div style="margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;text-align:center;font-size:12px;color:#64748B">고용지원금 매니저 Pro에서 자동 생성 · 신청 전 최신 공고 확인 필요</div></body></html>'; var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_고용지원금_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false); }
+  function generatePDF(){ var cl=company.corpType==="법인"?(company.juPosition==="앞"?"(주)"+company.name:company.name+"(주)"):company.name; var today=new Date(); var rd2=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일"; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+cl+' 고용지원금 현황</title><style>body{font-family:-apple-system,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#1E293B}h1{font-size:24px;border-bottom:3px solid #2563EB;padding-bottom:10px;margin-bottom:20px}h2{font-size:16px;color:#2563EB;margin-top:30px;border-left:4px solid #2563EB;padding-left:10px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px}.sc{background:#F8FAFC;border-radius:8px;padding:15px;text-align:center}.sc .l{font-size:12px;color:#64748B}.sc .v{font-size:24px;font-weight:700;color:#2563EB}table{width:100%;border-collapse:collapse}th,td{border:1px solid #E2E8F0;padding:8px 12px;text-align:left;font-size:13px}th{background:#F8FAFC}@media print{body{padding:20px}}</style></head><body>'; html+='<h1>📋 '+cl+' 고용지원금 현황</h1><p style="color:#64748B;font-size:13px">작성일: '+rd2+' | 작성자: '+(profile.display_name||"")+" "+(profile.title||"")+'</p>'; html+='<div class="summary"><div class="sc"><div class="l">대상자</div><div class="v">'+rd.empCount+'명</div></div><div class="sc"><div class="l">수령완료</div><div class="v">'+fMan(rd.totalReceived)+'</div></div><div class="sc"><div class="l">수령예정</div><div class="v">'+fMan(rd.remaining)+'</div></div></div>'; if(rd.upcomingRounds.length>0){html+='<h2>🔔 향후 90일 내 신청 예정</h2><table><tr><th>직원</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th>예상금액</th></tr>';rd.upcomingRounds.forEach(function(r){html+='<tr><td>'+r.empName+'</td><td>'+r.roundLabel+'</td><td>'+fD(r.eligDate)+'</td><td>D-'+r.dday+'</td><td>'+fMan(r.amount)+'</td></tr>';});html+='</table>';} html+='<h2>👤 직원별 현황</h2><table><tr><th>이름</th><th>지원금</th><th>상태</th><th>입사일</th><th>수령액</th></tr>';rd.employees.forEach(function(e){var p2=programs[e.programId];var s2=STS.find(function(s){return s.key===e.status;});var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);html+='<tr><td>'+e.name+'</td><td>'+(p2?p2.name:"")+'</td><td>'+(s2?s2.label:"")+'</td><td>'+(e.startDate||"-")+'</td><td>'+fMan(rcv)+'</td></tr>';});html+='</table>'; html+='<div style="margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;text-align:center;font-size:12px;color:#64748B">고용지원금 매니저 Pro에서 자동 생성 · 신청 전 최신 공고 확인 필요</div></body></html>'; var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_고용지원금_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false); if(props.onLog)props.onLog(company.id,"내부 관리 보고서 출력","기타"); toast("내부 보고서가 생성되었습니다.","success"); }
   return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#334155",color:"#fff",border:"none"})} onClick={function(){st1[1](true);}}>📄 내부 보고서</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📄 내부 관리 보고서" width={480}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>📄</div><h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700}}>{company.name}</h3><p style={{color:"#64748B",fontSize:13,marginBottom:24}}>대상자 {rd.empCount}명 | 수령완료 {fMan(rd.totalReceived)}</p><button style={Object.assign({},btnP,{padding:"14px 40px",fontSize:15})} onClick={generatePDF}>📥 HTML 보고서 다운로드</button><p style={{fontSize:11,color:"#94A3B8",marginTop:12}}>브라우저에서 열어 인쇄(Ctrl+P)하면 PDF로 저장됩니다</p></div></Modal></React.Fragment>); }
 
 function CommissionReport(props){
@@ -512,6 +592,8 @@ function CommissionReport(props){
     html+='</tbody><tfoot><tr><td colspan="2">합계</td><td class="num">'+fMan(totalReceived)+'</td><td class="num" style="color:#059669">'+fMan(totalFee)+'</td></tr></tfoot></table>';
     html+='<div style="margin-top:32px;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center">고용지원금 매니저 Pro 자동 생성 · 실제 수수료는 계약서에 따름</div></body></html>';
     var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_수수료정산_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false);
+    if(props.onLog)props.onLog(company.id,"수수료 정산서 출력","수수료청구");
+    toast("수수료 정산서가 생성되었습니다.","success");
   }
   return(
     <React.Fragment>
@@ -749,6 +831,8 @@ function AgencyReport(props){
     a.click();
     URL.revokeObjectURL(url);
     st1[1](false);
+    if(props.onLog)props.onLog(company.id,"고객 보고서 출력","기타");
+    toast("고객 보고서가 생성되었습니다.","success");
   }
 
   return(
@@ -916,6 +1000,26 @@ function Dashboard(props){
     var trend=lastR>0?Math.round((thisR-lastR)/lastR*100):(thisR>0?100:null);
     return{spark:spark,thisMonthExpected:thisMonthExpected,overdueAmount:overdueAmount,overdueCount:overdueCount,next7:next7,next7Count:next7Count,next7List:next7List,next30:next30,next30Count:next30Count,trend:trend,thisMonthReceived:thisR,overdueList:overdueList,docMissingCount:docMissingCount,docMissingCompanies:Object.keys(docCompSet).length,riskAmount:overdueAmount+next7};
   },[fE,props.companies,props.programs,st1[0]]);
+
+  // 수수료 요약 (업체별 commission 집계)
+  var commSummary=useMemo(function(){
+    var thisMonthFee=0,unbilled=0,unpaid=0,collected=0;
+    var now=new Date(),cy=now.getFullYear(),cm=now.getMonth();
+    (st1[0]==="all"?props.companies:props.companies.filter(function(c){return c.id===st1[0];})).forEach(function(c){
+      var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0;
+      var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
+      var rcv=0,monthExp=0;
+      emps.forEach(function(e){(e.rounds||[]).forEach(function(r){
+        if(r.isPaid){rcv+=r.received||0;return;}
+        if(!e.startDate)return; var ed=new Date(addMo(e.startDate,r.month));
+        if(ed.getFullYear()===cy&&ed.getMonth()===cm)monthExp+=r.expectedAmount||r.amount||0;
+      });});
+      var billable=Math.round(ret+rcv*rate/100);
+      thisMonthFee+=Math.round(monthExp*rate/100);
+      if(cc.paid)collected+=billable; else if(cc.billed)unpaid+=billable; else if(billable>0)unbilled+=billable;
+    });
+    return{thisMonthFee:thisMonthFee,unbilled:unbilled,unpaid:unpaid,collected:collected};
+  },[props.companies,props.employees,st1[0]]);
   var activeCount=fE.filter(function(e){return e.status!=="resigned";}).length;
   var cards=[
     {l:"관리 업체",v:st1[0]==="all"?props.companies.length:1,u:"개",i:"🏢",c:"#3B82F6",extra:"progress",prog:null},
@@ -925,7 +1029,7 @@ function Dashboard(props){
     {l:"수령 예정액",v:fManS(stats.tE),u:"원",i:"💰",c:"#2563EB"}
   ];
   var starredCompanies=props.companies.filter(function(c){return(c.tags||[]).includes("star");});
-  function handleExcelCopy(){var data=makeExcelData(props.companies,props.employees,props.programs);navigator.clipboard.writeText(data).then(function(){st2[1](true);setTimeout(function(){st2[1](false);},2000);});}
+  function handleExcelCopy(){var data=makeExcelData(props.companies,props.employees,props.programs);navigator.clipboard.writeText(data).then(function(){st2[1](true);setTimeout(function(){st2[1](false);},2000);toast("엑셀용 데이터가 복사되었습니다.","success");});}
 
   return(<div className="fade-in">
     {props.mode!=="stats"&&<GlobalSearch employees={props.employees} companies={props.companies} goCompany={props.goCompany}/>}
@@ -990,6 +1094,31 @@ function Dashboard(props){
       </div>
     )}
 
+    {/* ── 무료체험 가치 지표 (stats, 체험 중) ── */}
+    {props.mode!=="list"&&props.isTrial&&props.companies.length>0&&(function(){
+      var emps=props.employees; var active=emps.filter(function(e){return e.status!=="resigned";});
+      var sched=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)sched++;});});
+      var items=[["관리 중인 예상 지원금",fMan(stats.tE)],["등록한 업체",props.companies.length+"개"],["등록한 대상자",active.length+"명"],["생성된 신청 일정",sched+"건"],["확인한 지연 건",metrics.overdueCount+"건"]];
+      return(
+        <div style={{marginBottom:18,borderRadius:16,overflow:"hidden",background:"linear-gradient(135deg,#312E81,#4F46E5,#7C3AED)",color:"#fff",boxShadow:"0 8px 28px rgba(79,70,229,0.28)"}}>
+          <div style={{padding:"18px 24px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:20}}>🎁</span>
+            <span style={{fontSize:17,fontWeight:800}}>무료체험 동안 이만큼 관리하고 계세요{props.trialDaysLeft!=null?" · "+props.trialDaysLeft+"일 남음":""}</span>
+            <button onClick={props.onOpenBilling||function(){}} style={{marginLeft:"auto",background:"#fff",color:"#4F46E5",border:"none",borderRadius:9,padding:"9px 20px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF}}>지금 구독하기 →</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:1,background:"rgba(255,255,255,0.15)"}}>
+            {items.map(function(it,i){return(
+              <div key={i} style={{background:"rgba(15,23,42,0.12)",padding:"16px 18px"}}>
+                <div style={{fontSize:13,opacity:0.7,fontWeight:600,marginBottom:6}}>{it[0]}</div>
+                <div style={{fontSize:22,fontWeight:900,letterSpacing:"-0.5px"}}>{it[1]}</div>
+              </div>
+            );})}
+          </div>
+          <div style={{padding:"12px 24px",fontSize:13,opacity:0.85,background:"rgba(15,23,42,0.18)"}}>지금 구독하면 등록한 업체와 신청 일정을 계속 관리할 수 있습니다. 무료체험 종료 후에는 알림·보고서·수수료 정산 기능이 제한됩니다.</div>
+        </div>
+      );
+    })()}
+
     {/* ── 지원금 현황 요약 히어로 위젯 (stats) ── */}
     {props.mode!=="list"&&(
       <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr",gap:14,marginBottom:18}} className="grid-2-mobile">
@@ -1016,7 +1145,7 @@ function Dashboard(props){
 
     {props.mode!=="stats"&&starredCompanies.length>0&&(<Card style={{padding:"14px 18px",marginBottom:16}}><div style={{fontSize:18,fontWeight:700,marginBottom:8}}>⭐ 즐겨찾기</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{starredCompanies.map(function(c){return <button key={c.id} className="hover-lift" onClick={function(){props.goCompany(c.id);}} style={Object.assign({},btnSm,{background:"#FFEDD5",color:"#C2410C",border:"1px solid #FDBA74",fontSize:17})}>{c.name}</button>;})}</div></Card>)}
 
-    {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}><select style={Object.assign({},inp,{width:"auto",minWidth:180,fontSize:19,fontWeight:600})} value={st1[0]} onChange={function(e){st1[1](e.target.value);}}><option value="all">📊 전체 업체</option>{props.companies.map(function(c){return <option key={c.id} value={c.id}>🏢 {c.name}</option>;})}</select><button onClick={handleExcelCopy} className="hover-lift" style={Object.assign({},btnSm,{background:"#D1FAE5",color:"#059669",border:"1px solid #6EE7B7"})}>📋 엑셀복사</button>{st2[0]&&<span style={{fontSize:17,color:"#059669"}}>✅ 복사됨</span>}</div>}
+    {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}><select style={Object.assign({},inp,{width:"auto",minWidth:180,fontSize:19,fontWeight:600})} value={st1[0]} onChange={function(e){st1[1](e.target.value);}}><option value="all">📊 전체 업체</option>{props.companies.map(function(c){return <option key={c.id} value={c.id}>🏢 {c.name}</option>;})}</select><button onClick={handleExcelCopy} className="hover-lift" style={Object.assign({},btnSm,{background:"#D1FAE5",color:"#059669",border:"1px solid #6EE7B7"})}>📋 엑셀용 데이터 복사</button>{st2[0]&&<span style={{fontSize:17,color:"#059669"}}>✅ 복사됨</span>}</div>}
 
     {/* KPI 카드 */}
     {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:20}}>{cards.map(function(c,i){return(
@@ -1028,6 +1157,26 @@ function Dashboard(props){
         </div>
         {c.extra==="bar"&&<div style={{height:7,background:"#F1F5F9",borderRadius:4,overflow:"hidden",marginTop:12}}><div style={{height:"100%",width:c.v+"%",background:c.c,borderRadius:4,transition:"width 0.5s ease"}}/></div>}
       </Card>);})}</div>}
+
+    {/* 수수료 요약 (stats, 프로 플랜) */}
+    {props.mode!=="list"&&props.companies.length>0&&props.tier&&props.tier.feat.commission&&(
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:17,fontWeight:700,color:"#0F172A",marginBottom:10}}>🧾 수수료 현황</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12}}>
+          {[
+            {l:"이번 달 예상 수수료",v:fMan(commSummary.thisMonthFee),c:"#0D9488",i:"📅"},
+            {l:"미청구 수수료",v:fMan(commSummary.unbilled),c:commSummary.unbilled>0?"#D97706":"#94A3B8",i:"🧾"},
+            {l:"미입금 수수료",v:fMan(commSummary.unpaid),c:commSummary.unpaid>0?"#DC2626":"#94A3B8",i:"⏳"},
+            {l:"누적 수수료",v:fMan(commSummary.collected),c:"#059669",i:"💰"}
+          ].map(function(c,i){return(
+            <Card key={i} className="kpi-card" style={{padding:"16px 18px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><span style={{fontSize:14,color:"#64748B",fontWeight:600}}>{c.l}</span><span style={{fontSize:18}}>{c.i}</span></div>
+              <div style={{fontSize:23,fontWeight:800,color:c.c}}>{c.v}</div>
+            </Card>
+          );})}
+        </div>
+      </div>
+    )}
 
     {/* 업체별 위험도 랭킹 (stats, 전체 보기) */}
     {props.mode!=="list"&&st1[0]==="all"&&props.companies.length>=2&&(function(){
@@ -1190,9 +1339,10 @@ function EmpCard(props){
           )}
           {/* 직원 서류 */}
           <DocSection title="직원 서류" docs={emp.employeeDocs||[]} disabled={false}
+            progName={p?p.name:""}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onChange={function(ds){props.onPatch(emp.id,{employeeDocs:ds});}}
-            onLog={function(txt){props.onLog(emp.name+": "+txt);}}
+            onLog={function(txt,type){if(props.onLog&&company)props.onLog(company.id,emp.name+" "+txt,type);}}
           />
           {/* 급여/연락처 */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:8}}>
@@ -1237,8 +1387,8 @@ function EmpModal(props){
     hd:useState(init.startDate||"")
   };
   function save(){
-    if(!st.name[0].trim()){alert("이름을 입력하세요");return;}
-    if(!st.programId[0]){alert("지원금을 선택하세요");return;}
+    if(!st.name[0].trim()){toast("이름을 입력하세요","warn");return;}
+    if(!st.programId[0]){toast("지원금을 선택하세요","warn");return;}
     var p=programs[st.programId[0]];
     var rounds=init.rounds||(p?JSON.parse(JSON.stringify(p.rounds||[])).map(function(r){return Object.assign({},r,{isPaid:false,received:0});}):[]);
     var certDocs=init.certDocs||(p?(CERT_TYPES[st.programId[0]]||[]).map(function(ct){return{id:uid(),label:ct,done:false,files:[]};}):[]);
@@ -1315,7 +1465,7 @@ function EmpModal(props){
         <div><Label>메모</Label><textarea style={Object.assign({},inp,{height:60,resize:"none"})} value={st.memo[0]} onChange={function(e){st.memo[1](e.target.value);}}/></div>
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
           <button style={btnS} onClick={props.onClose}>취소</button>
-          <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>저장</button>
+          <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>직원 저장</button>
         </div>
       </div>
     </Modal>
@@ -1376,6 +1526,7 @@ function CompDet(props){
   var st6=useState(false); // edit company modal
   var stTab=useState("overview"); // 개요/직원/서류/일지
   var stNote=useState("");  // 새 일지 입력
+  var stNoteType=useState("전화"); // 일지 유형
   var stEditId=useState(null);  // 편집 중인 일지 id
   var stEditText=useState(""); // 편집 중인 내용
   var stViewMode=useState("card"); // card | table
@@ -1385,9 +1536,10 @@ function CompDet(props){
   function addNote(){
     var txt=stNote[0].trim(); if(!txt)return;
     var author=(props.profile&&props.profile.display_name)||"";
-    var next=[{id:uid(),text:txt,at:new Date().toISOString(),author:author}].concat(notes);
+    var next=[{id:uid(),text:txt,at:new Date().toISOString(),author:author,type:stNoteType[0]}].concat(notes);
     props.onPatchCompany(company.id,{notes:next});
     stNote[1]("");
+    toast("업무 일지가 기록되었습니다.","success");
   }
   function delNote(nid){ props.onPatchCompany(company.id,{notes:notes.filter(function(n){return n.id!==nid;})}); }
   function startEdit(n){ stEditId[1](n.id); stEditText[1](n.text); }
@@ -1427,17 +1579,30 @@ function CompDet(props){
     (compDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
     return{overdue:overdue,overdueAmt:overdueAmt,next7:next7,docMiss:docMiss};
   },[compEmps,compDocs]);
-  var FEE_RATE=5; // 예상 수수료 기본 비율(%)
-  var expectedFee=Math.round(totalExp*FEE_RATE/100);
 
+  function stLabel(k){var s=STS.find(function(x){return x.key===k;});return s?s.label:k;}
   function handleSaveEmp(empData){
-    if(st2[0]){ props.onPatchEmployee(empData.id,empData); }
-    else { props.onSaveEmployee(empData); }
+    if(st2[0]){
+      var prev=st2[0];
+      props.onPatchEmployee(empData.id,empData);
+      if(prev.status!==empData.status&&props.onLog)props.onLog(company.id,empData.name+" 상태가 '"+stLabel(prev.status)+"' → '"+stLabel(empData.status)+"'(으)로 변경됨","상태변경");
+      toast("직원 정보가 저장되었습니다.","success");
+    } else {
+      props.onSaveEmployee(empData);
+      if(props.onLog)props.onLog(company.id,empData.name+" 대상자 등록","상태변경");
+      toast("직원이 등록되었습니다.","success");
+    }
     st1[1](false);
     st2[1](null);
   }
   function handleRoundSave(rounds){
-    if(st3[0])props.onPatchEmployee(st3[0].id,{rounds:rounds});
+    if(st3[0]){
+      var before=st3[0].rounds||[];
+      var newlyPaid=rounds.filter(function(r,i){return r.isPaid&&!(before[i]&&before[i].isPaid);});
+      props.onPatchEmployee(st3[0].id,{rounds:rounds});
+      if(newlyPaid.length>0&&props.onLog)props.onLog(company.id,st3[0].name+" "+newlyPaid.map(function(r){return r.label;}).join(",")+" 지급 확인("+fMan(newlyPaid.reduce(function(s,r){return s+(r.received||0);},0))+")","지급확인");
+      toast("회차 지급 상태가 저장되었습니다.","success");
+    }
     st3[1](null);st4[1](null);
   }
   function handleBulkUpload(rows){
@@ -1455,7 +1620,17 @@ function CompDet(props){
     });
   }
 
-  var TABS=[{key:"overview",icon:"📋",label:"개요"},{key:"employees",icon:"👤",label:"직원 ("+compEmps.length+")"},{key:"docs",icon:"📁",label:"업체 서류"},{key:"notes",icon:"📝",label:"업무 일지"+(notes.length>0?" ("+notes.length+")":"")}];
+  var TABS=[{key:"overview",icon:"📋",label:"개요"},{key:"employees",icon:"👤",label:"직원 ("+compEmps.length+")"},{key:"docs",icon:"📁",label:"업체 서류"},{key:"commission",icon:"🧾",label:"수수료 정산"},{key:"notes",icon:"📝",label:"업무 일지"+(notes.length>0?" ("+notes.length+")":"")}];
+
+  // 수수료 정산 상태 (company.commission JSONB)
+  var comm=company.commission||{};
+  var commRate=comm.rate!=null?comm.rate:10;
+  var commRetainer=comm.retainer||0;
+  var commSuccessFee=totalPaid*commRate/100;
+  var commExpected=Math.round(commRetainer+totalExp*commRate/100);
+  var commBillable=Math.round(commRetainer+commSuccessFee);
+  var commReceivable=comm.paid?0:(comm.billed?commBillable:0);
+  function patchComm(patch){ props.onPatchCompany(company.id,{commission:Object.assign({},comm,patch)}); }
 
   function renderEmpList(){
     var allIds=filteredEmps.map(function(e){return e.id;});
@@ -1463,7 +1638,7 @@ function CompDet(props){
     var allChecked=allIds.length>0&&allIds.every(function(id){return selSet.has(id);});
     function toggleSelect(id){var cur=stSelected[0].slice();var i=cur.indexOf(id);if(i>=0)cur.splice(i,1);else cur.push(id);stSelected[1](cur);}
     function toggleAll(){if(allChecked)stSelected[1]([]);else stSelected[1](allIds);}
-    function bulkStatus(s){stSelected[0].forEach(function(id){props.onPatchEmployee(id,{status:s});});stSelected[1]([]);}
+    function bulkStatus(s){var n=stSelected[0].length;stSelected[0].forEach(function(id){props.onPatchEmployee(id,{status:s});});if(n>0&&props.onLog)props.onLog(company.id,n+"명 상태를 '"+stLabel(s)+"'(으)로 일괄 변경","상태변경");stSelected[1]([]);toast(n+"명 상태가 변경되었습니다.","success");}
     function bulkCopy(){var rows=filteredEmps.filter(function(e){return selSet.has(e.id);});var text=rows.map(function(e){var p=programs[e.programId];var s=STS.find(function(s){return s.key===e.status;})||STS[0];return[e.name,(s?s.label:""),(p?p.name:""),e.startDate||""].join("\t");}).join("\n");navigator.clipboard.writeText(text);}
     function getNextDday(emp){if(!emp.startDate)return null;var ddays=(emp.rounds||[]).filter(function(r){return!r.isPaid;}).map(function(r){return getDday(addMo(emp.startDate,r.month));}).filter(function(d){return d!==null&&d>=0;});return ddays.length?Math.min.apply(null,ddays):null;}
     function getRcv(emp){return(emp.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);}
@@ -1592,9 +1767,9 @@ function CompDet(props){
           </div>
           <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
         </div>
-        <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
-        <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
-        <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
+        <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
+        <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
+        <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
         <button style={Object.assign({},btnSm,{fontSize:16})} className="hover-lift" onClick={function(){st6[1](true);}}>⚙️ 업체 정보 수정</button>
       </div>
 
@@ -1620,7 +1795,7 @@ function CompDet(props){
           {l:"지원 대상자",v:activeCount+"명",c:"#2563EB",i:"👤"},
           {l:"누적 수령액",v:fMan(totalPaid),c:"#059669",i:"✅"},
           {l:"예상 잔여액",v:fMan(totalExp-totalPaid),c:"#8B5CF6",i:"💰"},
-          {l:"예상 수수료 (5%)",v:fMan(expectedFee),c:"#0D9488",i:"🧾"},
+          {l:"예상 수수료 ("+commRate+"%)",v:fMan(commExpected),c:"#0D9488",i:"🧾"},
           {l:"서류 완료율",v:docPct+"%",c:"#10B981",i:"📁",sub:risk.docMiss>0?"미제출 "+risk.docMiss+"건":"모두 완료"},
           {l:"지연 신청 건",v:risk.overdue+"건",c:risk.overdue>0?"#DC2626":"#059669",i:risk.overdue>0?"🚨":"👍",sub:risk.overdue>0?fMan(risk.overdueAmt)+" 위험":"지연 없음"}
         ].map(function(c,i){return(
@@ -1699,15 +1874,18 @@ function CompDet(props){
               <h3 style={{margin:0,fontSize:20,fontWeight:700}}>📝 업무 일지</h3>
               <button style={Object.assign({},btnSm,{fontSize:14})} onClick={function(){stTab[1]("notes");}}>전체 보기 →</button>
             </div>
-            <div style={{display:"flex",gap:8,marginBottom:16}}>
-              <input style={Object.assign({},inpKo,{flex:1,fontSize:14,padding:"9px 12px"})} value={stNote[0]} onChange={function(e){stNote[1](e.target.value);}} placeholder="통화·제출·특이사항 기록…" onKeyDown={function(e){if(e.key==="Enter")addNote();}}/>
-              <button style={Object.assign({},btnP,{padding:"9px 18px",fontSize:14})} onClick={addNote}>기록</button>
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+              <select value={stNoteType[0]} onChange={function(e){stNoteType[1](e.target.value);}} style={{fontSize:14,padding:"9px 10px",borderRadius:10,border:"1.5px solid #E2E8F0",background:"#fff",color:"#475569",cursor:"pointer",fontFamily:FF,outline:"none"}}>
+                {NOTE_TYPES.map(function(t){return <option key={t.id} value={t.id}>{t.icon} {t.id}</option>;})}
+              </select>
+              <input style={Object.assign({},inpKo,{flex:1,minWidth:140,fontSize:14,padding:"9px 12px"})} value={stNote[0]} onChange={function(e){stNote[1](e.target.value);}} placeholder="통화·제출·특이사항 기록…" onKeyDown={function(e){if(e.key==="Enter")addNote();}}/>
+              <button style={Object.assign({},btnP,{padding:"9px 18px",fontSize:14})} onClick={addNote}>업무 기록</button>
             </div>
             {notes.length===0?(
               <div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:28,marginBottom:6}}>🗒️</div><p style={{color:"#94A3B8",fontSize:15,margin:0}}>첫 일지를 남겨보세요.</p></div>
             ):notes.slice(0,3).map(function(n){return(
               <div key={n.id} style={{padding:"10px 12px",borderRadius:8,background:"#F8FAFC",border:"1px solid #F1F5F9",marginBottom:6}}>
-                <div style={{fontSize:12,color:"#94A3B8",marginBottom:3}}>{fDateTime(n.at)}{n.author&&" · "+n.author}</div>
+                <div style={{fontSize:12,color:"#94A3B8",marginBottom:3,display:"flex",alignItems:"center",gap:6}}>{n.type&&<span style={{fontWeight:700,color:n.auto?"#7C3AED":"#2563EB"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?"·자동":""}</span>}<span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span></div>
                 <div style={{fontSize:15,color:"#1E293B",lineHeight:1.5}}>{n.text}</div>
               </div>
             );})}
@@ -1723,8 +1901,75 @@ function CompDet(props){
           <DocSection title="업체 서류" docs={company.companyDocs||[]} disabled={false}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onChange={function(ds){props.onPatchCompany(company.id,{companyDocs:ds});}}
-            onLog={function(txt){props.onLog(company.name+": "+txt);}}
+            onLog={function(txt,type){props.onLog(company.id,txt,type);}}
           />
+        </div>
+      )}
+
+      {stTab[0]==="commission"&&(
+        <div className="fade-in">
+          {!(props.tier&&props.tier.feat.commission)?(
+            <Card style={{padding:"44px 32px",textAlign:"center",border:"2px dashed #DDD6FE",background:"linear-gradient(135deg,#F5F3FF,#EEF2FF)"}}>
+              <div style={{fontSize:46,marginBottom:14}}>🔒</div>
+              <h3 style={{margin:"0 0 8px",fontSize:22,fontWeight:800,color:"#5B21B6"}}>수수료 정산은 프로 플랜 전용입니다</h3>
+              <p style={{margin:"0 0 22px",fontSize:15,color:"#6D28D9",lineHeight:1.7}}>업체별 수수료율·착수금·청구/입금 상태·미수금을 한 곳에서 관리하고,<br/>정산서를 자동 생성해 고객에게 바로 보낼 수 있습니다.</p>
+              <button style={Object.assign({},btnP,{background:"linear-gradient(135deg,#7C3AED,#6D28D9)",padding:"14px 32px",fontSize:16})} onClick={props.onOpenBilling||function(){}}>프로 플랜으로 업그레이드 →</button>
+            </Card>
+          ):(
+            <div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12,marginBottom:18}}>
+                {[
+                  {l:"수령 완료액",v:fMan(totalPaid),c:"#2563EB",i:"✅"},
+                  {l:"예상 총 수수료",v:fMan(commExpected),c:"#0D9488",i:"💰",sub:"착수금+전체 "+commRate+"%"},
+                  {l:"청구 가능액",v:fMan(commBillable),c:"#059669",i:"🧾",sub:"수령액 기준 "+commRate+"%"},
+                  {l:"미수금",v:fMan(commReceivable),c:commReceivable>0?"#DC2626":"#94A3B8",i:commReceivable>0?"⏳":"👍",sub:comm.paid?"입금 완료":comm.billed?"청구 후 미입금":"미청구"}
+                ].map(function(c,i){return(
+                  <Card key={i} className="kpi-card" style={{padding:"16px 18px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><span style={{fontSize:14,color:"#64748B",fontWeight:600}}>{c.l}</span><span style={{fontSize:18}}>{c.i}</span></div>
+                    <div style={{fontSize:23,fontWeight:800,color:c.c}}>{c.v}</div>
+                    {c.sub&&<div style={{fontSize:12,color:"#94A3B8",marginTop:3}}>{c.sub}</div>}
+                  </Card>
+                );})}
+              </div>
+
+              <Card style={{padding:22,marginBottom:16}}>
+                <h3 style={{margin:"0 0 16px",fontSize:19,fontWeight:700}}>⚙️ 정산 설정</h3>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+                  <div><Label>수수료율 (%)</Label><input type="number" style={inp} value={commRate} min="0" max="100" step="0.5" onChange={function(e){patchComm({rate:Number(e.target.value)});}}/></div>
+                  <div><Label>착수금 (원)</Label><input type="number" style={inp} value={commRetainer} min="0" onChange={function(e){patchComm({retainer:Number(e.target.value)});}}/></div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:16}}>
+                  {[
+                    {k:"successFee",label:"성공보수 적용",on:comm.successFee!==false},
+                    {k:"billed",label:"청구 완료",on:!!comm.billed,type:"수수료청구"},
+                    {k:"paid",label:"입금 완료",on:!!comm.paid,type:"수수료입금"},
+                    {k:"taxInvoice",label:"세금계산서 발행",on:!!comm.taxInvoice}
+                  ].map(function(t){return(
+                    <button key={t.k} onClick={function(){var nv=!t.on;patchComm((function(){var o={};o[t.k]=nv;return o;})());if(t.type&&nv&&props.onLog)props.onLog(company.id,(t.k==="billed"?"수수료 청구 완료 ("+fMan(commBillable)+")":"수수료 입금 완료 ("+fMan(commBillable)+")"),t.type);toast(t.label+(nv?" 처리됨":" 해제됨"),nv?"success":"info");}}
+                      style={{padding:"12px 14px",borderRadius:10,border:"1.5px solid "+(t.on?"#6EE7B7":"#E2E8F0"),background:t.on?"#ECFDF5":"#fff",color:t.on?"#047857":"#64748B",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF,textAlign:"left"}}>
+                      {t.on?"✅ ":"⬜ "}{t.label}
+                    </button>
+                  );})}
+                </div>
+                <div><Label>수수료 메모</Label><textarea style={Object.assign({},inpKo,{height:60,resize:"none",fontSize:14})} value={comm.memo||""} onChange={function(e){patchComm({memo:e.target.value});}} placeholder="계약 조건·청구 일정·특이사항 등"/></div>
+              </Card>
+
+              <Card style={{padding:22,marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <h3 style={{margin:0,fontSize:19,fontWeight:700}}>👤 직원별 수수료 ({commRate}%)</h3>
+                  <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
+                </div>
+                {(function(){var paidEmps=compEmps.filter(function(e){return(e.rounds||[]).some(function(r){return r.isPaid;});});if(paidEmps.length===0)return <p style={{color:"#94A3B8",fontSize:15,textAlign:"center",padding:"16px 0",margin:0}}>아직 수령 완료된 직원이 없습니다. 회차 지급이 확정되면 수수료가 자동 집계됩니다.</p>;return(
+                  <div style={{display:"grid",gap:6}}>{paidEmps.map(function(e){var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);var f=Math.round(rcv*commRate/100);var pr=programs[e.programId];return(
+                    <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",borderRadius:9,background:"#F8FAFC",border:"1px solid #F1F5F9"}}>
+                      <div><span style={{fontSize:16,fontWeight:700,color:"#1E293B"}}>{e.name}</span><span style={{fontSize:13,color:"#94A3B8",marginLeft:8}}>{pr?pr.name:""}</span></div>
+                      <div style={{textAlign:"right"}}><div style={{fontSize:13,color:"#64748B"}}>수령 {fMan(rcv)}</div><div style={{fontSize:16,fontWeight:800,color:"#059669"}}>수수료 {fMan(f)}</div></div>
+                    </div>
+                  );})}</div>
+                );})()}
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
@@ -1733,12 +1978,17 @@ function CompDet(props){
           <Card style={{padding:22}}>
             <h3 style={{margin:"0 0 16px",fontSize:20,fontWeight:700}}>📝 업무 일지</h3>
             {/* 새 일지 입력 */}
+            <div style={{marginBottom:10,display:"flex",gap:6,flexWrap:"wrap"}}>
+              {NOTE_TYPES.map(function(t){var on=stNoteType[0]===t.id;return(
+                <button key={t.id} onClick={function(){stNoteType[1](t.id);}} style={{padding:"6px 12px",borderRadius:8,fontSize:13,fontWeight:on?700:500,cursor:"pointer",fontFamily:FF,border:on?"none":"1px solid #E2E8F0",background:on?"#2563EB":"#fff",color:on?"#fff":"#475569"}}>{t.icon} {t.id}</button>
+              );})}
+            </div>
             <div style={{display:"flex",gap:8,marginBottom:20}}>
               <textarea style={Object.assign({},inpKo,{flex:1,height:68,resize:"none",fontSize:15})}
                 value={stNote[0]} onChange={function(e){stNote[1](e.target.value);}}
-                placeholder="진행 상황·통화 내용·제출 기록·특이사항 등을 남겨보세요"
+                placeholder="진행 상황·통화 내용·제출 기록·특이사항 등을 남겨보세요 (Ctrl+Enter 로 기록)"
                 onKeyDown={function(e){if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))addNote();}}/>
-              <button style={Object.assign({},btnP,{padding:"0 20px",alignSelf:"stretch",fontSize:15})} onClick={addNote}>기록</button>
+              <button style={Object.assign({},btnP,{padding:"0 20px",alignSelf:"stretch",fontSize:15})} onClick={addNote}>업무 기록</button>
             </div>
             {/* 일지 목록 */}
             {notes.length===0?(
@@ -1753,12 +2003,13 @@ function CompDet(props){
                   var isEditing=stEditId[0]===n.id;
                   return(
                     <div key={n.id} style={{marginBottom:14,position:"relative"}}>
-                      <div style={{position:"absolute",left:-19,top:14,width:10,height:10,borderRadius:5,background:"#3B82F6",border:"2px solid #fff",boxShadow:"0 0 0 2px #DBEAFE"}}/>
+                      <div style={{position:"absolute",left:-19,top:14,width:10,height:10,borderRadius:5,background:n.auto?"#7C3AED":"#3B82F6",border:"2px solid #fff",boxShadow:"0 0 0 2px "+(n.auto?"#EDE9FE":"#DBEAFE")}}/>
                       <div style={{background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0",padding:"12px 14px",marginLeft:4}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
-                          <div style={{fontSize:13,color:"#94A3B8"}}>
-                            {fDateTime(n.at)}{n.author&&" · "+n.author}
-                            {n.editedAt&&<span style={{color:"#CBD5E1",marginLeft:6,fontSize:12}}>(수정됨)</span>}
+                          <div style={{fontSize:13,color:"#94A3B8",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                            {n.type&&<span style={{fontWeight:700,fontSize:12,padding:"1px 8px",borderRadius:6,background:n.auto?"#EDE9FE":"#DBEAFE",color:n.auto?"#7C3AED":"#1D4ED8"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?" · 자동":""}</span>}
+                            <span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span>
+                            {n.editedAt&&<span style={{color:"#CBD5E1",fontSize:12}}>(수정됨)</span>}
                           </div>
                           {!isEditing&&(
                             <div style={{display:"flex",gap:4,flexShrink:0}}>
@@ -1800,7 +2051,7 @@ function CompDet(props){
       )}
       <RoundModal open={!!st3[0]&&st4[0]!==null} onClose={function(){st3[1](null);st4[1](null);}}
         emp={st3[0]} roundIndex={st4[0]} programs={programs} onSave={handleRoundSave}/>
-      {st6[0]&&<CompanyEditModal open={true} onClose={function(){st6[1](false);}} company={company} onSave={function(data){props.onPatchCompany(company.id,data);st6[1](false);}}/>}
+      {st6[0]&&<CompanyEditModal open={true} onClose={function(){st6[1](false);}} company={company} onSave={function(data){props.onPatchCompany(company.id,data);st6[1](false);toast("업체 정보가 저장되었습니다.","success");}}/>}
     </div>
   );
 }
@@ -1826,7 +2077,7 @@ function CompanyEditModal(props){
     tags:useState(c.tags||[])
   };
   function save(){
-    if(!st.name[0].trim()){alert("업체명을 입력하세요");return;}
+    if(!st.name[0].trim()){toast("업체명을 입력하세요","warn");return;}
     var data={};
     Object.keys(st).forEach(function(k){data[k]=st[k][0];});
     data.name=data.name.trim();
@@ -1892,7 +2143,7 @@ function CompanyEditModal(props){
         <div><Label>메모</Label><textarea style={Object.assign({},inp,{height:60,resize:"none"})} value={st.memo[0]} onChange={function(e){st.memo[1](e.target.value);}}/></div>
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
           <button style={btnS} onClick={props.onClose}>취소</button>
-          <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>저장</button>
+          <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>업체 저장</button>
         </div>
       </div>
     </Modal>
@@ -1920,7 +2171,7 @@ function ProgramsList(props){
   function delRound(i){st.rounds[1](st.rounds[0].filter(function(_,idx){return idx!==i;}));}
   function autoTotal(){var sum=st.rounds[0].reduce(function(s,r){return s+(Number(r.amount)||0);},0);st.totalAmount[1](sum);}
   function save(){
-    if(!st.name[0].trim()){alert("지원금명을 입력하세요");return;}
+    if(!st.name[0].trim()){toast("지원금명을 입력하세요","warn");return;}
     var existing=st2[0]||{};
     var rounds=st.rounds[0].map(function(r,i){var amt=Number(r.amount)||0;return Object.assign({},existing.rounds&&existing.rounds[i]?existing.rounds[i]:{},{month:Number(r.month)||0,label:r.label||((i+1)+"회차"),expectedAmount:amt,amount:amt});});
     var total=Number(st.totalAmount[0])||rounds.reduce(function(s,r){return s+r.amount;},0);
@@ -1960,7 +2211,7 @@ function ProgramsList(props){
         <h2 style={{margin:0,fontSize:24,fontWeight:800}}>⚙️ 지원금 관리</h2>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <button style={Object.assign({},btnS,{fontSize:17})} onClick={resetBuiltins}>↺ 기본값 복원</button>
-          <button style={btnP} className="hover-lift" onClick={openNew}>+ 커스텀 추가</button>
+          <button style={btnP} className="hover-lift" onClick={openNew}>+ 커스텀 지원금 추가</button>
         </div>
       </div>
       <Notice>금액·회차·신청처는 매년 공고에 따라 바뀝니다. 카드의 <b>편집</b>으로 직접 수정하면 내 계정에 저장됩니다. 기본 15종도 모두 수정 가능합니다.</Notice>
@@ -2068,39 +2319,91 @@ function TrendChip(props){
 }
 
 // ── 재사용: 알림 인박스 (벨) ──────────────────────────────
+var PRIO_META=[{key:0,label:"긴급",color:"#DC2626",bg:"#FEE2E2"},{key:1,label:"주의",color:"#D97706",bg:"#FEF3C7"},{key:2,label:"일반",color:"#2563EB",bg:"#DBEAFE"}];
 function NotifBell(props){
   var ddayLimit=(props.settings&&props.settings.ddayAlert)||7;
   var st=useState(false); var open=st[0],setOpen=st[1];
-  var alerts=useMemo(function(){var list=[];(props.employees||[]).forEach(function(emp){if(emp.status==="resigned")return;var company=(props.companies||[]).find(function(c){return c.id===emp.companyId;});var program=(props.programs||{})[emp.programId];if(!emp.startDate||!program)return;(emp.rounds||[]).forEach(function(r,ri){if(r.isPaid)return;var ed=addMo(emp.startDate,r.month);var dd=getDday(ed);if(dd!==null&&dd<=ddayLimit){list.push({id:emp.id+"-"+ri,empName:emp.name,companyName:company?company.name:"",companyId:emp.companyId,roundLabel:r.label,dday:dd});}});});return list.sort(function(a,b){return a.dday-b.dday;});},[props.employees,props.companies,props.programs,ddayLimit]);
-  var overdue=alerts.filter(function(a){return a.dday<=0;}).length;
+  var feat=props.tier?props.tier.feat:{commission:true};
+  var stDismiss=useState(function(){try{return JSON.parse(localStorage.getItem("subsidy_dismissed_alerts")||"[]");}catch(e){return [];}});
+  function dismiss(id){ var nx=stDismiss[0].concat([id]); stDismiss[1](nx); try{localStorage.setItem("subsidy_dismissed_alerts",JSON.stringify(nx));}catch(e){} toast("알림을 처리 완료했습니다.","success"); }
+
+  var alerts=useMemo(function(){
+    var list=[];
+    (props.companies||[]).forEach(function(c){
+      var emps=(props.employees||[]).filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
+      emps.forEach(function(emp){
+        var program=(props.programs||{})[emp.programId];
+        if(emp.startDate&&program){
+          (emp.rounds||[]).forEach(function(r,ri){
+            if(r.isPaid)return;
+            var dd=getDday(addMo(emp.startDate,r.month)); if(dd===null)return;
+            var amt=r.expectedAmount||r.amount||0;
+            if(dd<0)list.push({id:emp.id+"-"+ri+"-od",type:"신청 기한 지연",prio:0,companyId:c.id,companyName:c.name,empName:emp.name,progName:program.name,text:r.label+" 신청 기한 "+Math.abs(dd)+"일 경과",amount:amt,dd:dd});
+            else if(dd<=ddayLimit)list.push({id:emp.id+"-"+ri+"-due",type:"신청 가능일 도래",prio:1,companyId:c.id,companyName:c.name,empName:emp.name,progName:program.name,text:r.label+" "+formatDday(dd)+" · 곧 신청 가능",amount:amt,dd:dd});
+          });
+        }
+        if(emp.salary){var w=checkWage(emp.salary,emp.weeklyHours||40);if(w&&!w.isAboveMin)list.push({id:emp.id+"-mw",type:"최저임금 미달",prio:1,companyId:c.id,companyName:c.name,empName:emp.name,progName:program?program.name:"",text:"환산 시급 "+w.hourlyWage.toLocaleString()+"원 — 최저임금 미달",amount:0,dd:null});else if(w&&!w.isAboveFloor)list.push({id:emp.id+"-fl",type:"월보수 기준 미달",prio:1,companyId:c.id,companyName:c.name,empName:emp.name,progName:program?program.name:"",text:"월보수 124만원 미만 — 지원금 제외 위험",amount:0,dd:null});}
+      });
+      var docMiss=0; emps.forEach(function(e){(e.employeeDocs||[]).forEach(function(d){if(!docIsDone(d))docMiss++;});}); (c.companyDocs||[]).forEach(function(d){if(!docIsDone(d))docMiss++;});
+      if(docMiss>0)list.push({id:c.id+"-docs",type:"서류 미제출",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"미제출 서류 "+docMiss+"건 — 요청 필요",amount:0,dd:null});
+      if(feat.commission){
+        var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0;
+        var rcv=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(r.isPaid)rcv+=r.received||0;});});
+        var billable=Math.round(ret+rcv*rate/100);
+        if(billable>0&&!cc.billed)list.push({id:c.id+"-ub",type:"수수료 미청구",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구 가능 수수료 "+fMan(billable)+" 미청구",amount:billable,dd:null});
+        else if(cc.billed&&!cc.paid)list.push({id:c.id+"-up",type:"수수료 미입금",prio:1,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구한 수수료 "+fMan(billable)+" 미입금",amount:billable,dd:null});
+      }
+    });
+    return list.filter(function(a){return stDismiss[0].indexOf(a.id)<0;}).sort(function(a,b){return a.prio-b.prio||((a.dd===null?999:a.dd)-(b.dd===null?999:b.dd));});
+  },[props.employees,props.companies,props.programs,ddayLimit,stDismiss[0],feat.commission]);
+
+  var urgent=alerts.filter(function(a){return a.prio===0;}).length;
+  function go(a){props.goCompany(a.companyId);setOpen(false);}
+
   return(<div style={{position:"relative"}}>
-    <button onClick={function(){setOpen(!open);}} title="신청 임박 알림" style={{position:"relative",background:open?"#EFF6FF":"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,width:48,height:48,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+    <button onClick={function(){setOpen(!open);}} title="알림센터" style={{position:"relative",background:open?"#EFF6FF":"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,width:48,height:48,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
       🔔
-      {alerts.length>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:22,height:22,padding:"0 5px",borderRadius:11,background:overdue>0?"#DC2626":"#F59E0B",color:"#fff",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{alerts.length>99?"99+":alerts.length}</span>}
+      {alerts.length>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:22,height:22,padding:"0 5px",borderRadius:11,background:urgent>0?"#DC2626":"#F59E0B",color:"#fff",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{alerts.length>99?"99+":alerts.length}</span>}
     </button>
     {open&&<div onClick={function(){setOpen(false);}} style={{position:"fixed",inset:0,zIndex:300}}/>}
     {open&&(
-      <div className="slide-in" style={{position:"absolute",right:0,top:58,width:340,maxWidth:"90vw",background:"#fff",borderRadius:14,boxShadow:"0 16px 48px rgba(15,23,42,0.18)",border:"1px solid #E2E8F0",zIndex:301,overflow:"hidden"}}>
+      <div className="slide-in" style={{position:"absolute",right:0,top:58,width:400,maxWidth:"92vw",background:"#fff",borderRadius:14,boxShadow:"0 16px 48px rgba(15,23,42,0.20)",border:"1px solid #E2E8F0",zIndex:301,overflow:"hidden"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:17,fontWeight:700,color:"#1E293B"}}>🔔 신청 임박 알림</span>
-          <Badge color={overdue>0?"#DC2626":"#D97706"} bg={overdue>0?"#FEE2E2":"#FEF3C7"}>{alerts.length}건</Badge>
+          <span style={{fontSize:17,fontWeight:800,color:"#1E293B"}}>🔔 알림센터</span>
+          <Badge color={urgent>0?"#DC2626":"#D97706"} bg={urgent>0?"#FEE2E2":"#FEF3C7"}>{alerts.length}건</Badge>
         </div>
-        <div style={{maxHeight:360,overflow:"auto"}}>
+        <div style={{maxHeight:440,overflow:"auto"}}>
           {alerts.length===0?(
-            <div style={{padding:"36px 20px",textAlign:"center"}}>
-              <div style={{fontSize:36,marginBottom:8}}>✅</div>
-              <div style={{fontSize:15,color:"#64748B"}}>임박한 신청 건이 없습니다.</div>
+            <div style={{padding:"40px 20px",textAlign:"center"}}>
+              <div style={{fontSize:38,marginBottom:8}}>✅</div>
+              <div style={{fontSize:15,color:"#64748B"}}>처리할 알림이 없습니다.</div>
             </div>
-          ):alerts.map(function(a){return(
-            <div key={a.id} onClick={function(){props.goCompany(a.companyId);setOpen(false);}} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"12px 18px",borderBottom:"1px solid #F8FAFC",cursor:"pointer"}}
-              onMouseEnter={function(e){e.currentTarget.style.background="#F8FAFC";}} onMouseLeave={function(e){e.currentTarget.style.background="#fff";}}>
-              <div style={{minWidth:0}}>
-                <div style={{fontSize:15,fontWeight:600,color:"#1E293B"}}>{a.empName} <span style={{fontWeight:400,color:"#94A3B8",fontSize:13}}>· {a.roundLabel}</span></div>
-                <div style={{fontSize:13,color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.companyName}</div>
+          ):PRIO_META.map(function(pm){
+            var group=alerts.filter(function(a){return a.prio===pm.key;});
+            if(group.length===0)return null;
+            return(<div key={pm.key}>
+              <div style={{padding:"8px 18px",background:"#FAFBFC",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:8,height:8,borderRadius:4,background:pm.color,display:"inline-block"}}/>
+                <span style={{fontSize:13,fontWeight:700,color:pm.color}}>{pm.label}</span>
+                <span style={{fontSize:12,color:"#94A3B8"}}>{group.length}건</span>
               </div>
-              <DdayBadge dday={a.dday}/>
-            </div>
-          );})}
+              {group.map(function(a){return(
+                <div key={a.id} style={{padding:"11px 18px",borderBottom:"1px solid #F8FAFC"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <span style={{fontSize:11,fontWeight:700,padding:"1px 7px",borderRadius:5,background:pm.bg,color:pm.color}}>{a.type}</span>
+                    {a.dd!==null&&<DdayBadge dday={a.dd}/>}
+                    {a.amount>0&&<span style={{fontSize:13,fontWeight:700,color:"#2563EB",marginLeft:"auto"}}>{fMan(a.amount)}</span>}
+                  </div>
+                  <div style={{fontSize:14,fontWeight:600,color:"#1E293B"}}>{a.empName?a.empName+" · ":""}<span style={{color:"#64748B",fontWeight:400}}>{a.companyName}</span></div>
+                  <div style={{fontSize:13,color:"#64748B",marginTop:1}}>{a.progName?a.progName+" · ":""}{a.text}</div>
+                  <div style={{display:"flex",gap:6,marginTop:8}}>
+                    <button onClick={function(){go(a);}} style={{flex:1,background:"#EFF6FF",border:"1px solid #BFDBFE",color:"#1D4ED8",borderRadius:7,padding:"6px 0",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>바로가기</button>
+                    <button onClick={function(){dismiss(a.id);}} style={{flex:1,background:"#F1F5F9",border:"1px solid #E2E8F0",color:"#64748B",borderRadius:7,padding:"6px 0",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리 완료</button>
+                  </div>
+                </div>
+              );})}
+            </div>);
+          })}
         </div>
       </div>
     )}
@@ -2338,7 +2641,15 @@ function KanbanBoard(props){
   },[employees,stFilter[0]]);
 
   function colEmps(key){ return visEmps.filter(function(e){return normStatus(e.status)===key;}); }
-  function move(empId,newStatus){ onPatch(empId,{status:newStatus}); stMenu[1](null); }
+  function move(empId,newStatus){
+    var e=employees.find(function(x){return x.id===empId;});
+    if(e&&normStatus(e.status)===newStatus){ stMenu[1](null); return; }
+    onPatch(empId,{status:newStatus});
+    var sl=(STS.find(function(s){return s.key===newStatus;})||{}).label||newStatus;
+    if(e&&props.onLog)props.onLog(e.companyId,e.name+" 상태 → '"+sl+"'","상태변경");
+    stMenu[1](null);
+    toast("'"+sl+"'(으)로 상태가 변경되었습니다.","success");
+  }
 
   // 파이프라인 요약
   var activeEmps=visEmps.filter(function(e){return e.status!=="resigned";});
@@ -2612,7 +2923,14 @@ export default function SubsidyApp(props){
 
   function goCompany(id){stCompany[1](id);stView[1]("company");}
   function goBack(){stView[1]("dashboard");stCompany[1](null);}
-  function addLog(){}
+  // 업무 일지 자동 기록 (companyId, 내용, 유형)
+  function logToCompany(companyId,text,type){
+    var c=companies.find(function(x){return x.id===companyId;}); if(!c)return;
+    var entry={id:uid(),text:text,at:new Date().toISOString(),author:(profile.display_name||""),type:type||"기타",auto:true};
+    onPatchCompany(companyId,{notes:[entry].concat(c.notes||[])});
+  }
+  var isTrial=props.subStatus==="trialing";
+  var tier=planTier(props.plan,isTrial);
 
   useEffect(function(){
     function handler(e){
@@ -2742,6 +3060,10 @@ export default function SubsidyApp(props){
               <div style={SB.userRole}>{profile.title||"담당자"}</div>
             </div>
           </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
+            <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
+            {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#DDD6FE",background:"rgba(124,58,237,0.3)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
+          </div>
           <button style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
           <div style={SB.actions}>
             <button style={SB.actionBtn()} onClick={function(){stProfileOpen[1](true);}}>설정</button>
@@ -2777,7 +3099,7 @@ export default function SubsidyApp(props){
               <span className="hide-mobile">검색</span>
               <kbd style={{fontSize:12,background:"#E2E8F0",border:"1px solid #CBD5E1",borderRadius:4,padding:"1px 5px",color:"#94A3B8",fontFamily:"monospace"}} className="hide-mobile">⌘K</kbd>
             </button>
-            <NotifBell employees={employees} companies={companies} programs={programs} goCompany={goCompany} settings={profile.settings||{}}/>
+            <NotifBell employees={employees} companies={companies} programs={programs} goCompany={goCompany} settings={profile.settings||{}} tier={tier}/>
             {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
               <button style={btnP} className="hover-lift" data-tour="add-company" onClick={function(){stAddComp[1](true);}}>+ 업체 추가</button>
             )}
@@ -2820,6 +3142,7 @@ export default function SubsidyApp(props){
               goCompany={goCompany} settings={profile.settings||{}}
               onAddCompany={function(){stAddComp[1](true);}}
               setView={function(v){stView[1](v);stCompany[1](null);}}
+              tier={tier} isTrial={isTrial} trialDaysLeft={trialDays} onOpenBilling={props.onOpenBilling}
               mode="stats"
             />
           )}
@@ -2838,20 +3161,21 @@ export default function SubsidyApp(props){
           {stView[0]==="company"&&selectedCompany&&(
             <CompDet
               company={selectedCompany} programs={programs} employees={employees}
-              uploadFn={uploadFn} getUrlFn={getUrlFn} profile={profile}
+              uploadFn={uploadFn} getUrlFn={getUrlFn} profile={profile} tier={tier}
               goBack={goBack}
               onSaveEmployee={onSaveEmployee}
               onPatchEmployee={onPatchEmployee}
               onDeleteEmployee={onDeleteEmployee}
               onPatchCompany={onPatchCompany}
-              onLog={addLog}
+              onLog={logToCompany}
+              onOpenBilling={props.onOpenBilling}
             />
           )}
 
           {stView[0]==="kanban"&&(
             <KanbanBoard
               employees={employees} companies={companies} programs={programs}
-              onPatchEmployee={onPatchEmployee} goCompany={goCompany}
+              onPatchEmployee={onPatchEmployee} goCompany={goCompany} onLog={logToCompany}
             />
           )}
 
@@ -2893,6 +3217,7 @@ export default function SubsidyApp(props){
             onSaveCompany(newComp);
             stAddComp[1](false);
             goCompany(newComp.id);
+            toast("업체가 등록되었습니다.","success");
           }}
         />
       )}
@@ -2921,6 +3246,7 @@ export default function SubsidyApp(props){
         </div>
       </Modal>
       <ProductTour open={stTour[0]} onClose={endTour}/>
+      <ToastHost/>
     </div>
   );
 }

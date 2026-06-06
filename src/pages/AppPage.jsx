@@ -47,7 +47,7 @@ function AppSkeleton() {
 
 export default function AppPage() {
   const { org, profile, orgRole, signOut, updateProfile } = useAuth();
-  const { isActive, trialDaysLeft, loading: subLoading } = useSub(org?.id);
+  const { sub, isActive, trialDaysLeft, loading: subLoading } = useSub(org?.id);
   const data = useData(org?.id);
   const [showBilling, setShowBilling] = useState(false);
 
@@ -91,6 +91,8 @@ export default function AppPage() {
       onOpenBilling={() => setShowBilling(true)}
       onOpenTeam={() => {}}
       trialDaysLeft={trialDaysLeft}
+      plan={sub?.plan_type}
+      subStatus={sub?.status}
     />
   );
 }
