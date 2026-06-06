@@ -536,6 +536,244 @@ function CommissionReport(props){
   );
 }
 
+function AgencyReport(props){
+  var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile;
+  var st1=useState(false);
+  var stName=useState((profile&&profile.display_name)||"");
+  var stTitle2=useState((profile&&profile.title)||"");
+  var stFirm=useState("");
+  var stPhone=useState("");
+  var stEmail=useState("");
+
+  var rd=useMemo(function(){
+    var emps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";});
+    var totalRcv=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);
+    var totalExp=emps.reduce(function(s,e){return s+(e.totalExpected||0);},0);
+    var pct=totalExp>0?Math.round(totalRcv/totalExp*100):0;
+    var upcoming=[];
+    emps.forEach(function(e){
+      var p=programs[e.programId]; if(!e.startDate||!p)return;
+      (e.rounds||[]).forEach(function(r){
+        if(r.isPaid)return;
+        var ed=addMo(e.startDate,r.month); var dd=getDday(ed);
+        if(dd!==null&&dd>=0&&dd<=90)upcoming.push({empName:e.name,prog:p.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:r.expectedAmount||r.amount||0});
+      });
+    });
+    upcoming.sort(function(a,b){return a.dday-b.dday;});
+    var sc={};
+    STS.forEach(function(s){sc[s.key]=0;});
+    emps.forEach(function(e){if(sc[e.status]!==undefined)sc[e.status]++;});
+    return{emps:emps,totalRcv:totalRcv,totalExp:totalExp,pct:pct,upcoming:upcoming,sc:sc};
+  },[company,employees,programs]);
+
+  function genHTML(){
+    var today=new Date();
+    var dateStr=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일";
+    var cl=company.name;
+    var stcol={preparing:"#64748B",submitted:"#2563EB",reviewing:"#8B5CF6",approved:"#0EA5E9",inprogress:"#F59E0B",completed:"#059669",resigned:"#94A3B8"};
+    var stmap={}; STS.forEach(function(s){stmap[s.key]=s;});
+    function fN(n){return(n||0).toLocaleString();}
+    function fM2(n){var v=Math.abs(n||0);return v>=100000000?Math.round(n/100000000)+"억원":v>=10000?Math.round(n/10000)+"만원":fN(n)+"원";}
+
+    var statusBarHtml=STS.map(function(s){
+      var cnt=rd.sc[s.key]||0; if(!cnt||!rd.emps.length)return"";
+      var w=Math.round(cnt/rd.emps.length*100);
+      return'<div style="width:'+w+'%;background:'+stcol[s.key]+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;overflow:hidden;min-width:0">'+(w>9?cnt+"명":"")+'</div>';
+    }).join("");
+
+    var legendHtml=STS.map(function(s){
+      var cnt=rd.sc[s.key]||0; if(!cnt)return"";
+      return'<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569"><div style="width:10px;height:10px;border-radius:3px;background:'+stcol[s.key]+';flex-shrink:0"></div>'+s.label+' '+cnt+'명</div>';
+    }).join("");
+
+    var upcomingHtml=rd.upcoming.slice(0,12).map(function(u){
+      var ddStyle=u.dday<=7?'background:#FEE2E2;color:#DC2626;font-weight:800':u.dday<=30?'background:#FEF3C7;color:#D97706;font-weight:700':'background:#DBEAFE;color:#2563EB;font-weight:600';
+      var ddLabel=u.dday===0?"D-Day":"D-"+u.dday;
+      return'<tr><td style="font-weight:600;color:#0F172A">'+u.empName+'</td><td style="color:#64748B">'+u.prog+'</td><td>'+u.roundLabel+'</td><td style="color:#475569">'+fD(u.eligDate)+'</td><td><span style="padding:3px 10px;border-radius:20px;font-size:12px;'+ddStyle+'">'+ddLabel+'</span></td><td style="text-align:right;font-weight:700;color:#2563EB">'+fN(u.amount)+'원</td></tr>';
+    }).join("");
+
+    var empHtml=rd.emps.map(function(e){
+      var p=programs[e.programId]; var s=stmap[e.status]||STS[0];
+      var rcv=(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);
+      var exp=e.totalExpected||0; var epct=exp>0?Math.round(rcv/exp*100):0;
+      var sc2=stcol[e.status]||"#64748B";
+      var paidRounds=(e.rounds||[]).filter(function(r){return r.isPaid;}).length;
+      var totalRounds=(e.rounds||[]).length;
+      return'<tr><td style="font-weight:700;color:#0F172A">'+e.name+'</td><td style="color:#64748B;font-size:12px">'+(p?p.name:"-")+'</td><td><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+sc2+'22;color:'+sc2+'">'+s.icon+" "+s.label+'</span></td><td style="color:#64748B;font-size:12px">'+(e.startDate?fD(e.startDate):"-")+'</td><td style="color:#059669;font-weight:700">'+fN(rcv)+'원</td><td style="color:#8B5CF6">'+fN(exp-rcv)+'원</td><td style="min-width:90px"><div style="font-size:10px;color:#94A3B8;margin-bottom:3px">'+epct+'% · '+paidRounds+'/'+totalRounds+'회차</div><div style="height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+epct+'%;background:linear-gradient(90deg,#1D4ED8,#3B82F6);border-radius:3px"></div></div></td></tr>';
+    }).join("");
+
+    var secN=rd.upcoming.length>0;
+    var CSS=[
+      '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}',
+      'body{font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic","Segoe UI",sans-serif;color:#0F172A;background:#fff;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+      '.cover{min-height:100vh;background:linear-gradient(145deg,#0F172A 0%,#1E3A8A 45%,#2563EB 100%);color:#fff;padding:80px 70px;display:flex;flex-direction:column;position:relative;overflow:hidden;}',
+      '.cover-glow1{position:absolute;top:-120px;right:-120px;width:560px;height:560px;background:radial-gradient(circle,rgba(59,130,246,0.35) 0%,transparent 70%);border-radius:50%;pointer-events:none;}',
+      '.cover-glow2{position:absolute;bottom:-80px;left:-80px;width:400px;height:400px;background:radial-gradient(circle,rgba(16,185,129,0.18) 0%,transparent 70%);border-radius:50%;pointer-events:none;}',
+      '.page{padding:64px 70px;}',
+      '.page+.page{border-top:10px solid #F1F5F9;}',
+      '.sh{display:flex;align-items:center;gap:12px;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #E2E8F0;}',
+      '.sn{width:32px;height:32px;background:#2563EB;color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;}',
+      '.st{font-size:22px;font-weight:800;color:#0F172A;letter-spacing:-0.5px;}',
+      '.kr{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}',
+      '.kc{background:#F8FAFC;border-radius:14px;padding:22px 18px;border:1px solid #E2E8F0;}',
+      '.kc .l{font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}',
+      '.kc .v{font-size:26px;font-weight:900;letter-spacing:-1px;}',
+      'table{width:100%;border-collapse:collapse;font-size:13px;}',
+      'thead tr{background:#F8FAFC;border-bottom:2px solid #E2E8F0;}',
+      'th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;}',
+      'td{padding:12px 14px;border-bottom:1px solid #F1F5F9;vertical-align:middle;}',
+      'tr:last-child td{border-bottom:none;}',
+      '.notice{background:#FFFBEB;border-left:4px solid #F59E0B;border-radius:0 8px 8px 0;padding:14px 18px;font-size:12px;color:#92400E;margin-top:24px;line-height:1.7;}',
+      '.rfooter{background:#0F172A;color:#475569;padding:28px 70px;display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:24px;flex-wrap:wrap;}',
+      '@page{margin:0;}',
+      '@media print{.cover{page-break-after:always;}.page{page-break-before:always;}}'
+    ].join("");
+
+    var parts=[
+      '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>',cl,' 고용지원금 현황보고서</title><style>',CSS,'</style></head><body>',
+
+      // ── COVER ──
+      '<div class="cover">',
+        '<div class="cover-glow1"></div><div class="cover-glow2"></div>',
+        '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column">',
+          '<div style="font-size:12px;font-weight:700;letter-spacing:0.14em;opacity:0.5;text-transform:uppercase;margin-bottom:14px">Employment Subsidy Management Report</div>',
+          '<div style="font-size:46px;font-weight:900;line-height:1.1;letter-spacing:-2px;margin-bottom:44px">고용지원금<br>관리 현황보고서</div>',
+          '<div style="background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:36px 40px;margin-bottom:32px">',
+            '<div style="font-size:32px;font-weight:900;margin-bottom:8px;letter-spacing:-0.5px">',cl,'</div>',
+            '<div style="font-size:14px;opacity:0.55;margin-bottom:28px;line-height:1.8">',
+              (company.bizNo?'사업자등록번호 '+company.bizNo+'&nbsp;&nbsp;':''),
+              (company.ceoName?'대표 '+company.ceoName+'&nbsp;&nbsp;':''),
+              (company.addr||''),
+            '</div>',
+            '<div style="display:grid;grid-template-columns:1fr 1px 1fr 1px 1fr;gap:0;align-items:center">',
+              '<div style="padding-right:24px"><div style="font-size:10px;opacity:0.5;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">지원 대상자</div><div style="font-size:40px;font-weight:900;letter-spacing:-2px">',rd.emps.length,'명</div></div>',
+              '<div style="background:rgba(255,255,255,0.2);height:52px"></div>',
+              '<div style="padding:0 24px"><div style="font-size:10px;opacity:0.5;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">수령완료</div><div style="font-size:40px;font-weight:900;letter-spacing:-2px">',fM2(rd.totalRcv),'</div></div>',
+              '<div style="background:rgba(255,255,255,0.2);height:52px"></div>',
+              '<div style="padding-left:24px"><div style="font-size:10px;opacity:0.5;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">예상 잔여</div><div style="font-size:40px;font-weight:900;letter-spacing:-2px">',fM2(rd.totalExp-rd.totalRcv),'</div></div>',
+            '</div>',
+          '</div>',
+          '<div style="margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;padding-top:28px;border-top:1px solid rgba(255,255,255,0.15)">',
+            '<div>',
+              (stName[0]?'<div style="font-size:18px;font-weight:800;margin-bottom:4px">'+stName[0]+'</div>':""),
+              ((stTitle2[0]||stFirm[0])?'<div style="font-size:13px;opacity:0.6;line-height:1.9">'+(stTitle2[0]||"")+(stTitle2[0]&&stFirm[0]?" &middot; ":"")+(stFirm[0]||"")+'</div>':""),
+              (stPhone[0]?'<div style="font-size:13px;opacity:0.6">&#128222; '+stPhone[0]+'</div>':""),
+              (stEmail[0]?'<div style="font-size:13px;opacity:0.6">&#9993; '+stEmail[0]+'</div>':""),
+            '</div>',
+            '<div style="font-size:13px;opacity:0.45">보고일: '+dateStr+'</div>',
+          '</div>',
+        '</div>',
+      '</div>',
+
+      // ── SEC 1: 요약 현황 ──
+      '<div class="page">',
+        '<div class="sh"><div class="sn">1</div><div class="st">요약 현황</div></div>',
+        '<div class="kr">',
+          '<div class="kc"><div class="l">지원 대상자</div><div class="v" style="color:#2563EB">',rd.emps.length,'명</div></div>',
+          '<div class="kc"><div class="l">수령완료 (누적)</div><div class="v" style="color:#059669">',fM2(rd.totalRcv),'</div></div>',
+          '<div class="kc"><div class="l">예상 잔여</div><div class="v" style="color:#8B5CF6">',fM2(rd.totalExp-rd.totalRcv),'</div></div>',
+          '<div class="kc"><div class="l">지원금 수령률</div><div class="v" style="color:#059669">',rd.pct,'%</div></div>',
+        '</div>',
+        '<div style="display:flex;justify-content:space-between;font-size:13px;color:#64748B;margin-bottom:8px"><span>지원금 수령 진행률</span><span style="font-weight:700;color:#2563EB">'+fN(rd.totalRcv)+'원 / '+fN(rd.totalExp)+'원</span></div>',
+        '<div style="height:14px;background:#E2E8F0;border-radius:7px;overflow:hidden;margin-bottom:36px"><div style="height:100%;width:'+rd.pct+'%;background:linear-gradient(90deg,#1D4ED8,#3B82F6,#60A5FA);border-radius:7px;transition:width 0.5s"></div></div>',
+        '<div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:14px">진행 단계별 인원 현황</div>',
+        '<div style="display:flex;border-radius:10px;overflow:hidden;height:40px;margin-bottom:14px">',statusBarHtml,'</div>',
+        '<div style="display:flex;flex-wrap:wrap;gap:14px">',legendHtml,'</div>',
+      '</div>',
+
+      // ── SEC 2: 향후 일정 (conditional) ──
+      rd.upcoming.length?[
+        '<div class="page">',
+          '<div class="sh"><div class="sn">2</div><div class="st">향후 90일 신청 일정</div></div>',
+          '<table><thead><tr><th>직원명</th><th>지원금</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th style="text-align:right">예상 수령액</th></tr></thead><tbody>',upcomingHtml,'</tbody></table>',
+          '<div class="notice">⚠️ 위 일정은 입사일 기준으로 자동 산출된 예상 일정입니다. 실제 신청가능일은 심사 상황에 따라 달라질 수 있으니, 신청 전 고용24(work24.go.kr)에서 반드시 최신 공고를 확인하시기 바랍니다.</div>',
+        '</div>'
+      ].join(""):""
+      ,
+
+      // ── SEC 3: 직원별 상세 ──
+      '<div class="page">',
+        '<div class="sh"><div class="sn">'+(rd.upcoming.length?3:2)+'</div><div class="st">직원별 상세 현황</div></div>',
+        '<table><thead><tr><th>직원명</th><th>지원금</th><th>진행 상태</th><th>입사일</th><th>수령완료</th><th>잔여 예상</th><th style="min-width:100px">수령률</th></tr></thead><tbody>',empHtml,'</tbody></table>',
+      '</div>',
+
+      // ── FOOTER ──
+      '<div class="rfooter">',
+        '<div style="line-height:1.9">',
+          (stName[0]?'<div style="color:#94A3B8;font-weight:600">'+stName[0]+(stTitle2[0]?' &middot; '+stTitle2[0]:'')+'</div>':""),
+          (stFirm[0]?'<div>'+stFirm[0]+'</div>':""),
+          (stPhone[0]?'<div>'+stPhone[0]+'</div>':""),
+          (stEmail[0]?'<div>'+stEmail[0]+'</div>':""),
+        '</div>',
+        '<div style="text-align:right;line-height:1.9;flex-shrink:0">',
+          '<div style="color:#64748B">고용지원금 매니저 Pro &middot; '+dateStr+' 생성</div>',
+          '<div>본 보고서는 관리 현황 안내용이며, 지원금 신청 전 최신 공고를 반드시 확인하시기 바랍니다.</div>',
+        '</div>',
+      '</div>',
+
+      '</body></html>'
+    ];
+    return parts.flat().join("");
+  }
+
+  function download(){
+    var html=genHTML();
+    var blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;
+    a.download=company.name+"_고용지원금_현황보고서_"+new Date().toISOString().split("T")[0]+".html";
+    a.click();
+    URL.revokeObjectURL(url);
+    st1[1](false);
+  }
+
+  return(
+    <React.Fragment>
+      <button style={Object.assign({},btnSm,{background:"linear-gradient(135deg,#1E40AF,#2563EB)",color:"#fff",border:"none",fontWeight:700,letterSpacing:"-0.3px"})} onClick={function(){st1[1](true);}}>📊 고객 보고서</button>
+      <Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📊 전문가 고객 보고서" width={540}>
+        <div style={{display:"grid",gap:16}}>
+          {/* 미리보기 배너 */}
+          <div style={{padding:"20px 24px",background:"linear-gradient(145deg,#0F172A,#1E3A8A,#2563EB)",borderRadius:16,color:"#fff"}}>
+            <div style={{fontSize:12,opacity:0.5,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>고용지원금 관리 현황보고서</div>
+            <div style={{fontSize:22,fontWeight:900,letterSpacing:"-0.5px",marginBottom:16}}>{company.name}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:0}}>
+              {[["대상자",rd.emps.length+"명"],["수령완료",fMan(rd.totalRcv)],["예상잔여",fMan(rd.totalExp-rd.totalRcv)]].map(function(arr,i){return(
+                <div key={i} style={{paddingRight:i<2?20:0,borderRight:i<2?"1px solid rgba(255,255,255,0.2)":0,paddingLeft:i>0?20:0}}>
+                  <div style={{fontSize:10,opacity:0.5,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>{arr[0].toUpperCase()}</div>
+                  <div style={{fontSize:20,fontWeight:900,letterSpacing:"-0.5px"}}>{arr[1]}</div>
+                </div>
+              );})}
+            </div>
+          </div>
+          {/* 구성 */}
+          <div style={{padding:"12px 16px",background:"#F8FAFC",borderRadius:10,fontSize:13}}>
+            <div style={{fontWeight:700,color:"#1E293B",marginBottom:8}}>📋 보고서 구성</div>
+            <div style={{display:"grid",gap:4}}>
+              {[["01","표지 — 업체명·수령 현황·담당자 정보"],["02","요약 현황 — KPI·진행률·단계별 현황"],rd.upcoming.length?["03","향후 90일 신청 일정 (D-Day 하이라이트)"]:null,[rd.upcoming.length?"04":"03","직원별 상세 현황 (수령률 시각화)"]].filter(Boolean).map(function(arr,i){return(<div key={i} style={{display:"flex",gap:10,color:"#475569"}}><span style={{color:"#2563EB",fontWeight:700,flexShrink:0}}>{arr[0]}</span><span>{arr[1]}</span></div>);})}
+            </div>
+          </div>
+          {/* 담당자 정보 입력 */}
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:"#1E293B",marginBottom:10}}>🪪 담당자 정보 (표지에 표시됩니다)</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><Label>담당자 이름</Label><input style={inp} value={stName[0]} onChange={function(e){stName[1](e.target.value);}} placeholder="홍길동"/></div>
+              <div><Label>직함</Label><input style={inp} value={stTitle2[0]} onChange={function(e){stTitle2[1](e.target.value);}} placeholder="공인노무사"/></div>
+              <div style={{gridColumn:"1/-1"}}><Label>사무소 · 업체명</Label><input style={inp} value={stFirm[0]} onChange={function(e){stFirm[1](e.target.value);}} placeholder="홍길동 노무사 사무소"/></div>
+              <div><Label>연락처</Label><input style={inp} value={stPhone[0]} onChange={function(e){stPhone[1](e.target.value);}} placeholder="010-0000-0000"/></div>
+              <div><Label>이메일</Label><input style={inp} value={stEmail[0]} onChange={function(e){stEmail[1](e.target.value);}} placeholder="hong@example.com"/></div>
+            </div>
+          </div>
+          <button style={Object.assign({},btnP,{width:"100%",padding:"15px",fontSize:16,background:"linear-gradient(135deg,#1E40AF,#2563EB)",boxShadow:"0 4px 20px rgba(37,99,235,0.35)"})} onClick={download}>
+            📥 고객 보고서 다운로드
+          </button>
+          <p style={{fontSize:11,color:"#94A3B8",textAlign:"center",margin:"0 0 4px"}}>브라우저에서 파일을 열고 인쇄(Ctrl+P) → PDF로 저장하면 완성됩니다</p>
+        </div>
+      </Modal>
+    </React.Fragment>
+  );
+}
+
 // ── Dashboard 보조 컴포넌트 ───────────────────────────────
 function DdayAlerts(props){ var ddayLimit=(props.settings&&props.settings.ddayAlert)||7; var alerts=useMemo(function(){var list=[];props.employees.forEach(function(emp){if(emp.status==="resigned")return;var company=props.companies.find(function(c){return c.id===emp.companyId;});var program=props.programs[emp.programId];if(!emp.startDate||!program)return;(emp.rounds||[]).forEach(function(r,ri){if(r.isPaid)return;var eligDate=addMo(emp.startDate,r.month);var dday=getDday(eligDate);if(dday!==null&&dday<=ddayLimit){list.push({id:emp.id+"-"+ri,empName:emp.name,companyName:company?company.name:"",companyId:emp.companyId,dday:dday});}});});return list.sort(function(a,b){return a.dday-b.dday;});},[props.employees,props.companies,props.programs,ddayLimit]); if(alerts.length===0)return null; return(<Card style={{marginBottom:16,overflow:"hidden"}}><div style={{background:"linear-gradient(135deg,#DC2626,#EF4444)",padding:"12px 16px",color:"#fff"}}><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:16}}>🔔</span><span style={{fontSize:14,fontWeight:700}}>신청 임박</span><Badge color="#fff" bg="rgba(255,255,255,0.25)">{alerts.length}건</Badge></div></div><div style={{padding:"10px 14px",maxHeight:150,overflow:"auto"}}>{alerts.map(function(a){return(<div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",marginBottom:4,borderRadius:6,background:a.dday<=0?"#FEE2E2":a.dday<=3?"#FEF3C7":"#F8FAFC",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(a.companyId);}}><div><span style={{fontWeight:600}}>{a.empName}</span><span style={{color:"#64748B",marginLeft:6}}>{a.companyName}</span></div><DdayBadge dday={a.dday}/></div>);})}</div></Card>); }
 
@@ -1197,6 +1435,7 @@ function CompDet(props){
           </div>
           <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
         </div>
+        <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
         <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
         <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
         <button style={Object.assign({},btnSm,{fontSize:17})} className="hover-lift" onClick={function(){st6[1](true);}}>⚙️ 편집</button>
