@@ -46,7 +46,9 @@ var DEFAULT_PROGRAMS = {
   parental_leave:{id:"parental_leave",name:"육아휴직 지원금(사업주)",year:2026,group:"육아",color:"#059669",totalAmount:3600000,rounds:[{month:3,amount:900000,label:"1차(3개월)"},{month:6,amount:900000,label:"2차(6개월)"},{month:9,amount:900000,label:"3차(9개월)"},{month:12,amount:900000,label:"4차(12개월)"}],companyDocs:["육아휴직 확인서","사업자등록증","근로계약서"],employeeDocs:["육아휴직 신청서","가족관계증명서","휴직 발령 증빙"],isCustom:false,isBuiltIn:true,note:"사업주 월30만(남성 +10만). 생후12개월내 특례 첫3개월 월100만. 우선지원대상+30일↑ 허용.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["육아휴직"]}},
   parental_reduce:{id:"parental_reduce",name:"육아기 근로시간 단축(사업주)",year:2026,group:"육아",color:"#10B981",totalAmount:3600000,rounds:[{month:3,amount:900000,label:"1차(3개월)"},{month:6,amount:900000,label:"2차(6개월)"},{month:9,amount:900000,label:"3차(9개월)"},{month:12,amount:900000,label:"4차(12개월)"}],companyDocs:["근로시간 단축 확인서","사업자등록증","변경 근로계약서"],employeeDocs:["단축 신청서","가족관계증명서","변경 근로계약서"],isCustom:false,isBuiltIn:true,note:"사업주 월30만(남성 +10만). 근로자 단축급여 월최대250만. 만12세↓ 자녀, 최대3년.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["근로시간단축"]}},
   replace_worker:{id:"replace_worker",name:"대체인력 지원금",year:2026,group:"육아",color:"#047857",totalAmount:21000000,rounds:[{month:1,amount:1400000,label:"월(예시·30인미만)"}],companyDocs:["대체인력 채용 증빙","육아휴직 확인서","사업자등록증"],employeeDocs:["대체인력 근로계약서","월별임금대장","급여이체증빙"],isCustom:false,isBuiltIn:true,note:"육아휴직 대체 30인미만 월최대140(최대15개월=2100). 100% 즉시 선지급. 채용전3개월~후1년 감원 시 전액환수.",applyUrl:"고용24 + 인재채움뱅크",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["계약직","정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["대체인력"]}},
-  work_share:{id:"work_share",name:"동료 업무분담 지원금",year:2026,group:"육아",color:"#34D399",totalAmount:600000,rounds:[{month:1,amount:600000,label:"월(예시)"}],companyDocs:["업무분담수당 지급 증빙","육아휴직 확인서"],employeeDocs:["임금명세서(업무분담수당 명시)"],isCustom:false,isBuiltIn:true,note:"육아휴직 분담 30인미만 월최대60(2026 3배인상). 대체인력과 중복불가.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:false,special:["업무분담"]}}
+  work_share:{id:"work_share",name:"동료 업무분담 지원금",year:2026,group:"육아",color:"#34D399",totalAmount:600000,rounds:[{month:1,amount:600000,label:"월(예시)"}],companyDocs:["업무분담수당 지급 증빙","육아휴직 확인서"],employeeDocs:["임금명세서(업무분담수당 명시)"],isCustom:false,isBuiltIn:true,note:"육아휴직 분담 30인미만 월최대60(2026 3배인상). 대체인력과 중복불가.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:false,special:["업무분담"]}},
+  emp_retention:{id:"emp_retention",name:"고용유지지원금",year:2026,group:"재직자유지",color:"#6366F1",totalAmount:6000000,rounds:[{month:1,amount:1500000,label:"1개월"},{month:2,amount:1500000,label:"2개월"},{month:3,amount:1500000,label:"3개월"},{month:4,amount:1500000,label:"4개월"}],companyDocs:["고용유지조치계획서","사업자등록증","임금대장","고용보험 피보험자 명부","휴업·단축 협약서"],employeeDocs:["고용유지조치 동의서","월별임금대장","출근부(단축 확인)"],isCustom:false,isBuiltIn:true,note:"경영 위기 시 해고 대신 휴업·단축 선택 기업 지원. 우선지원 2/3, 대규모 1/2 보전. 연간 최대 180일(고용위기지역 등 특례). 사전 계획 신청 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직","계약직"],preApply:true,companyMax:null,regionSensitive:false,bosuFloor:true}},
+  job_sharing:{id:"job_sharing",name:"일자리함께하기 지원금",year:2026,group:"재직자유지",color:"#7C3AED",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1분기"},{month:6,amount:1800000,label:"2분기"},{month:9,amount:1800000,label:"3분기"},{month:12,amount:1800000,label:"4분기"}],companyDocs:["사업참여신청서","노사합의서(단축협약)","취업규칙","4대보험 피보험자 명부","근태관리 증빙"],employeeDocs:["변경 근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"재직자 근로시간 단축 후 신규 채용 시 지원. 교대제 도입·심야근로 단축·정년연장형 등 유형별 지원. 우선지원 연최대 720만. 사전승인 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:true,companyMin:null,companyMax:null,regionSensitive:false,bosuFloor:false,special:["일자리나누기"]}}
 };
 
 var ELIG = [
@@ -2087,21 +2089,21 @@ function KanbanBoard(props){
     var dragging=stDrag[0]===e.id;
     return(
       <div key={e.id} draggable
-        onDragStart={function(ev){stDrag[1](e.id);ev.dataTransfer.effectAllowed="move";}}
+        onDragStart={function(ev){stDrag[1](e.id);ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",e.id);}}
         onDragEnd={function(){stDrag[1](null);stOver[1](null);}}
-        style={{background:"#fff",borderRadius:10,border:"1px solid #E2E8F0",padding:"10px 12px",marginBottom:8,cursor:"grab",boxShadow:dragging?"0 10px 24px rgba(37,99,235,0.20)":"0 1px 2px rgba(0,0,0,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s"}}>
+        style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",padding:"12px 14px",marginBottom:10,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 3px rgba(0,0,0,0.06)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":"scale(1)"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:30,height:30,borderRadius:15,background:"linear-gradient(135deg,"+gp.dark+","+gp.base+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"#fff",fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
+          <div style={{width:34,height:34,borderRadius:17,background:"linear-gradient(135deg,"+gp.dark+","+gp.base+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:"#fff",fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
           <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={function(){goCompany(e.companyId);}} title="업체 상세 보기">
-            <div style={{fontSize:15,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
-            <div style={{fontSize:13,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{company?company.name:""}</div>
+            <div style={{fontSize:17,fontWeight:700,color:"#0F172A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
+            <div style={{fontSize:14,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{company?company.name:""}</div>
           </div>
           <button onClick={function(ev){ev.stopPropagation();stMenu[1](menuOpen?null:e.id);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#CBD5E1",padding:"0 2px",flexShrink:0,lineHeight:1}} title="상태 이동">⋮</button>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:5,marginTop:8,flexWrap:"wrap"}}>
-          {p&&<span style={{fontSize:12,fontWeight:600,padding:"2px 8px",borderRadius:6,background:gp.badge,color:gp.text}}>{p.name}</span>}
+          {p&&<span style={{fontSize:13,fontWeight:600,padding:"3px 9px",borderRadius:8,background:gp.badge,color:gp.text}}>{p.name}</span>}
           {dd!==null&&<DdayBadge dday={dd}/>}
-          {total>0&&<span style={{fontSize:12,color:paid>0?"#059669":"#94A3B8"}}>{paid}/{total}회차</span>}
+          {total>0&&<span style={{fontSize:13,color:paid>0?"#059669":"#94A3B8",fontWeight:500}}>{paid}/{total}회차</span>}
         </div>
         {menuOpen&&(
           <div style={{position:"absolute",right:8,top:38,zIndex:30,background:"#fff",borderRadius:10,boxShadow:"0 10px 28px rgba(15,23,42,0.20)",border:"1px solid #E2E8F0",padding:6,width:168}} onClick={function(ev){ev.stopPropagation();}}>
@@ -2154,19 +2156,19 @@ function KanbanBoard(props){
             return(
               <div key={col.key}
                 onDragOver={function(ev){ev.preventDefault();if(stOver[0]!==col.key)stOver[1](col.key);}}
-                onDragLeave={function(ev){ if(ev.currentTarget===ev.target&&stOver[0]===col.key)stOver[1](null); }}
+                onDragLeave={function(ev){ if(!ev.currentTarget.contains(ev.relatedTarget))stOver[1](null); }}
                 onDrop={function(ev){ev.preventDefault();if(stDrag[0])move(stDrag[0],col.key);stDrag[1](null);stOver[1](null);}}
-                style={{width:262,flexShrink:0,background:isOver?col.bg:"#F8FAFC",borderRadius:14,border:isOver?"2px dashed "+col.color:"1px solid #F1F5F9",padding:10,minHeight:140,transition:"background 0.15s,border-color 0.15s"}}>
+                style={{width:290,flexShrink:0,background:isOver?col.bg:"#F8FAFC",borderRadius:16,border:isOver?"2px dashed "+col.color:"1px solid #E8EEF4",padding:"12px",minHeight:160,transition:"background 0.18s,border-color 0.18s,transform 0.15s",transform:isOver?"scale(1.015)":"scale(1)",boxShadow:isOver?"0 4px 20px rgba(0,0,0,0.08)":"none"}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,padding:"2px 4px"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                    <span style={{width:9,height:9,borderRadius:5,background:col.color,display:"inline-block",flexShrink:0}}/>
-                    <span style={{fontSize:15,fontWeight:700,color:"#334155",whiteSpace:"nowrap"}}>{col.icon} {col.label}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
+                    <span style={{width:10,height:10,borderRadius:5,background:col.color,display:"inline-block",flexShrink:0,boxShadow:"0 0 0 3px "+col.bg}}/>
+                    <span style={{fontSize:16,fontWeight:700,color:"#0F172A",whiteSpace:"nowrap"}}>{col.label}</span>
                   </div>
-                  <span style={{fontSize:13,fontWeight:700,color:col.color,background:col.bg,borderRadius:10,padding:"1px 9px",flexShrink:0}}>{es.length}</span>
+                  <span style={{fontSize:14,fontWeight:700,color:col.color,background:col.bg,borderRadius:12,padding:"2px 11px",flexShrink:0,minWidth:28,textAlign:"center"}}>{es.length}</span>
                 </div>
-                {colExp>0&&<div style={{fontSize:13,color:"#94A3B8",padding:"0 4px 8px"}}>잔여 {fMan(colExp)}</div>}
+                {colExp>0&&<div style={{fontSize:13,color:"#94A3B8",padding:"2px 4px 10px",fontWeight:500}}>잔여 {fMan(colExp)}</div>}
                 {es.length===0?(
-                  <div style={{textAlign:"center",padding:"22px 0",fontSize:13,color:isOver?col.color:"#CBD5E1",fontWeight:isOver?700:400}}>{isOver?"여기에 놓기":"비어있음"}</div>
+                  <div style={{textAlign:"center",padding:"28px 0",fontSize:14,color:isOver?col.color:"#CBD5E1",fontWeight:isOver?700:400,borderRadius:10,border:isOver?"2px dashed "+col.color:"2px dashed transparent",transition:"all 0.15s"}}>{isOver?"⬇ 여기에 놓기":"비어 있음"}</div>
                 ):es.map(card)}
               </div>
             );
@@ -2235,9 +2237,9 @@ export default function SubsidyApp(props){
     brand:{padding:"28px 24px 22px",borderBottom:"1px solid rgba(255,255,255,0.08)"},
     brandTitle:{fontSize:25,fontWeight:800,color:"#fff",letterSpacing:"-0.3px"},
     brandSub:{fontSize:18,color:"#64748B",marginTop:4},
-    nav:{flex:1,padding:"12px 0",overflowY:"auto"},
-    item:function(active){return{display:"flex",alignItems:"center",gap:12,padding:"14px 24px",fontSize:21,fontWeight:active?600:400,color:active?"#fff":"#94A3B8",background:active?"rgba(37,99,235,0.3)":"transparent",borderLeft:active?"3px solid #3B82F6":"3px solid transparent",cursor:"pointer",transition:"all 0.15s",userSelect:"none"};},
-    icon:{fontSize:24,width:30,textAlign:"center"},
+    nav:{flex:1,padding:"10px 0",overflowY:"auto"},
+    item:function(active){return{display:"flex",alignItems:"center",gap:11,padding:"11px 16px",margin:"2px 12px",borderRadius:10,fontSize:20,fontWeight:active?700:400,color:active?"#fff":"#94A3B8",background:active?"rgba(59,130,246,0.22)":"transparent",cursor:"pointer",transition:"all 0.15s",userSelect:"none",boxSizing:"border-box"};},
+    icon:{fontSize:22,width:28,textAlign:"center",flexShrink:0},
     bottom:{padding:"20px 24px",borderTop:"1px solid rgba(255,255,255,0.08)"},
     user:{display:"flex",alignItems:"center",gap:12,marginBottom:16},
     avatar:{width:46,height:46,borderRadius:23,background:"linear-gradient(135deg,#3B82F6,#1D4ED8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:"#fff",fontWeight:700,flexShrink:0},
@@ -2250,10 +2252,11 @@ export default function SubsidyApp(props){
   function NavItem(p){
     return(
       <div style={SB.item(p.active)} onClick={p.onClick}
-        onMouseEnter={function(e){if(!p.active)e.currentTarget.style.background="rgba(255,255,255,0.05)";}}
+        onMouseEnter={function(e){if(!p.active)e.currentTarget.style.background="rgba(255,255,255,0.08)";}}
         onMouseLeave={function(e){if(!p.active)e.currentTarget.style.background="transparent";}}>
         <span style={SB.icon}>{p.icon}</span>
-        <span>{p.label}</span>
+        <span style={{lineHeight:1.2}}>{p.label}</span>
+        {p.active&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:3,background:"#60A5FA",flexShrink:0,boxShadow:"0 0 8px #60A5FA"}}/>}
       </div>
     );
   }
@@ -2376,7 +2379,9 @@ export default function SubsidyApp(props){
         </div>
 
         {/* 페이지 콘텐츠 */}
-        <div className="app-page" style={{flex:1,padding:"32px 40px",maxWidth:1400,width:"100%"}}>
+        <div className="app-page" style={{flex:1,padding:"32px 48px",width:"100%",maxWidth:1440,margin:"0 auto",boxSizing:"border-box"}}>
+
+          <div key={stView[0]+(stCompany[0]||"")} className="page-enter">
 
           {stView[0]==="dashboard"&&(
             <Dashboard
@@ -2442,6 +2447,8 @@ export default function SubsidyApp(props){
           {stView[0]==="programs"&&(
             <ProgramsList programs={programs} onUpdate={onSavePrograms}/>
           )}
+
+          </div>
         </div>
       </div>
 

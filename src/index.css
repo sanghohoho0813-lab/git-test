@@ -39,6 +39,10 @@ input, select, textarea, button { font-family: inherit; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .skeleton {
   background: linear-gradient(90deg, #EEF2F6 25%, #E2E8F0 37%, #EEF2F6 63%);
@@ -49,6 +53,7 @@ input, select, textarea, button { font-family: inherit; }
 .fade-in-up { animation: fadeInUp 0.35s ease both; }
 .fade-in { animation: fadeIn 0.3s ease both; }
 .slide-in { animation: slideInRight 0.2s ease both; }
+.page-enter { animation: pageEnter 0.22s cubic-bezier(0.22,1,0.36,1) both; }
 
 /* ── 카드 호버 폴리시 ─────────────────────────
    transform만 전환(컴포지트, 저비용)하고 box-shadow는 즉시 적용.
@@ -86,7 +91,7 @@ input, select, textarea, button { font-family: inherit; }
   .app-backdrop.hidden { display: none; }
   .app-hamburger { display: inline-flex !important; }
   .app-header { padding: 0 16px !important; }
-  .app-page { padding: 18px 16px !important; }
+  .app-page { padding: 16px 16px !important; }
   .grid-2-mobile { grid-template-columns: 1fr !important; }
   .hide-mobile { display: none !important; }
 }
