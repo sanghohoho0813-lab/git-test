@@ -256,7 +256,222 @@ function HiringDiagnosis(props){ var programs=props.programs; var st1=useState("
   {result&&(<div>{recommend.length>0&&(<Card style={{padding:20,marginBottom:16,border:"2px solid #6EE7B7"}}><h4 style={{margin:"0 0 12px",fontSize:20,fontWeight:700,color:"#059669"}}>✅ 가능성 높음 ({recommend.length})</h4>{recommend.map(function(r){return <DiagRow key={r.program.id} r={r}/>;})}</Card>)}{maybe.length>0&&(<Card style={{padding:20,marginBottom:16,border:"1px solid #FDE68A"}}><h4 style={{margin:"0 0 12px",fontSize:20,fontWeight:700,color:"#D97706"}}>⚠️ 조건 확인 필요 ({maybe.length})</h4>{maybe.map(function(r){return <DiagRow key={r.program.id} r={r}/>;})}</Card>)}{recommend.length===0&&maybe.length===0&&(<Card style={{padding:36,textAlign:"center"}}><div style={{fontSize:40,marginBottom:10}}>🔍</div><p style={{color:"#94A3B8",fontSize:18,margin:0}}>입력 조건에 뚜렷하게 맞는 지원금이 없어요.</p></Card>)}<Notice>진단 결과는 가능성 안내이며 확정이 아닙니다. 실제 신청 전 최신 공고를 확인하세요.</Notice></div>)}</div>);
 }
 
-function WageCalc(){ var st1=useState(""),st2=useState(40); var result=useMemo(function(){return checkWage(Number(st1[0]),Number(st2[0]));}, [st1[0],st2[0]]); return(<Card style={{padding:24,marginBottom:20}}><h4 style={{margin:"0 0 8px",fontSize:22,fontWeight:800}}>🧮 급여 계산기 (최저임금 판정)</h4><p style={{margin:"0 0 18px",fontSize:17,color:"#64748B"}}>2026년 최저임금 시급 {MIN_WAGE_2026.toLocaleString()}원 · 월 환산 {MIN_WAGE_MONTH_2026.toLocaleString()}원(209시간 기준)</p><div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginBottom:18}}><div><Label>월 급여 (세전, 원)</Label><input type="number" style={inp} value={st1[0]} onChange={function(e){st1[1](e.target.value);}} placeholder="2200000"/></div><div><Label>주 소정근로시간</Label><input type="number" style={inp} value={st2[0]} onChange={function(e){st2[1](e.target.value);}} placeholder="40"/></div></div>{result&&(<div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}><div style={{padding:16,background:"#F8FAFC",borderRadius:12,textAlign:"center"}}><div style={{fontSize:16,color:"#64748B",marginBottom:4}}>환산 시급</div><div style={{fontSize:32,fontWeight:800,color:result.isAboveMin?"#059669":"#DC2626"}}>{result.hourlyWage.toLocaleString()}원</div></div><div style={{padding:16,background:"#F8FAFC",borderRadius:12,textAlign:"center"}}><div style={{fontSize:16,color:"#64748B",marginBottom:4}}>최저임금 대비</div><div style={{fontSize:32,fontWeight:800,color:result.gap>=0?"#059669":"#DC2626"}}>{result.gap>=0?"+":""}{result.gap.toLocaleString()}원</div></div></div><div style={{display:"grid",gap:8}}><div style={{padding:"14px 18px",borderRadius:10,fontSize:18,fontWeight:600,background:result.isAboveMin?"#D1FAE5":"#FEE2E2",color:result.isAboveMin?"#059669":"#DC2626"}}>{result.isAboveMin?"✅ 최저임금 충족":"❌ 최저임금 미달 — 월 "+result.minMonthly.toLocaleString()+"원 이상 필요"}</div><div style={{padding:"14px 18px",borderRadius:10,fontSize:18,fontWeight:600,background:result.isAboveFloor?"#DBEAFE":"#FEF3C7",color:result.isAboveFloor?"#2563EB":"#D97706"}}>{result.isAboveFloor?"✅ 월보수 하한선 124만원 이상 충족":"⚠️ 월보수 124만원 미만 — 다수 지원금 원천 제외"}</div></div></div>)}</Card>); }
+function WageCalc(){
+  var st1=useState(""),st2=useState(40),st3=useState(1),stTab=useState("deduct");
+  var stAnnual=useState(""); // 연봉→월급 변환
+  var monthly=Number(st1[0])||0;
+  var result=useMemo(function(){
+    if(!monthly)return null;
+    var wh=Number(st2[0])||40;
+    var mh=wh>=40?209:Math.round((wh+(wh>=15?wh/40*8:0))*4.345);
+    var hourlyWage=Math.round(monthly/mh);
+    var minMonthly=Math.round(MIN_WAGE_2026*mh);
+    // 4대보험 근로자
+    var pensionBase=Math.min(monthly,5900000);
+    var pension_ee=Math.round(pensionBase*0.045);
+    var health_ee=Math.round(monthly*0.03545);
+    var care_ee=Math.round(health_ee*0.1295);
+    var employ_ee=Math.round(monthly*0.009);
+    var total4_ee=pension_ee+health_ee+care_ee+employ_ee;
+    // 4대보험 사업주
+    var pension_er=Math.round(pensionBase*0.045);
+    var health_er=Math.round(monthly*0.03545);
+    var care_er=Math.round(health_er*0.1295);
+    var employ_er=Math.round(monthly*0.009);
+    var injury_er=Math.round(monthly*0.0143);
+    var total4_er=pension_er+health_er+care_er+employ_er+injury_er;
+    // 소득세 (간이세액표 근사)
+    var annual=monthly*12;
+    var emDed; if(annual<=5000000)emDed=annual*0.70; else if(annual<=15000000)emDed=3500000+(annual-5000000)*0.40; else if(annual<=45000000)emDed=7500000+(annual-15000000)*0.15; else if(annual<=100000000)emDed=12000000+(annual-45000000)*0.05; else emDed=14750000+(annual-100000000)*0.02;
+    var deps=Math.max(1,Number(st3[0])||1);
+    var taxBase=Math.max(0,annual-emDed-1500000*deps);
+    var annTax; if(taxBase<=14000000)annTax=taxBase*0.06; else if(taxBase<=50000000)annTax=840000+(taxBase-14000000)*0.15; else if(taxBase<=88000000)annTax=6240000+(taxBase-50000000)*0.24; else if(taxBase<=150000000)annTax=15360000+(taxBase-88000000)*0.35; else annTax=37060000+(taxBase-150000000)*0.38;
+    var credit=Math.min(annTax<=1300000?annTax*0.55:715000+(annTax-1300000)*0.30,740000);
+    var incomeTax=Math.max(0,Math.round((annTax-credit)/12));
+    var localTax=Math.round(incomeTax*0.10);
+    return{
+      hourlyWage:hourlyWage,monthlyHours:mh,minMonthly:minMonthly,isAboveMin:hourlyWage>=MIN_WAGE_2026,isAboveFloor:monthly>=BOSU_FLOOR_2026,gap:hourlyWage-MIN_WAGE_2026,
+      pension_ee:pension_ee,health_ee:health_ee,care_ee:care_ee,employ_ee:employ_ee,total4_ee:total4_ee,
+      pension_er:pension_er,health_er:health_er,care_er:care_er,employ_er:employ_er,injury_er:injury_er,total4_er:total4_er,
+      incomeTax:incomeTax,localTax:localTax,
+      totalDeduct:total4_ee+incomeTax+localTax,
+      netPay:monthly-total4_ee-incomeTax-localTax,
+      totalEmployerCost:monthly+total4_er
+    };
+  },[monthly,st2[0],st3[0]]);
+
+  function DRow(label,pct,amount,accent){return(<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 16px",borderBottom:"1px solid rgba(0,0,0,0.04)",fontSize:15}}><div><span style={{color:"#1E293B"}}>{label}</span>{pct&&<span style={{fontSize:12,color:"#94A3B8",marginLeft:6}}>{pct}</span>}</div><span style={{fontWeight:600,color:accent||"#DC2626"}}>−{(amount||0).toLocaleString()}원</span></div>);}
+  function ERow(label,pct,amount){return(<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 16px",borderBottom:"1px solid rgba(0,0,0,0.04)",fontSize:15}}><div><span style={{color:"#1E293B"}}>{label}</span>{pct&&<span style={{fontSize:12,color:"#94A3B8",marginLeft:6}}>{pct}</span>}</div><span style={{fontWeight:600,color:"#059669"}}>+{(amount||0).toLocaleString()}원</span></div>);}
+
+  return(
+    <div className="fade-in">
+      <Card style={{padding:"20px 24px",marginBottom:16}}>
+        <h2 style={{margin:"0 0 4px",fontSize:26,fontWeight:800}}>🧮 급여 계산기</h2>
+        <p style={{margin:"0 0 20px",fontSize:16,color:"#64748B"}}>2026년 기준 · 최저임금 시급 <strong>{MIN_WAGE_2026.toLocaleString()}원</strong> · 월환산 <strong>{MIN_WAGE_MONTH_2026.toLocaleString()}원</strong>(209h)</p>
+
+        {/* 연봉↔월급 변환 */}
+        <div style={{padding:"12px 16px",background:"#F0F9FF",borderRadius:10,marginBottom:20,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:15,fontWeight:700,color:"#0369A1",flexShrink:0}}>💡 연봉 → 월급</span>
+          <input type="number" style={Object.assign({},inp,{flex:1,minWidth:140,maxWidth:220,margin:0})} value={stAnnual[0]} onChange={function(e){stAnnual[1](e.target.value);var m=Math.round(Number(e.target.value)/12);if(m)st1[1](String(m));}} placeholder="연봉 입력 (예: 30000000)"/>
+          {stAnnual[0]&&Number(stAnnual[0])>0&&<span style={{fontSize:15,color:"#0369A1",fontWeight:600}}>→ 월 {Math.round(Number(stAnnual[0])/12).toLocaleString()}원</span>}
+        </div>
+
+        {/* 주요 입력 */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,marginBottom:8}}>
+          <div>
+            <Label>월 급여 (세전, 원)</Label>
+            <input type="number" style={inp} value={st1[0]} onChange={function(e){st1[1](e.target.value);stAnnual[1]("");}} placeholder="2,200,000"/>
+            <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
+              {[2060000,2156880,2500000,3000000,4000000].map(function(v){return(
+                <button key={v} onClick={function(){st1[1](String(v));stAnnual[1]("");}}
+                  style={{padding:"3px 8px",fontSize:11,borderRadius:5,border:"1px solid #E2E8F0",background:monthly===v?"#DBEAFE":"#F8FAFC",color:monthly===v?"#2563EB":"#64748B",cursor:"pointer",fontFamily:FF}}>
+                  {fManS(v)}
+                </button>
+              );})}
+            </div>
+          </div>
+          <div>
+            <Label>주 소정근로시간</Label>
+            <select style={inp} value={st2[0]} onChange={function(e){st2[1](e.target.value);}}>
+              {[[40,"40시간 (통상)"],[35,"35시간"],[30,"30시간"],[20,"20시간"],[15,"15시간"]].map(function(arr){return <option key={arr[0]} value={arr[0]}>{arr[1]}</option>;})}
+            </select>
+          </div>
+          <div>
+            <Label>부양가족 수 (본인포함)</Label>
+            <select style={inp} value={st3[0]} onChange={function(e){st3[1](e.target.value);}}>
+              {[1,2,3,4,5].map(function(n){return <option key={n} value={n}>{n}명</option>;})}
+            </select>
+          </div>
+        </div>
+      </Card>
+
+      {!monthly&&(
+        <Card style={{padding:"48px 24px",textAlign:"center"}}>
+          <div style={{fontSize:48,marginBottom:12}}>🧮</div>
+          <p style={{color:"#94A3B8",fontSize:18,margin:0}}>월 급여를 입력하면 실수령액, 4대보험, 사업주 부담금을 자동으로 계산해 드립니다.</p>
+        </Card>
+      )}
+
+      {result&&(
+        <div className="fade-in">
+          {/* 탭 */}
+          <div style={{display:"flex",gap:0,borderBottom:"2px solid #E2E8F0",marginBottom:20,background:"#fff",borderRadius:"12px 12px 0 0",overflow:"hidden"}}>
+            {[["deduct","💰 실수령액"],["employer","🏢 사업주 부담"],["minwage","📊 최저임금 판정"]].map(function(arr){var on=stTab[0]===arr[0];return(
+              <button key={arr[0]} onClick={function(){stTab[1](arr[0]);}}
+                style={{flex:1,padding:"14px 10px",fontSize:16,fontWeight:on?700:500,color:on?"#2563EB":"#64748B",background:on?"#EFF6FF":"transparent",border:"none",borderBottom:on?"3px solid #2563EB":"3px solid transparent",cursor:"pointer",fontFamily:FF,transition:"all 0.15s"}}>
+                {arr[1]}
+              </button>
+            );})}
+          </div>
+
+          {stTab[0]==="deduct"&&(
+            <div className="fade-in">
+              {/* 요약 배너 */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+                {[["세전 월급",monthly,"#1E293B"],["총 공제액",result.totalDeduct,"#DC2626"],["실수령액",result.netPay,"#2563EB"]].map(function(arr,i){return(
+                  <Card key={i} className="kpi-card" style={{padding:"16px 18px",textAlign:"center"}}>
+                    <div style={{fontSize:13,color:"#64748B",marginBottom:4}}>{arr[0]}</div>
+                    <div style={{fontSize:22,fontWeight:800,color:arr[2]}}>{arr[1].toLocaleString()}원</div>
+                  </Card>
+                );})}
+              </div>
+              {/* 공제 명세 */}
+              <Card style={{padding:0,overflow:"hidden",marginBottom:12}}>
+                <div style={{padding:"11px 16px",background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",fontSize:15,fontWeight:700,color:"#1E293B"}}>급여 공제 내역</div>
+                <div style={{background:"#FFFBEB"}}>
+                  <div style={{padding:"8px 16px",fontSize:12,fontWeight:700,color:"#92400E",letterSpacing:"0.05em"}}>▸ 4대보험 (총 {result.total4_ee.toLocaleString()}원)</div>
+                  {DRow("국민연금","4.5%",result.pension_ee,"#D97706")}
+                  {DRow("건강보험","3.545%",result.health_ee,"#D97706")}
+                  {DRow("장기요양","건보×12.95%",result.care_ee,"#D97706")}
+                  {DRow("고용보험","0.9%",result.employ_ee,"#D97706")}
+                </div>
+                <div style={{background:"#FEF2F2"}}>
+                  <div style={{padding:"8px 16px",fontSize:12,fontWeight:700,color:"#991B1B",letterSpacing:"0.05em"}}>▸ 세금 (총 {(result.incomeTax+result.localTax).toLocaleString()}원)</div>
+                  {DRow("소득세","근사치",result.incomeTax,"#DC2626")}
+                  {DRow("지방소득세","소득세×10%",result.localTax,"#DC2626")}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 18px",background:"linear-gradient(135deg,#1E40AF,#2563EB)"}}>
+                  <span style={{fontSize:17,fontWeight:700,color:"#fff"}}>💵 실수령액</span>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:28,fontWeight:800,color:"#fff"}}>{result.netPay.toLocaleString()}원</div>
+                    <div style={{fontSize:13,color:"rgba(255,255,255,0.75)"}}>세전의 {Math.round(result.netPay/monthly*100)}%</div>
+                  </div>
+                </div>
+              </Card>
+              <p style={{fontSize:12,color:"#94A3B8",margin:0}}>* 소득세는 간이세액표 근사치입니다. 실제 공제액은 연말정산 결과에 따라 달라질 수 있습니다.</p>
+            </div>
+          )}
+
+          {stTab[0]==="employer"&&(
+            <div className="fade-in">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                {[["사업주 4대보험 부담",result.total4_er,"#059669"],["월 총 인건비",result.totalEmployerCost,"#2563EB"]].map(function(arr,i){return(
+                  <Card key={i} className="kpi-card" style={{padding:"16px 18px",textAlign:"center"}}>
+                    <div style={{fontSize:13,color:"#64748B",marginBottom:4}}>{arr[0]}</div>
+                    <div style={{fontSize:22,fontWeight:800,color:arr[2]}}>{arr[1].toLocaleString()}원</div>
+                  </Card>
+                );})}
+              </div>
+              <Card style={{padding:0,overflow:"hidden",marginBottom:12}}>
+                <div style={{padding:"11px 16px",background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",fontSize:15,fontWeight:700,color:"#1E293B"}}>사업주 비용 명세</div>
+                <div style={{padding:"11px 16px",display:"flex",justifyContent:"space-between",fontSize:16,borderBottom:"1px solid #F1F5F9"}}>
+                  <span style={{color:"#1E293B"}}>근로자 월급</span><span style={{fontWeight:700}}>{monthly.toLocaleString()}원</span>
+                </div>
+                <div style={{background:"#F0FDF4"}}>
+                  <div style={{padding:"8px 16px",fontSize:12,fontWeight:700,color:"#065F46",letterSpacing:"0.05em"}}>▸ 4대보험 사업주 부담 (총 {result.total4_er.toLocaleString()}원)</div>
+                  {ERow("국민연금","4.5%",result.pension_er)}
+                  {ERow("건강보험","3.545%",result.health_er)}
+                  {ERow("장기요양","건보×12.95%",result.care_er)}
+                  {ERow("고용보험","0.9% (150인↓)",result.employ_er)}
+                  {ERow("산재보험","1.43% (평균)",result.injury_er)}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 18px",background:"linear-gradient(135deg,#065F46,#059669)"}}>
+                  <span style={{fontSize:17,fontWeight:700,color:"#fff"}}>🏢 월 총 인건비</span>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:28,fontWeight:800,color:"#fff"}}>{result.totalEmployerCost.toLocaleString()}원</div>
+                    <div style={{fontSize:13,color:"rgba(255,255,255,0.75)"}}>연간 약 {Math.round(result.totalEmployerCost*12/10000).toLocaleString()}만원</div>
+                  </div>
+                </div>
+              </Card>
+              <div style={{padding:"12px 16px",background:"#F0F9FF",borderRadius:8,fontSize:14,color:"#0369A1"}}>
+                💡 사업주 부담 비율은 월급의 약 <strong>{Math.round(result.total4_er/monthly*100)}%</strong>입니다. 산재보험율은 업종별 상이(평균 1.43% 적용).
+              </div>
+            </div>
+          )}
+
+          {stTab[0]==="minwage"&&(
+            <div className="fade-in">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                <Card style={{padding:"18px",textAlign:"center",border:"1.5px solid "+(result.isAboveMin?"#6EE7B7":"#FECACA")}}>
+                  <div style={{fontSize:14,color:"#64748B",marginBottom:4}}>환산 시급</div>
+                  <div style={{fontSize:34,fontWeight:800,color:result.isAboveMin?"#059669":"#DC2626"}}>{result.hourlyWage.toLocaleString()}원</div>
+                  <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{result.monthlyHours}시간/월 기준</div>
+                </Card>
+                <Card style={{padding:"18px",textAlign:"center",border:"1.5px solid "+(result.gap>=0?"#6EE7B7":"#FECACA")}}>
+                  <div style={{fontSize:14,color:"#64748B",marginBottom:4}}>최저임금 대비</div>
+                  <div style={{fontSize:34,fontWeight:800,color:result.gap>=0?"#059669":"#DC2626"}}>{result.gap>=0?"+":""}{result.gap.toLocaleString()}원</div>
+                  <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>기준: {MIN_WAGE_2026.toLocaleString()}원/h</div>
+                </Card>
+              </div>
+              <div style={{display:"grid",gap:10}}>
+                <div style={{padding:"16px 20px",borderRadius:12,fontSize:17,fontWeight:600,background:result.isAboveMin?"#D1FAE5":"#FEE2E2",color:result.isAboveMin?"#059669":"#DC2626",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span>{result.isAboveMin?"✅ 최저임금 충족":"❌ 최저임금 미달"}</span>
+                  {!result.isAboveMin&&<span style={{fontSize:14,opacity:0.8}}>월 {result.minMonthly.toLocaleString()}원 이상 필요</span>}
+                </div>
+                <div style={{padding:"16px 20px",borderRadius:12,fontSize:17,fontWeight:600,background:result.isAboveFloor?"#DBEAFE":"#FEF3C7",color:result.isAboveFloor?"#2563EB":"#D97706"}}>
+                  {result.isAboveFloor?"✅ 월보수 하한선(124만원) 충족 — 주요 지원금 신청 가능":"⚠️ 월보수 124만원 미만 — 고용촉진장려금·청년도약 등 원천 제외"}
+                </div>
+                <div style={{padding:"14px 20px",borderRadius:12,background:"#F8FAFC",border:"1px solid #E2E8F0",fontSize:15,color:"#475569",lineHeight:1.7}}>
+                  <strong style={{color:"#1E293B"}}>참고</strong> · 2026년 최저임금 시급 {MIN_WAGE_2026.toLocaleString()}원 · 월환산 {MIN_WAGE_MONTH_2026.toLocaleString()}원(주40h·월209h 기준) · 고용보험 보수 하한선 {BOSU_FLOOR_2026.toLocaleString()}원
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Simulator(props){ var programs=props.programs; var st1=useState("youth_jump"),st2=useState(1),st3=useState(""); var selectedProgram=programs[st1[0]]; var results=useMemo(function(){if(!selectedProgram||!st2[0])return{monthly:[],total:0}; var count=parseInt(st2[0])||0; var startDate=st3[0]||new Date().toISOString().split("T")[0]; var monthly=[]; var totalAmount=0; for(var i=0;i<count;i++){(selectedProgram.rounds||[]).forEach(function(r){var eligDate=addMo(startDate,r.month);var ym=eligDate.substring(0,7);var existing=monthly.find(function(m){return m.month===ym;});if(existing){existing.amount+=r.amount;existing.count++;}else{monthly.push({month:ym,amount:r.amount,count:1});}totalAmount+=r.amount;});} return{monthly:monthly.sort(function(a,b){return a.month.localeCompare(b.month);}),total:totalAmount,perPerson:selectedProgram.totalAmount||0};}, [selectedProgram,st2[0],st3[0]]);
   return(<Card style={{padding:24,marginBottom:20}}><h4 style={{margin:"0 0 20px",fontSize:22,fontWeight:800}}>📊 예상 수령액 시뮬레이터</h4><div style={{marginBottom:18}}><Label>지원금 선택</Label>{["신규채용","재직자유지","육아"].map(function(grp){var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];var items=Object.values(programs).filter(function(p){return p.group===grp;});if(!items.length)return null;return(<div key={grp} style={{marginBottom:12,padding:"14px 16px",borderRadius:12,background:gp.badge,border:"1.5px solid "+gp.light}}><div style={{fontSize:17,fontWeight:700,color:gp.dark,marginBottom:10}}>{gp.icon} {grp}</div><div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{items.map(function(p){var on=st1[0]===p.id;return(<button key={p.id} onClick={function(){st1[1](p.id);}} style={{padding:"8px 16px",borderRadius:8,fontSize:17,cursor:"pointer",fontWeight:on?700:400,background:on?gp.base:"#fff",color:on?"#fff":gp.text,border:on?"none":"1.5px solid "+gp.light}}>{p.name}</button>);})}</div></div>);})}</div>
