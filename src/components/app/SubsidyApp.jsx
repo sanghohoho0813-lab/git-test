@@ -276,6 +276,51 @@ function PDFReport(props){ var company=props.company,employees=props.employees,p
   function generatePDF(){ var cl=company.corpType==="법인"?(company.juPosition==="앞"?"(주)"+company.name:company.name+"(주)"):company.name; var today=new Date(); var rd2=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일"; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+cl+' 고용지원금 현황</title><style>body{font-family:-apple-system,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#1E293B}h1{font-size:24px;border-bottom:3px solid #2563EB;padding-bottom:10px;margin-bottom:20px}h2{font-size:16px;color:#2563EB;margin-top:30px;border-left:4px solid #2563EB;padding-left:10px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px}.sc{background:#F8FAFC;border-radius:8px;padding:15px;text-align:center}.sc .l{font-size:12px;color:#64748B}.sc .v{font-size:24px;font-weight:700;color:#2563EB}table{width:100%;border-collapse:collapse}th,td{border:1px solid #E2E8F0;padding:8px 12px;text-align:left;font-size:13px}th{background:#F8FAFC}@media print{body{padding:20px}}</style></head><body>'; html+='<h1>📋 '+cl+' 고용지원금 현황</h1><p style="color:#64748B;font-size:13px">작성일: '+rd2+' | 작성자: '+(profile.display_name||"")+" "+(profile.title||"")+'</p>'; html+='<div class="summary"><div class="sc"><div class="l">대상자</div><div class="v">'+rd.empCount+'명</div></div><div class="sc"><div class="l">수령완료</div><div class="v">'+fMan(rd.totalReceived)+'</div></div><div class="sc"><div class="l">수령예정</div><div class="v">'+fMan(rd.remaining)+'</div></div></div>'; if(rd.upcomingRounds.length>0){html+='<h2>🔔 향후 90일 내 신청 예정</h2><table><tr><th>직원</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th>예상금액</th></tr>';rd.upcomingRounds.forEach(function(r){html+='<tr><td>'+r.empName+'</td><td>'+r.roundLabel+'</td><td>'+fD(r.eligDate)+'</td><td>D-'+r.dday+'</td><td>'+fMan(r.amount)+'</td></tr>';});html+='</table>';} html+='<h2>👤 직원별 현황</h2><table><tr><th>이름</th><th>지원금</th><th>상태</th><th>입사일</th><th>수령액</th></tr>';rd.employees.forEach(function(e){var p2=programs[e.programId];var s2=STS.find(function(s){return s.key===e.status;});var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);html+='<tr><td>'+e.name+'</td><td>'+(p2?p2.name:"")+'</td><td>'+(s2?s2.label:"")+'</td><td>'+(e.startDate||"-")+'</td><td>'+fMan(rcv)+'</td></tr>';});html+='</table>'; html+='<div style="margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;text-align:center;font-size:12px;color:#64748B">고용지원금 매니저 Pro에서 자동 생성 · 신청 전 최신 공고 확인 필요</div></body></html>'; var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_고용지원금_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false); }
   return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#DC2626",color:"#fff",border:"none"})} onClick={function(){st1[1](true);}}>📄 보고서</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📄 보고서 생성" width={480}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>📄</div><h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700}}>{company.name}</h3><p style={{color:"#64748B",fontSize:13,marginBottom:24}}>대상자 {rd.empCount}명 | 수령완료 {fMan(rd.totalReceived)}</p><button style={Object.assign({},btnP,{padding:"14px 40px",fontSize:15})} onClick={generatePDF}>📥 HTML 보고서 다운로드</button><p style={{fontSize:11,color:"#94A3B8",marginTop:12}}>브라우저에서 열어 인쇄(Ctrl+P)하면 PDF로 저장됩니다</p></div></Modal></React.Fragment>); }
 
+function CommissionReport(props){
+  var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile;
+  var st1=useState(false);
+  var stRate=useState("5");
+  var activeEmps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";});
+  var totalReceived=activeEmps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);
+  var fee=Math.round(totalReceived*(Number(stRate[0])||0)/100);
+  function generateReport(){
+    var cl=company.name; var today=new Date(); var rd2=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일";
+    var rows=activeEmps.map(function(e){var p=programs[e.programId];var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);return{name:e.name,program:p?p.name:"",received:rcv,fee:Math.round(rcv*(Number(stRate[0])||0)/100)};}).filter(function(r){return r.received>0;});
+    var totalFee=rows.reduce(function(s,r){return s+r.fee;},0);
+    var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>수수료 정산서</title><style>body{font-family:-apple-system,sans-serif;padding:40px;max-width:700px;margin:0 auto;color:#1E293B}h1{font-size:22px;border-bottom:3px solid #059669;padding-bottom:10px;margin-bottom:16px}.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:20px 0}.sc{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:16px;text-align:center}.sc .l{font-size:12px;color:#64748B}.sc .v{font-size:22px;font-weight:700;color:#2563EB}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #E2E8F0;padding:10px 12px;font-size:13px;text-align:left}th{background:#F8FAFC;font-weight:700}.num{text-align:right}tfoot td{font-weight:700;background:#F0FDF4}@media print{body{padding:20px}}</style></head><body>';
+    html+='<h1>💰 수수료 정산서</h1><p style="color:#64748B;font-size:13px">업체: <strong>'+cl+'</strong> | 정산일: '+rd2+' | 작성자: '+(profile&&profile.display_name||"")+'</p><p style="font-size:14px">수수료율: <strong style="color:#059669">'+stRate[0]+'%</strong></p>';
+    html+='<div class="summary"><div class="sc"><div class="l">수령완료 합계</div><div class="v">'+fMan(totalReceived)+'</div></div><div class="sc"><div class="l">수수료율</div><div class="v">'+stRate[0]+'%</div></div><div class="sc"><div class="l">정산 수수료</div><div class="v" style="color:#059669">'+fMan(totalFee)+'</div></div></div>';
+    html+='<table><thead><tr><th>직원명</th><th>지원금</th><th class="num">수령액 합계</th><th class="num">수수료 ('+stRate[0]+'%)</th></tr></thead><tbody>';
+    rows.forEach(function(r){html+='<tr><td>'+r.name+'</td><td>'+r.program+'</td><td class="num">'+fMan(r.received)+'</td><td class="num" style="color:#059669;font-weight:600">'+fMan(r.fee)+'</td></tr>';});
+    html+='</tbody><tfoot><tr><td colspan="2">합계</td><td class="num">'+fMan(totalReceived)+'</td><td class="num" style="color:#059669">'+fMan(totalFee)+'</td></tr></tfoot></table>';
+    html+='<div style="margin-top:32px;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center">고용지원금 매니저 Pro 자동 생성 · 실제 수수료는 계약서에 따름</div></body></html>';
+    var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_수수료정산_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false);
+  }
+  return(
+    <React.Fragment>
+      <button style={Object.assign({},btnSm,{background:"#059669",color:"#fff",border:"none"})} onClick={function(){st1[1](true);}}>💰 수수료</button>
+      <Modal open={st1[0]} onClose={function(){st1[1](false);}} title="💰 수수료 정산서" width={440}>
+        <div>
+          <div style={{marginBottom:16}}>
+            <Label>수수료율 (%)</Label>
+            <input type="number" style={inp} value={stRate[0]} onChange={function(e){stRate[1](e.target.value);}} min="0" max="100" step="0.5" placeholder="5"/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+            <Card style={{padding:"14px 16px",textAlign:"center"}}><div style={{fontSize:13,color:"#64748B",marginBottom:4}}>수령완료 합계</div><div style={{fontSize:22,fontWeight:700,color:"#2563EB"}}>{fMan(totalReceived)}</div></Card>
+            <Card style={{padding:"14px 16px",textAlign:"center"}}><div style={{fontSize:13,color:"#64748B",marginBottom:4}}>예상 수수료</div><div style={{fontSize:22,fontWeight:700,color:"#059669"}}>{fMan(fee)}</div></Card>
+          </div>
+          <div style={{fontSize:15,fontWeight:700,marginBottom:8,color:"#1E293B"}}>직원별 내역</div>
+          <div style={{maxHeight:200,overflow:"auto",marginBottom:16}}>
+            {(function(){var hasPaid=activeEmps.filter(function(e){return(e.rounds||[]).some(function(r){return r.isPaid;});});if(hasPaid.length===0)return <p style={{color:"#94A3B8",textAlign:"center",fontSize:14,padding:"16px 0"}}>수령 완료된 직원이 없습니다.</p>;return hasPaid.map(function(e){var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);var f=Math.round(rcv*(Number(stRate[0])||0)/100);return(<div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",borderRadius:7,background:"#F8FAFC",marginBottom:4,fontSize:14}}><span style={{fontWeight:500}}>{e.name}</span><div style={{textAlign:"right"}}><div style={{color:"#64748B",fontSize:12}}>{fMan(rcv)}</div><div style={{fontWeight:700,color:"#059669"}}>{fMan(f)}</div></div></div>);})})()}
+          </div>
+          <button style={Object.assign({},btnP,{width:"100%",padding:"12px",fontSize:15})} onClick={generateReport}>📥 수수료 정산서 다운로드</button>
+          <p style={{fontSize:11,color:"#94A3B8",textAlign:"center",marginTop:8}}>브라우저에서 열어 인쇄하면 PDF로 저장됩니다</p>
+        </div>
+      </Modal>
+    </React.Fragment>
+  );
+}
+
 // ── Dashboard 보조 컴포넌트 ───────────────────────────────
 function DdayAlerts(props){ var ddayLimit=(props.settings&&props.settings.ddayAlert)||7; var alerts=useMemo(function(){var list=[];props.employees.forEach(function(emp){if(emp.status==="resigned")return;var company=props.companies.find(function(c){return c.id===emp.companyId;});var program=props.programs[emp.programId];if(!emp.startDate||!program)return;(emp.rounds||[]).forEach(function(r,ri){if(r.isPaid)return;var eligDate=addMo(emp.startDate,r.month);var dday=getDday(eligDate);if(dday!==null&&dday<=ddayLimit){list.push({id:emp.id+"-"+ri,empName:emp.name,companyName:company?company.name:"",companyId:emp.companyId,dday:dday});}});});return list.sort(function(a,b){return a.dday-b.dday;});},[props.employees,props.companies,props.programs,ddayLimit]); if(alerts.length===0)return null; return(<Card style={{marginBottom:16,overflow:"hidden"}}><div style={{background:"linear-gradient(135deg,#DC2626,#EF4444)",padding:"12px 16px",color:"#fff"}}><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:16}}>🔔</span><span style={{fontSize:14,fontWeight:700}}>신청 임박</span><Badge color="#fff" bg="rgba(255,255,255,0.25)">{alerts.length}건</Badge></div></div><div style={{padding:"10px 14px",maxHeight:150,overflow:"auto"}}>{alerts.map(function(a){return(<div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",marginBottom:4,borderRadius:6,background:a.dday<=0?"#FEE2E2":a.dday<=3?"#FEF3C7":"#F8FAFC",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(a.companyId);}}><div><span style={{fontWeight:600}}>{a.empName}</span><span style={{color:"#64748B",marginLeft:6}}>{a.companyName}</span></div><DdayBadge dday={a.dday}/></div>);})}</div></Card>); }
 
@@ -740,6 +785,8 @@ function CompDet(props){
   var stNote=useState("");  // 새 일지 입력
   var stEditId=useState(null);  // 편집 중인 일지 id
   var stEditText=useState(""); // 편집 중인 내용
+  var stViewMode=useState("card"); // card | table
+  var stSelected=useState([]); // bulk-selected emp IDs
 
   var notes=company.notes||[];
   function addNote(){
@@ -801,44 +848,127 @@ function CompDet(props){
   var TABS=[{key:"overview",icon:"📋",label:"개요"},{key:"employees",icon:"👤",label:"직원 ("+compEmps.length+")"},{key:"docs",icon:"📁",label:"업체 서류"},{key:"notes",icon:"📝",label:"업무 일지"+(notes.length>0?" ("+notes.length+")":"")}];
 
   function renderEmpList(){
-    return(<div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
-        <h3 style={{margin:0,fontSize:20,fontWeight:700}}>👤 직원 ({compEmps.length}명)</h3>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <BulkUpload programs={programs} onUpload={handleBulkUpload}/>
-          <button style={btnP} className="hover-lift" onClick={function(){st1[1](true);}}>+ 직원 추가</button>
+    var allIds=filteredEmps.map(function(e){return e.id;});
+    var selSet=new Set(stSelected[0]);
+    var allChecked=allIds.length>0&&allIds.every(function(id){return selSet.has(id);});
+    function toggleSelect(id){var cur=stSelected[0].slice();var i=cur.indexOf(id);if(i>=0)cur.splice(i,1);else cur.push(id);stSelected[1](cur);}
+    function toggleAll(){if(allChecked)stSelected[1]([]);else stSelected[1](allIds);}
+    function bulkStatus(s){stSelected[0].forEach(function(id){props.onPatchEmployee(id,{status:s});});stSelected[1]([]);}
+    function bulkCopy(){var rows=filteredEmps.filter(function(e){return selSet.has(e.id);});var text=rows.map(function(e){var p=programs[e.programId];var s=STS.find(function(s){return s.key===e.status;})||STS[0];return[e.name,(s?s.label:""),(p?p.name:""),e.startDate||""].join("\t");}).join("\n");navigator.clipboard.writeText(text);}
+    function getNextDday(emp){if(!emp.startDate)return null;var ddays=(emp.rounds||[]).filter(function(r){return!r.isPaid;}).map(function(r){return getDday(addMo(emp.startDate,r.month));}).filter(function(d){return d!==null&&d>=0;});return ddays.length?Math.min.apply(null,ddays):null;}
+    function getRcv(emp){return(emp.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);}
+    function getAge(emp){if(!emp.birthDate)return"-";var d=calcAgeDetailed(emp.birthDate,emp.startDate||new Date().toISOString().split("T")[0]);return d?d.years+"세":"-";}
+    return(
+      <div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
+          <h3 style={{margin:0,fontSize:20,fontWeight:700}}>👤 직원 ({compEmps.length}명)</h3>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+            <div style={{display:"flex",background:"#F1F5F9",borderRadius:8,padding:2}}>
+              {[["card","🗃️ 카드"],["table","📋 표"]].map(function(arr){var on=stViewMode[0]===arr[0];return(
+                <button key={arr[0]} onClick={function(){stViewMode[1](arr[0]);stSelected[1]([]);}}
+                  style={{padding:"5px 12px",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",background:on?"#fff":"transparent",color:on?"#2563EB":"#64748B",fontWeight:on?700:400,boxShadow:on?"0 1px 4px rgba(0,0,0,0.08)":"none",fontFamily:FF}}>
+                  {arr[1]}
+                </button>
+              );})}
+            </div>
+            <BulkUpload programs={programs} onUpload={handleBulkUpload}/>
+            <button style={btnP} className="hover-lift" onClick={function(){st1[1](true);}}>+ 직원 추가</button>
+          </div>
         </div>
+        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+          {[{key:"all",label:"전체 ("+compEmps.length+")"}].concat(STS.map(function(s){var cnt=compEmps.filter(function(e){return e.status===s.key;}).length;return{key:s.key,label:s.icon+" "+s.label+(cnt>0?" ("+cnt+")":""),cnt:cnt};})).map(function(f){return(
+            <button key={f.key} onClick={function(){st5[1](f.key);stSelected[1]([]);}}
+              style={Object.assign({},btnSm,{fontSize:15,background:st5[0]===f.key?"#2563EB":"#fff",color:st5[0]===f.key?"#fff":"#475569",border:st5[0]===f.key?"none":"1px solid #E2E8F0"})}>
+              {f.label}
+            </button>
+          );})}
+        </div>
+        {filteredEmps.length===0?(
+          compEmps.length===0?
+            <EmptyState icon="🧑‍💼" title="등록된 직원이 없습니다" desc="지원금 대상 직원을 등록하면 회차별 신청 일정과 수령 현황이 자동으로 관리됩니다. 엑셀로 여러 명을 한 번에 등록할 수도 있어요." actionLabel="+ 첫 직원 등록하기" action={function(){st1[1](true);}}/>
+            :<Card style={{padding:36,textAlign:"center"}}><div style={{fontSize:40,marginBottom:8}}>🔍</div><p style={{color:"#94A3B8",fontSize:17,margin:0}}>해당 상태의 직원이 없습니다.</p></Card>
+        ):stViewMode[0]==="table"?(
+          <Card style={{padding:0,overflow:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
+              <thead>
+                <tr style={{background:"#F8FAFC",borderBottom:"2px solid #E2E8F0"}}>
+                  <th style={{padding:"10px 12px",textAlign:"center",width:36}}>
+                    <input type="checkbox" checked={allChecked} onChange={toggleAll} style={{cursor:"pointer",width:15,height:15}}/>
+                  </th>
+                  {["이름","상태","지원금","입사일","나이","수령액","잔여예상","D-Day",""].map(function(h,i){return(
+                    <th key={i} style={{padding:"10px 12px",textAlign:"left",fontSize:13,fontWeight:700,color:"#475569",whiteSpace:"nowrap"}}>{h}</th>
+                  );})}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEmps.map(function(emp,idx){
+                  var p=programs[emp.programId];
+                  var s=STS.find(function(ss){return ss.key===emp.status;})||STS[0];
+                  var rcv=getRcv(emp);
+                  var rem=(emp.totalExpected||0)-rcv;
+                  var dd=getNextDday(emp);
+                  var isSel=selSet.has(emp.id);
+                  return(
+                    <tr key={emp.id} style={{borderBottom:"1px solid #F1F5F9",background:isSel?"#EFF6FF":idx%2===0?"#fff":"#FAFBFC",transition:"background 0.15s"}}>
+                      <td style={{padding:"10px 12px",textAlign:"center"}}>
+                        <input type="checkbox" checked={isSel} onChange={function(){toggleSelect(emp.id);}} style={{cursor:"pointer",width:15,height:15}}/>
+                      </td>
+                      <td style={{padding:"10px 12px",fontWeight:600,color:"#1E293B"}}>{emp.name}</td>
+                      <td style={{padding:"10px 12px"}}>
+                        <select value={emp.status} onChange={function(e){props.onPatchEmployee(emp.id,{status:e.target.value});}}
+                          style={{padding:"4px 7px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,background:s.bg,color:s.color,cursor:"pointer",fontFamily:FF,fontWeight:600}}>
+                          {STS.map(function(ss){return <option key={ss.key} value={ss.key}>{ss.icon+" "+ss.label}</option>;})}
+                        </select>
+                      </td>
+                      <td style={{padding:"10px 12px",color:"#475569"}}>{p?p.name:"-"}</td>
+                      <td style={{padding:"10px 12px",color:"#64748B",fontSize:13}}>{emp.startDate?fD(emp.startDate):"-"}</td>
+                      <td style={{padding:"10px 12px",color:"#64748B",fontSize:13}}>{getAge(emp)}</td>
+                      <td style={{padding:"10px 12px",fontWeight:600,color:"#059669"}}>{fMan(rcv)}</td>
+                      <td style={{padding:"10px 12px",color:"#8B5CF6"}}>{rem>0?fMan(rem):"—"}</td>
+                      <td style={{padding:"10px 12px"}}>{dd!==null?<DdayBadge dday={dd}/>:<span style={{color:"#CBD5E1",fontSize:12}}>—</span>}</td>
+                      <td style={{padding:"10px 8px",whiteSpace:"nowrap"}}>
+                        <button onClick={function(){st2[1](emp);}} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="편집">✏️</button>
+                        <button onClick={function(){if(window.confirm(emp.name+" 삭제하겠습니까?"))props.onDeleteEmployee(emp.id);}} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="삭제">🗑️</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        ):(
+          filteredEmps.map(function(emp){return(
+            <EmpCard key={emp.id} emp={emp} programs={programs} company={company}
+              uploadFn={uploadFn} getUrlFn={getUrlFn}
+              onEdit={function(e){st2[1](e);}}
+              onDelete={props.onDeleteEmployee}
+              onPatch={function(id,patch){props.onPatchEmployee(id,patch);}}
+              onLog={props.onLog}
+              onRoundClick={function(e,ri){st3[1](e);st4[1](ri);}}
+              onCertToggle={function(e,di){
+                var docs=(e.certDocs||[]).slice();
+                docs[di]=Object.assign({},docs[di],{done:!docs[di].done});
+                props.onPatchEmployee(e.id,{certDocs:docs});
+              }}
+            />
+          );})
+        )}
+        {stSelected[0].length>0&&(
+          <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:12,padding:"14px 22px",background:"#1E293B",borderRadius:16,boxShadow:"0 8px 32px rgba(0,0,0,0.28)",zIndex:500,color:"#fff",fontFamily:FF,whiteSpace:"nowrap"}}>
+            <span style={{fontSize:15,fontWeight:700}}>{stSelected[0].length}명 선택됨</span>
+            <div style={{width:1,height:22,background:"rgba(255,255,255,0.2)"}}/>
+            <span style={{fontSize:13,opacity:0.7}}>상태 변경:</span>
+            <select onChange={function(e){if(e.target.value){bulkStatus(e.target.value);}e.target.value="";}} defaultValue=""
+              style={{padding:"5px 8px",borderRadius:8,border:"none",fontSize:13,background:"#334155",color:"#fff",cursor:"pointer",fontFamily:FF}}>
+              <option value="" disabled>선택...</option>
+              {STS.map(function(s){return <option key={s.key} value={s.key}>{s.icon+" "+s.label}</option>;})}
+            </select>
+            <button onClick={bulkCopy} style={{padding:"6px 14px",borderRadius:8,background:"#334155",border:"none",color:"#fff",cursor:"pointer",fontSize:13,fontFamily:FF}}>📋 복사</button>
+            <button onClick={function(){stSelected[1]([]);}} style={{padding:"6px 10px",borderRadius:8,background:"transparent",border:"1px solid rgba(255,255,255,0.25)",color:"#94A3B8",cursor:"pointer",fontSize:13,fontFamily:FF}}>✕</button>
+          </div>
+        )}
       </div>
-      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-        {[{key:"all",label:"전체 ("+compEmps.length+")"}].concat(STS.map(function(s){var cnt=compEmps.filter(function(e){return e.status===s.key;}).length;return{key:s.key,label:s.icon+" "+s.label+(cnt>0?" ("+cnt+")":""),cnt:cnt};})).map(function(f){return(
-          <button key={f.key} onClick={function(){st5[1](f.key);}}
-            style={Object.assign({},btnSm,{fontSize:15,background:st5[0]===f.key?"#2563EB":"#fff",color:st5[0]===f.key?"#fff":"#475569",border:st5[0]===f.key?"none":"1px solid #E2E8F0"})}>
-            {f.label}
-          </button>
-        );})}
-      </div>
-      {filteredEmps.length===0?(
-        compEmps.length===0?
-          <EmptyState icon="🧑‍💼" title="등록된 직원이 없습니다" desc="지원금 대상 직원을 등록하면 회차별 신청 일정과 수령 현황이 자동으로 관리됩니다. 엑셀로 여러 명을 한 번에 등록할 수도 있어요." actionLabel="+ 첫 직원 등록하기" action={function(){st1[1](true);}}/>
-          :<Card style={{padding:36,textAlign:"center"}}><div style={{fontSize:40,marginBottom:8}}>🔍</div><p style={{color:"#94A3B8",fontSize:17,margin:0}}>해당 상태의 직원이 없습니다.</p></Card>
-      ):(
-        filteredEmps.map(function(emp){return(
-          <EmpCard key={emp.id} emp={emp} programs={programs} company={company}
-            uploadFn={uploadFn} getUrlFn={getUrlFn}
-            onEdit={function(e){st2[1](e);}}
-            onDelete={props.onDeleteEmployee}
-            onPatch={function(id,patch){props.onPatchEmployee(id,patch);}}
-            onLog={props.onLog}
-            onRoundClick={function(e,ri){st3[1](e);st4[1](ri);}}
-            onCertToggle={function(e,di){
-              var docs=(e.certDocs||[]).slice();
-              docs[di]=Object.assign({},docs[di],{done:!docs[di].done});
-              props.onPatchEmployee(e.id,{certDocs:docs});
-            }}
-          />
-        );}))
-      }
-    </div>);
+    );
   }
 
   return(
@@ -853,6 +983,7 @@ function CompDet(props){
           <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
         </div>
         <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
+        <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile}/>
         <button style={Object.assign({},btnSm,{fontSize:17})} className="hover-lift" onClick={function(){st6[1](true);}}>⚙️ 편집</button>
       </div>
 
