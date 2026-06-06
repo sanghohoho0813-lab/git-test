@@ -2180,6 +2180,88 @@ function KanbanBoard(props){
   );
 }
 
+function ProductTour(props){
+  var STEPS=[
+    {title:"👋 환영합니다!",desc:"고용지원금 Pro는 정부 고용지원금 신청·관리를 위한 전문 플랫폼입니다. 1분 안에 핵심 기능을 안내해드릴게요.",target:null},
+    {title:"🗂️ 메뉴 탐색",desc:"왼쪽 사이드바에서 모든 기능에 접근하세요. 대시보드, 업체 관리, 진행 보드, 급여 계산기까지 한 곳에 있습니다.",target:"[data-tour='sidebar']",side:"right"},
+    {title:"🏢 업체 등록",desc:"'+ 업체 추가' 버튼으로 관리할 업체를 먼저 등록하세요. 업체마다 직원과 지원금이 독립적으로 관리됩니다.",target:"[data-tour='add-company']",side:"bottom"},
+    {title:"🗂️ 진행 보드",desc:"지원금 진행 단계를 칸반 보드로 한눈에 확인하세요. 카드를 드래그해서 준비중→서류접수→심사중→완료로 이동할 수 있어요.",target:"[data-tour='nav-kanban']",side:"right"},
+    {title:"🎯 채용 진단",desc:"채용 조건(나이·고용형태·지역 등)을 입력하면 신청 가능한 지원금을 자동으로 진단해줍니다. 처음이라면 여기서 시작하세요!",target:"[data-tour='nav-diagnosis']",side:"right"},
+    {title:"🧮 급여 계산기",desc:"직원 실수령액·사업주 부담금·최저임금 판정을 한 번에 계산합니다. 보수 설정 전 꼭 확인하세요.",target:"[data-tour='nav-wage']",side:"right"},
+    {title:"🚀 이제 시작해볼까요?",desc:"업체 관리 메뉴에서 첫 업체를 등록하고 직원을 추가해보세요. 사이드바 하단 '투어' 버튼으로 언제든 다시 안내받을 수 있어요.",target:null},
+  ];
+
+  var stStep=useState(0); var step=stStep[0]; var setStep=stStep[1];
+  var stRect=useState(null); var rect=stRect[0];
+
+  useEffect(function(){
+    if(!props.open) return;
+    var s=STEPS[step];
+    if(!s.target){stRect[1](null);return;}
+    function measure(){
+      var el=document.querySelector(s.target);
+      if(el){var r=el.getBoundingClientRect();stRect[1]({top:r.top,left:r.left,right:r.right,bottom:r.bottom,width:r.width,height:r.height});}
+      else stRect[1](null);
+    }
+    measure();
+    window.addEventListener("resize",measure);
+    return function(){window.removeEventListener("resize",measure);};
+  },[step,props.open]);
+
+  useEffect(function(){if(props.open)setStep(0);},[props.open]);
+
+  if(!props.open) return null;
+
+  var PAD=14; var TW=360;
+  var vw=window.innerWidth; var vh=window.innerHeight;
+  var cur=STEPS[step];
+  var isLast=step===STEPS.length-1;
+
+  function next(){if(isLast)props.onClose();else setStep(function(s){return s+1;});}
+  function prev(){setStep(function(s){return s-1;});}
+
+  var tStyle={position:"fixed",width:TW,background:"#fff",borderRadius:20,padding:"28px 30px",boxShadow:"0 24px 64px rgba(15,23,42,0.35), 0 0 0 1px rgba(0,0,0,0.06)",zIndex:4010,fontFamily:FF,boxSizing:"border-box"};
+  if(!rect){
+    Object.assign(tStyle,{top:"50%",left:"50%",transform:"translate(-50%,-50%)"});
+  } else {
+    var side=cur.side||"right"; var gap=18;
+    if(side==="right"){
+      var tl=rect.right+gap; if(tl+TW>vw-10)tl=rect.left-TW-gap;
+      tStyle.left=Math.max(10,tl)+"px"; tStyle.top=Math.max(10,Math.min(rect.top-8,vh-340))+"px";
+    } else {
+      var tl2=Math.min(rect.left,vw-TW-10); if(tl2<10)tl2=10;
+      var tt2=rect.bottom+gap; if(tt2+300>vh)tt2=rect.top-300-gap;
+      tStyle.left=tl2+"px"; tStyle.top=Math.max(10,tt2)+"px";
+    }
+  }
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:4000}} onClick={function(e){e.stopPropagation();}}>
+      {!rect&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.72)",zIndex:4000}}/>}
+      {rect&&<div style={{position:"fixed",top:rect.top-PAD,left:rect.left-PAD,width:rect.width+PAD*2,height:rect.height+PAD*2,borderRadius:16,boxShadow:"0 0 0 9999px rgba(15,23,42,0.68)",border:"2px solid rgba(99,102,241,0.7)",zIndex:4005,pointerEvents:"none",transition:"all 0.25s ease"}}/>}
+      <div style={tStyle} className="fade-in-up">
+        <div style={{display:"flex",gap:5,marginBottom:22,alignItems:"center"}}>
+          {STEPS.map(function(_,i){return(
+            <div key={i} style={{height:6,width:i===step?20:6,borderRadius:3,background:i===step?"#2563EB":i<step?"#93C5FD":"#E2E8F0",transition:"all 0.3s ease"}}/>
+          );})}
+          <span style={{marginLeft:"auto",fontSize:13,color:"#94A3B8",fontWeight:500}}>{step+1} / {STEPS.length}</span>
+        </div>
+        <h3 style={{margin:"0 0 12px",fontSize:22,fontWeight:800,color:"#0F172A",lineHeight:1.3}}>{cur.title}</h3>
+        <p style={{margin:"0 0 28px",fontSize:15,color:"#475569",lineHeight:1.75}}>{cur.desc}</p>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <button onClick={props.onClose} style={{background:"none",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:14,fontFamily:FF,padding:0}}>건너뛰기</button>
+          <div style={{display:"flex",gap:10}}>
+            {step>0&&<button onClick={prev} style={{background:"#F1F5F9",border:"none",color:"#475569",cursor:"pointer",fontSize:15,fontWeight:600,borderRadius:10,padding:"10px 20px",fontFamily:FF}}>← 이전</button>}
+            <button onClick={next} style={{background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",border:"none",borderRadius:10,padding:"10px 26px",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 4px 14px rgba(37,99,235,0.4)"}}>
+              {isLast?"🚀 시작하기":"다음 →"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SubsidyApp(props){
   var companies=props.companies||[];
   var employees=props.employees||[];
@@ -2206,6 +2288,9 @@ export default function SubsidyApp(props){
   var stAddComp=useState(false);
   var stProfileOpen=useState(false);
   var stMobileNav=useState(false);
+  var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
+  function startTour(){stTour[1](true);}
+  function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
 
   function goCompany(id){stCompany[1](id);stView[1]("company");}
   function goBack(){stView[1]("dashboard");stCompany[1](null);}
@@ -2251,11 +2336,11 @@ export default function SubsidyApp(props){
 
   function NavItem(p){
     return(
-      <div style={SB.item(p.active)} onClick={p.onClick}
+      <div data-tour={p.tourId} style={SB.item(p.active)} onClick={p.onClick}
         onMouseEnter={function(e){if(!p.active)e.currentTarget.style.background="rgba(255,255,255,0.08)";}}
         onMouseLeave={function(e){if(!p.active)e.currentTarget.style.background="transparent";}}>
         <span style={SB.icon}>{p.icon}</span>
-        <span style={{lineHeight:1.2}}>{p.label}</span>
+        <span>{p.label}</span>
         {p.active&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:3,background:"#60A5FA",flexShrink:0,boxShadow:"0 0 8px #60A5FA"}}/>}
       </div>
     );
@@ -2270,7 +2355,7 @@ export default function SubsidyApp(props){
       <div className={"app-backdrop"+(stMobileNav[0]?"":" hidden")} onClick={function(){stMobileNav[1](false);}}/>
 
       {/* ── 사이드바 ── */}
-      <div className={"app-sidebar"+(stMobileNav[0]?" open":"")} style={SB.wrap}>
+      <div className={"app-sidebar"+(stMobileNav[0]?" open":"")} style={SB.wrap} data-tour="sidebar">
         {/* 브랜드 */}
         <div style={SB.brand}>
           <div style={SB.brandTitle}>🏛 고용지원금 Pro</div>
@@ -2288,6 +2373,7 @@ export default function SubsidyApp(props){
           {SIDEBAR_NAV.map(function(n){
             return(
               <NavItem key={n.key} icon={n.icon} label={n.label} active={activeKey===n.key}
+                tourId={"nav-"+n.key}
                 onClick={function(){stView[1](n.key);stCompany[1](null);stMobileNav[1](false);}}
               />
             );
@@ -2337,6 +2423,7 @@ export default function SubsidyApp(props){
               <div style={SB.userRole}>{profile.title||"담당자"}</div>
             </div>
           </div>
+          <button style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
           <div style={SB.actions}>
             <button style={SB.actionBtn()} onClick={function(){stProfileOpen[1](true);}}>설정</button>
             <button style={SB.actionBtn("#93C5FD")} onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
@@ -2373,7 +2460,7 @@ export default function SubsidyApp(props){
             </button>
             <NotifBell employees={employees} companies={companies} programs={programs} goCompany={goCompany} settings={profile.settings||{}}/>
             {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
-              <button style={btnP} className="hover-lift" onClick={function(){stAddComp[1](true);}}>+ 업체 추가</button>
+              <button style={btnP} className="hover-lift" data-tour="add-company" onClick={function(){stAddComp[1](true);}}>+ 업체 추가</button>
             )}
           </div>
         </div>
@@ -2488,6 +2575,7 @@ export default function SubsidyApp(props){
           </div>
         </div>
       </Modal>
+      <ProductTour open={stTour[0]} onClose={endTour}/>
     </div>
   );
 }
