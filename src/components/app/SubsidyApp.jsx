@@ -7,7 +7,7 @@ var MIN_WAGE_MONTH_2026 = 2156880;
 var BOSU_FLOOR_2026 = 1240000;
 var GROUP_COLORS = {
   "신규채용":{base:"#2563EB",light:"#DBEAFE",text:"#1D4ED8",dark:"#1E40AF",badge:"#EFF6FF",icon:"🆕"},
-  "재직자유지":{base:"#7C3AED",light:"#EDE9FE",text:"#6D28D9",dark:"#5B21B6",badge:"#F5F3FF",icon:"🔄"},
+  "재직자유지":{base:"#475569",light:"#E2E8F0",text:"#334155",dark:"#1E293B",badge:"#F1F5F9",icon:"🔄"},
   "육아":{base:"#059669",light:"#D1FAE5",text:"#047857",dark:"#065F46",badge:"#ECFDF5",icon:"🤱"},
   "커스텀":{base:"#6B7280",light:"#F1F5F9",text:"#4B5563",dark:"#374151",badge:"#F8FAFC",icon:"⚙️"}
 };
@@ -71,30 +71,30 @@ var EXCL = [
   {id:"x5",label:"자영업자·사업자가 아닐 것",desc:"사업자등록증 소지자 제외"}
 ];
 var STS = [
-  {key:"preparing",label:"준비중",color:"#F59E0B",bg:"#FEF3C7",icon:"⏳"},
-  {key:"submitted",label:"서류접수",color:"#3B82F6",bg:"#DBEAFE",icon:"📨"},
-  {key:"reviewing",label:"심사중",color:"#8B5CF6",bg:"#EDE9FE",icon:"🔍"},
-  {key:"approved",label:"승인",color:"#10B981",bg:"#D1FAE5",icon:"✅"},
-  {key:"inprogress",label:"지급중",color:"#0EA5E9",bg:"#E0F2FE",icon:"💸"},
-  {key:"completed",label:"최종지급완료",color:"#059669",bg:"#A7F3D0",icon:"🎉"},
+  {key:"preparing",label:"준비중",color:"#64748B",bg:"#F1F5F9",icon:"⏳"},
+  {key:"submitted",label:"서류접수",color:"#2563EB",bg:"#EFF6FF",icon:"📨"},
+  {key:"reviewing",label:"심사중",color:"#475569",bg:"#E2E8F0",icon:"🔍"},
+  {key:"approved",label:"승인",color:"#059669",bg:"#ECFDF5",icon:"✅"},
+  {key:"inprogress",label:"지급중",color:"#2563EB",bg:"#DBEAFE",icon:"💸"},
+  {key:"completed",label:"최종지급완료",color:"#059669",bg:"#D1FAE5",icon:"🎉"},
   {key:"resigned",label:"퇴사",color:"#94A3B8",bg:"#F1F5F9",icon:"🚪"}
 ];
 var TAGS = [
-  {id:"vip",label:"VIP",color:"#EAB308",bg:"#FEF9C3"},
-  {id:"new",label:"신규",color:"#3B82F6",bg:"#DBEAFE"},
-  {id:"caution",label:"주의",color:"#EF4444",bg:"#FEE2E2"},
-  {id:"priority",label:"우선",color:"#8B5CF6",bg:"#EDE9FE"},
-  {id:"hold",label:"보류",color:"#D97706",bg:"#FEF3C7"},
+  {id:"vip",label:"VIP",color:"#D97706",bg:"#FFFBEB"},
+  {id:"new",label:"신규",color:"#2563EB",bg:"#DBEAFE"},
+  {id:"caution",label:"주의",color:"#DC2626",bg:"#FEE2E2"},
+  {id:"priority",label:"우선",color:"#2563EB",bg:"#EFF6FF"},
+  {id:"hold",label:"보류",color:"#64748B",bg:"#F1F5F9"},
   {id:"stop",label:"중단",color:"#6B7280",bg:"#E5E7EB"},
-  {id:"star",label:"⭐즐겨찾기",color:"#F97316",bg:"#FFEDD5"}
+  {id:"star",label:"⭐즐겨찾기",color:"#D97706",bg:"#FFFBEB"}
 ];
 var CERT_TYPES = [
-  {id:"venture",label:"벤처기업 인증",color:"#8B5CF6"},
+  {id:"venture",label:"벤처기업 인증",color:"#2563EB"},
   {id:"innobiz",label:"이노비즈 인증",color:"#059669"},
-  {id:"mainbiz",label:"메인비즈 인증",color:"#2563EB"},
+  {id:"mainbiz",label:"메인비즈 인증",color:"#1E40AF"},
   {id:"research",label:"기업부설연구소",color:"#DC2626"},
-  {id:"family",label:"가족친화기업",color:"#EC4899"},
-  {id:"youth",label:"청년친화기업",color:"#0EA5E9"},
+  {id:"family",label:"가족친화기업",color:"#059669"},
+  {id:"youth",label:"청년친화기업",color:"#2563EB"},
   {id:"other",label:"기타",color:"#6B7280"}
 ];
 var COMMON_EXTRA_DOCS = ["신분증 사본","근로자 통장사본","연차사용 증빙","재직증명서","사직서","육아휴직서","주민등록등본","원천징수영수증","4대보험 가입확인서","운영기관 자체 서식"];
@@ -111,10 +111,10 @@ function noteTypeMeta(id){ return NOTE_TYPES.find(function(t){return t.id===id;}
 // 서류 진행 상태 (체크박스 done 과 병행)
 var DOC_STATUS = [
   {id:"none",label:"미요청",color:"#94A3B8",bg:"#F1F5F9"},
-  {id:"requested",label:"요청완료",color:"#2563EB",bg:"#DBEAFE"},
-  {id:"submitted",label:"제출완료",color:"#0EA5E9",bg:"#E0F2FE"},
-  {id:"revise",label:"보완필요",color:"#D97706",bg:"#FEF3C7"},
-  {id:"confirmed",label:"확인완료",color:"#059669",bg:"#D1FAE5"}
+  {id:"requested",label:"요청완료",color:"#2563EB",bg:"#EFF6FF"},
+  {id:"submitted",label:"제출완료",color:"#0D9488",bg:"#F0FDFA"},
+  {id:"revise",label:"보완필요",color:"#D97706",bg:"#FFFBEB"},
+  {id:"confirmed",label:"확인완료",color:"#059669",bg:"#ECFDF5"}
 ];
 function docStatusMeta(id){ return DOC_STATUS.find(function(s){return s.id===id;})||DOC_STATUS[0]; }
 // 서류 done(boolean) ↔ status(string) 동기화 유틸
@@ -131,15 +131,14 @@ var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",bor
 
 // ── 공통 색상 토큰 (의미 기반) ─────────────────────────────
 var COLORS = {
-  primary:"#2563EB",   // 메인 CTA·정보
-  danger:"#DC2626",    // 위험·지연
-  warning:"#D97706",   // 임박·주의
-  success:"#059669",   // 완료·수령·정상
-  purple:"#7C3AED",    // 서류·보조 강조(절제 사용)
+  primary:"#2563EB", primarySoft:"#EFF6FF",
+  danger:"#DC2626",  dangerSoft:"#FEF2F2",
+  success:"#059669", successSoft:"#ECFDF5",
+  warning:"#D97706", warningSoft:"#FFFBEB",
+  text:"#0F172A", subtext:"#64748B",
   grayText:"#64748B",
-  border:"#E5E7EB",
-  bg:"#F8FAFC",
-  card:"#FFFFFF"
+  border:"#E5E7EB", bg:"#F8FAFC",
+  card:"#FFFFFF", sidebar:"#0F172A"
 };
 
 // ── 전역 토스트 ───────────────────────────────────────────
@@ -179,7 +178,7 @@ var PLAN_TIERS={
 // sub.plan_type(individual|agency) + 체험여부 → 유효 등급
 function effPlanKey(planType,isTrial){ if(isTrial)return "pro"; if(planType==="agency")return "pro"; return "individual"; }
 function planTier(planType,isTrial){ return PLAN_TIERS[effPlanKey(planType,isTrial)]||PLAN_TIERS.individual; }
-function PlanBadge(props){ return <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"#EDE9FE",color:"#7C3AED",marginLeft:6,verticalAlign:"middle"}}>{props.label||"PRO"}</span>; }
+function PlanBadge(props){ return <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"#DBEAFE",color:"#1D4ED8",marginLeft:6,verticalAlign:"middle"}}>{props.label||"PRO"}</span>; }
 
 // ── 기본 UI 컴포넌트 ─────────────────────────────────────
 function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,maxHeight:"90vh",overflow:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"22px 28px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:25,fontWeight:700}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:30,cursor:"pointer",color:"#94A3B8"}}>✕</button></div><div style={{padding:28}}>{props.children}</div></div></div>); }
@@ -671,7 +670,7 @@ function AgencyReport(props){
     var today=new Date();
     var dateStr=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일";
     var cl=company.name;
-    var stcol={preparing:"#64748B",submitted:"#2563EB",reviewing:"#8B5CF6",approved:"#0EA5E9",inprogress:"#F59E0B",completed:"#059669",resigned:"#94A3B8"};
+    var stcol={preparing:"#64748B",submitted:"#2563EB",reviewing:"#475569",approved:"#059669",inprogress:"#2563EB",completed:"#059669",resigned:"#94A3B8"};
     var stmap={}; STS.forEach(function(s){stmap[s.key]=s;});
     function fN(n){return(n||0).toLocaleString();}
     function fM2(n){var v=Math.abs(n||0);return v>=100000000?Math.round(n/100000000)+"억 원":v>=10000?Math.round(n/10000).toLocaleString()+"만 원":fN(n)+"원";}
@@ -700,7 +699,7 @@ function AgencyReport(props){
       var sc2=stcol[e.status]||"#64748B";
       var paidRounds=(e.rounds||[]).filter(function(r){return r.isPaid;}).length;
       var totalRounds=(e.rounds||[]).length;
-      return'<tr><td style="font-weight:700;color:#0F172A">'+e.name+'</td><td style="color:#64748B;font-size:12px">'+(p?p.name:"-")+'</td><td><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+sc2+'22;color:'+sc2+'">'+s.icon+" "+s.label+'</span></td><td style="color:#64748B;font-size:12px">'+(e.startDate?fD(e.startDate):"-")+'</td><td style="color:#059669;font-weight:700">'+fN(rcv)+'원</td><td style="color:#8B5CF6">'+fN(exp-rcv)+'원</td><td style="min-width:90px"><div style="font-size:10px;color:#94A3B8;margin-bottom:3px">'+epct+'% · '+paidRounds+'/'+totalRounds+'회차</div><div style="height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+epct+'%;background:linear-gradient(90deg,#1D4ED8,#3B82F6);border-radius:3px"></div></div></td></tr>';
+      return'<tr><td style="font-weight:700;color:#0F172A">'+e.name+'</td><td style="color:#64748B;font-size:12px">'+(p?p.name:"-")+'</td><td><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+sc2+'22;color:'+sc2+'">'+s.icon+" "+s.label+'</span></td><td style="color:#64748B;font-size:12px">'+(e.startDate?fD(e.startDate):"-")+'</td><td style="color:#059669;font-weight:700">'+fN(rcv)+'원</td><td style="color:#2563EB">'+fN(exp-rcv)+'원</td><td style="min-width:90px"><div style="font-size:10px;color:#94A3B8;margin-bottom:3px">'+epct+'% · '+paidRounds+'/'+totalRounds+'회차</div><div style="height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+epct+'%;background:linear-gradient(90deg,#1D4ED8,#3B82F6);border-radius:3px"></div></div></td></tr>';
     }).join("");
 
     var overdueHtml=rd.overdue.slice(0,12).map(function(o){
@@ -730,7 +729,7 @@ function AgencyReport(props){
       'th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;}',
       'td{padding:12px 14px;border-bottom:1px solid #F1F5F9;vertical-align:middle;}',
       'tr:last-child td{border-bottom:none;}',
-      '.notice{background:#FFFBEB;border-left:4px solid #F59E0B;border-radius:0 8px 8px 0;padding:14px 18px;font-size:12px;color:#92400E;margin-top:24px;line-height:1.7;}',
+      '.notice{background:#FFFBEB;border-left:4px solid #D97706;border-radius:0 8px 8px 0;padding:14px 18px;font-size:12px;color:#92400E;margin-top:24px;line-height:1.7;}',
       '.rfooter{background:#0F172A;color:#475569;padding:28px 70px;display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:24px;flex-wrap:wrap;}',
       '@page{margin:0;}',
       '@media print{.cover{page-break-after:always;}.page{page-break-before:always;}}'
@@ -779,7 +778,7 @@ function AgencyReport(props){
         '<div class="kr">',
           '<div class="kc"><div class="l">지원 대상자</div><div class="v" style="color:#2563EB">',rd.emps.length,'명</div></div>',
           '<div class="kc"><div class="l">수령완료 (누적)</div><div class="v" style="color:#059669">',fM2(rd.totalRcv),'</div></div>',
-          '<div class="kc"><div class="l">예상 잔여</div><div class="v" style="color:#8B5CF6">',fM2(rd.totalExp-rd.totalRcv),'</div></div>',
+          '<div class="kc"><div class="l">예상 잔여</div><div class="v" style="color:#2563EB">',fM2(rd.totalExp-rd.totalRcv),'</div></div>',
           '<div class="kc"><div class="l">지원금 수령률</div><div class="v" style="color:#059669">',rd.pct,'%</div></div>',
         '</div>',
         '<div style="display:flex;justify-content:space-between;font-size:13px;color:#64748B;margin-bottom:8px"><span>지원금 수령 진행률</span><span style="font-weight:700;color:#2563EB">'+fN(rd.totalRcv)+'원 / '+fN(rd.totalExp)+'원</span></div>',
@@ -905,7 +904,7 @@ function MonthlyReport(props){ var st1=useState(new Date().getFullYear()); var d
 
 function CompanyRanking(props){ var ranking=useMemo(function(){return props.companies.map(function(c){var emps=props.employees.filter(function(e){return e.companyId===c.id;});var total=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);return{id:c.id,name:c.name,total:total,empCount:emps.filter(function(e){return e.status!=="resigned";}).length};}).sort(function(a,b){return b.total-a.total;}).slice(0,5);},[props.companies,props.employees]); if(ranking.length===0)return null; return(<Card style={{padding:16,marginBottom:16}}><h4 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>🏆 업체별 수령 순위</h4>{ranking.map(function(r,i){var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+""; return(<div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",marginBottom:4,borderRadius:6,background:i<3?"#FFFBEB":"#FAFBFC",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(r.id);}}><div style={{display:"flex",alignItems:"center",gap:8}}><span>{medal}</span><div><div style={{fontWeight:600}}>{r.name}</div><div style={{fontSize:10,color:"#64748B"}}>{r.empCount}명</div></div></div><div style={{fontWeight:700,color:"#059669"}}>{fMan(r.total)}</div></div>);})}</Card>); }
 
-function PendingPaymentsList(props){ var employees=props.employees,programs=props.programs; var pendingList=useMemo(function(){var list=[];employees.forEach(function(emp){if(emp.status==="resigned"||emp.status==="completed")return;var program=programs[emp.programId];if(!program)return;var paidCount=0,totalRounds=(emp.rounds||[]).length,remainingAmount=0,nextEligDate=null;(emp.rounds||[]).forEach(function(r){if(r.isPaid){paidCount++;}else{remainingAmount+=r.expectedAmount||0;var ed=emp.startDate?addMo(emp.startDate,r.month):null;if(ed&&(!nextEligDate||new Date(ed)<new Date(nextEligDate))){nextEligDate=ed;}}});if(paidCount<totalRounds&&totalRounds>0){list.push({id:emp.id,name:emp.name,companyId:emp.companyId,paidCount:paidCount,totalRounds:totalRounds,remainingAmount:remainingAmount,nextDday:nextEligDate?getDday(nextEligDate):null});}});return list.sort(function(a,b){if(a.nextDday===null)return 1;if(b.nextDday===null)return-1;return a.nextDday-b.nextDday;});},[employees,programs]); var totalRemaining=pendingList.reduce(function(s,p){return s+p.remainingAmount;},0); return(<Card style={{padding:16,marginBottom:16}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h4 style={{margin:0,fontSize:14,fontWeight:700}}>💳 미지급 대상자</h4><Badge color="#0EA5E9" bg="#E0F2FE">{pendingList.length}명/{fMan(totalRemaining)}</Badge></div>{pendingList.length===0?(<p style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:16}}>없음</p>):(<div style={{maxHeight:180,overflow:"auto"}}>{pendingList.map(function(p){return(<div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",marginBottom:4,borderRadius:6,background:"#FAFBFC",border:"1px solid #F1F5F9",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(p.companyId);}}><div><span style={{fontWeight:600}}>{p.name}</span><span style={{color:"#64748B",marginLeft:6}}>{p.paidCount}/{p.totalRounds}회차</span></div><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:700,color:"#0EA5E9"}}>{fMan(p.remainingAmount)}</span>{p.nextDday!==null&&<DdayBadge dday={p.nextDday}/>}</div></div>);})}</div>)}</Card>); }
+function PendingPaymentsList(props){ var employees=props.employees,programs=props.programs; var pendingList=useMemo(function(){var list=[];employees.forEach(function(emp){if(emp.status==="resigned"||emp.status==="completed")return;var program=programs[emp.programId];if(!program)return;var paidCount=0,totalRounds=(emp.rounds||[]).length,remainingAmount=0,nextEligDate=null;(emp.rounds||[]).forEach(function(r){if(r.isPaid){paidCount++;}else{remainingAmount+=r.expectedAmount||0;var ed=emp.startDate?addMo(emp.startDate,r.month):null;if(ed&&(!nextEligDate||new Date(ed)<new Date(nextEligDate))){nextEligDate=ed;}}});if(paidCount<totalRounds&&totalRounds>0){list.push({id:emp.id,name:emp.name,companyId:emp.companyId,paidCount:paidCount,totalRounds:totalRounds,remainingAmount:remainingAmount,nextDday:nextEligDate?getDday(nextEligDate):null});}});return list.sort(function(a,b){if(a.nextDday===null)return 1;if(b.nextDday===null)return-1;return a.nextDday-b.nextDday;});},[employees,programs]); var totalRemaining=pendingList.reduce(function(s,p){return s+p.remainingAmount;},0); return(<Card style={{padding:16,marginBottom:16}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h4 style={{margin:0,fontSize:14,fontWeight:700}}>💳 미지급 대상자</h4><Badge color="#2563EB" bg="#EFF6FF">{pendingList.length}명/{fMan(totalRemaining)}</Badge></div>{pendingList.length===0?(<p style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:16}}>없음</p>):(<div style={{maxHeight:180,overflow:"auto"}}>{pendingList.map(function(p){return(<div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",marginBottom:4,borderRadius:6,background:"#FAFBFC",border:"1px solid #F1F5F9",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(p.companyId);}}><div><span style={{fontWeight:600}}>{p.name}</span><span style={{color:"#64748B",marginLeft:6}}>{p.paidCount}/{p.totalRounds}회차</span></div><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:700,color:"#2563EB"}}>{fMan(p.remainingAmount)}</span>{p.nextDday!==null&&<DdayBadge dday={p.nextDday}/>}</div></div>);})}</div>)}</Card>); }
 
 function CalendarView(props){ var employees=props.employees,companies=props.companies,programs=props.programs; var calendarMemos=props.calendarMemos||{}; var onSaveMemo=props.onSaveMemo; var st1=useState(new Date()); var st2=useState(null); var st3=useState(""); var year=st1[0].getFullYear(),month=st1[0].getMonth(); var events=useMemo(function(){var list=[];employees.forEach(function(emp){if(emp.status==="resigned")return;var company=companies.find(function(c){return c.id===emp.companyId;});var program=programs[emp.programId];if(!emp.startDate||!program)return;(emp.rounds||[]).forEach(function(r){if(r.isPaid)return;var ed=addMo(emp.startDate,r.month);var d=new Date(ed);if(d.getFullYear()===year&&d.getMonth()===month){list.push({day:d.getDate(),empName:emp.name,companyId:emp.companyId,color:program.color});}});});return list;},[employees,companies,programs,year,month]); var firstDay=new Date(year,month,1).getDay(); var daysInMonth=new Date(year,month+1,0).getDate(); var weeks=[]; var day=1; for(var w=0;w<6;w++){var week=[];for(var d2=0;d2<7;d2++){if(w===0&&d2<firstDay){week.push(null);}else if(day>daysInMonth){week.push(null);}else{week.push(day);day++;}}weeks.push(week);if(day>daysInMonth)break;} var today=new Date(); function isToday(d){return d&&today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===d;} function getMemoKey(d){return year+"-"+(month+1)+"-"+d;} function addMemoFn(){if(!st3[0].trim()||!st2[0])return;var key=getMemoKey(st2[0]);var existing=calendarMemos[key]||[];onSaveMemo(key,existing.concat([{id:uid(),text:st3[0].trim(),at:new Date().toISOString()}]));st3[1]("");} function delMemo(memoId){var key=getMemoKey(st2[0]);onSaveMemo(key,(calendarMemos[key]||[]).filter(function(m){return m.id!==memoId;}));}
   return(<Card style={{padding:20,marginBottom:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h4 style={{margin:0,fontSize:16,fontWeight:700}}>📅 신청 일정</h4><div style={{display:"flex",alignItems:"center",gap:8}}><button onClick={function(){st1[1](new Date(year,month-1,1));st2[1](null);}} style={btnSm}>◀</button><span style={{fontWeight:700,minWidth:100,textAlign:"center"}}>{year}년 {month+1}월</span><button onClick={function(){st1[1](new Date(year,month+1,1));st2[1](null);}} style={btnSm}>▶</button></div></div><div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>{["일","월","화","수","목","금","토"].map(function(dd,i){return <div key={i} style={{textAlign:"center",fontSize:12,fontWeight:600,color:i===0?"#EF4444":i===6?"#3B82F6":"#64748B",padding:4}}>{dd}</div>;})}</div><div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>{weeks.map(function(week,wi){return week.map(function(dd,di){var dayEvents=dd?events.filter(function(e){return e.day===dd;}):[]; var dayKey=dd?getMemoKey(dd):null; var dayMemos=dayKey&&calendarMemos[dayKey]?calendarMemos[dayKey]:[]; var isSelected=st2[0]===dd; return(<div key={wi+"-"+di} onClick={dd?function(){st2[1](isSelected?null:dd);}:undefined} style={{minHeight:54,padding:3,background:dd?(isSelected?"#DBEAFE":"#FAFBFC"):"transparent",borderRadius:4,border:isSelected?"2px solid #2563EB":(isToday(dd)?"2px solid #10B981":"1px solid #F1F5F9"),cursor:dd?"pointer":"default"}}>{dd&&(<React.Fragment><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:1}}><span style={{fontSize:11,fontWeight:isToday(dd)?700:500,color:di===0?"#EF4444":di===6?"#3B82F6":"#334155"}}>{dd}</span>{dayMemos.length>0&&<span style={{fontSize:7}}>📝</span>}</div>{dayEvents.slice(0,2).map(function(e,i2){return <div key={i2} style={{fontSize:8,padding:"1px 3px",marginBottom:1,borderRadius:3,background:e.color+"20",color:e.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} onClick={function(ev){ev.stopPropagation();props.goCompany(e.companyId);}}>{e.empName}</div>;})} {dayEvents.length>2&&<div style={{fontSize:8,color:"#64748B"}}>+{dayEvents.length-2}</div>}</React.Fragment>)}</div>);}).flat()})}</div>{st2[0]&&(<div style={{marginTop:12,padding:12,background:"#F8FAFC",borderRadius:8,border:"1px solid #E2E8F0"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:13,fontWeight:700}}>{month+1}월 {st2[0]}일</span><button onClick={function(){st2[1](null);}} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",color:"#94A3B8"}}>×</button></div><div style={{display:"flex",gap:4,marginBottom:8}}><input style={Object.assign({},inpKo,{flex:1,fontSize:12,padding:"6px 10px"})} value={st3[0]} onChange={function(e){st3[1](e.target.value);}} placeholder="메모..." onKeyDown={function(e){if(e.key==="Enter")addMemoFn();}}/><button style={Object.assign({},btnP,{padding:"6px 12px",fontSize:11})} onClick={addMemoFn}>추가</button></div>{(calendarMemos[getMemoKey(st2[0])]||[]).map(function(memo){return(<div key={memo.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 8px",background:"#fff",borderRadius:4,marginBottom:3,border:"1px solid #E2E8F0",fontSize:11}}><span>{memo.text}</span><button onClick={function(){delMemo(memo.id);}} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:10}}>×</button></div>);})}</div>)}</Card>); }
@@ -1037,7 +1036,7 @@ function Dashboard(props){
   var activeCount=fE.filter(function(e){return e.status!=="resigned";}).length;
   var cards=[
     {l:"관리 업체",v:st1[0]==="all"?props.companies.length:1,u:"개",i:"🏢",c:"#3B82F6",extra:"progress",prog:null},
-    {l:"지원 대상자",v:activeCount,u:"명",i:"👤",c:"#8B5CF6"},
+    {l:"지원 대상자",v:activeCount,u:"명",i:"👤",c:"#2563EB"},
     {l:"서류 완료율",v:stats.pct,u:"%",i:"📋",c:"#10B981",extra:"bar"},
     {l:"누적 수령액",v:fManS(stats.tR),u:"원",i:"✅",c:"#059669",extra:"spark"},
     {l:"수령 예정액",v:fManS(stats.tE),u:"원",i:"💰",c:"#2563EB"}
@@ -1055,7 +1054,7 @@ function Dashboard(props){
       var brief=[
         {icon:"🚨",label:"즉시 처리 필요",val:metrics.overdueCount+"건",sub:metrics.overdueCount>0?fMan(metrics.overdueAmount)+" 지연":"지연 건 없음 👍",color:"#DC2626",bg:"#FEF2F2",bd:"#FECACA",btn:metrics.overdueCount>0?"처리하기":null,on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);}},
         {icon:"⏰",label:"7일 이내 신청 예정",val:metrics.next7Count+"건",sub:metrics.next7Count>0?fMan(metrics.next7)+" 신청 가능":"임박 건 없음",color:"#D97706",bg:"#FFFBEB",bd:"#FDE68A",btn:"일정 보기",on:function(){props.setView&&props.setView("kanban");}},
-        {icon:"📁",label:"서류 미제출",val:metrics.docMissingCount+"건",sub:metrics.docMissingCompanies+"개 업체 보완 필요",color:"#7C3AED",bg:"#F5F3FF",bd:"#DDD6FE",btn:"서류 보기",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);else if(props.setView)props.setView("company");}},
+        {icon:"📁",label:"서류 미제출",val:metrics.docMissingCount+"건",sub:metrics.docMissingCompanies+"개 업체 보완 필요",color:"#475569",bg:"#F1F5F9",bd:"#E2E8F0",btn:"서류 보기",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);else if(props.setView)props.setView("company");}},
         {icon:"💰",label:"이번 달 신청 가능액",val:fMan(metrics.thisMonthExpected),sub:"30일 내 "+metrics.next30Count+"건 신청 가능",color:"#2563EB",bg:"#EFF6FF",bd:"#BFDBFE",btn:"일정 보기",on:function(){props.setView&&props.setView("kanban");}}
       ];
       return(
@@ -1205,7 +1204,7 @@ function Dashboard(props){
           (e.employeeDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
         });
         (c.companyDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
-        var level=emps.length===0?{t:"대기",c:"#94A3B8",bg:"#F1F5F9"}:overdue>0?{t:"지연",c:"#DC2626",bg:"#FEE2E2"}:next7>0?{t:"임박",c:"#D97706",bg:"#FEF3C7"}:docMiss>0?{t:"서류 미비",c:"#7C3AED",bg:"#EDE9FE"}:remaining>=10000000?{t:"고액 관리",c:"#2563EB",bg:"#DBEAFE"}:remaining>0?{t:"정상",c:"#059669",bg:"#D1FAE5"}:{t:"완료",c:"#059669",bg:"#D1FAE5"};
+        var level=emps.length===0?{t:"대기",c:"#94A3B8",bg:"#F1F5F9"}:overdue>0?{t:"지연",c:"#DC2626",bg:"#FEE2E2"}:next7>0?{t:"임박",c:"#D97706",bg:"#FFFBEB"}:docMiss>0?{t:"서류 미비",c:"#475569",bg:"#E2E8F0"}:remaining>=10000000?{t:"고액 관리",c:"#2563EB",bg:"#DBEAFE"}:remaining>0?{t:"정상",c:"#059669",bg:"#D1FAE5"}:{t:"완료",c:"#059669",bg:"#D1FAE5"};
         return{c:c,empCount:emps.length,overdue:overdue,next7:next7,remaining:remaining,docMiss:docMiss,nextDday:nextDday,level:level,score:overdue*1e6+next7*1e4+docMiss*100+remaining/1e6};
       }).sort(function(a,b){return b.score-a.score;}).slice(0,6);
       return(
@@ -1224,7 +1223,7 @@ function Dashboard(props){
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
                   {r.overdue>0&&<Badge color="#DC2626" bg="#FEE2E2">지연 {r.overdue}</Badge>}
                   {r.next7>0&&<Badge color="#D97706" bg="#FEF3C7">임박 {r.next7}</Badge>}
-                  {r.docMiss>0&&<Badge color="#7C3AED" bg="#EDE9FE">서류 {r.docMiss}</Badge>}
+                  {r.docMiss>0&&<Badge color="#475569" bg="#E2E8F0">서류 {r.docMiss}</Badge>}
                 </div>
                 <div style={{textAlign:"right",minWidth:96}}>
                   <div style={{fontSize:16,fontWeight:800,color:"#2563EB"}}>{fMan(r.remaining)}</div>
@@ -1724,7 +1723,7 @@ function CompDet(props){
                       <td style={{padding:"10px 12px",color:"#64748B",fontSize:13}}>{emp.startDate?fD(emp.startDate):"-"}</td>
                       <td style={{padding:"10px 12px",color:"#64748B",fontSize:13}}>{getAge(emp)}</td>
                       <td style={{padding:"10px 12px",fontWeight:600,color:"#059669"}}>{fMan(rcv)}</td>
-                      <td style={{padding:"10px 12px",color:"#8B5CF6"}}>{rem>0?fMan(rem):"—"}</td>
+                      <td style={{padding:"10px 12px",color:"#2563EB"}}>{rem>0?fMan(rem):"—"}</td>
                       <td style={{padding:"10px 12px"}}>{dd!==null?<DdayBadge dday={dd}/>:<span style={{color:"#CBD5E1",fontSize:12}}>—</span>}</td>
                       <td style={{padding:"10px 8px",whiteSpace:"nowrap"}}>
                         <button onClick={function(){st2[1](emp);}} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="편집">✏️</button>
@@ -1790,17 +1789,17 @@ function CompDet(props){
 
       {/* 위험도 카드 (지연/임박/서류) */}
       {(risk.overdue>0||risk.next7>0||risk.docMiss>0)&&(
-        <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:16,borderRadius:14,background:risk.overdue>0?"#FEF2F2":risk.next7>0?"#FFFBEB":"#F5F3FF",border:"1.5px solid "+(risk.overdue>0?"#FECACA":risk.next7>0?"#FDE68A":"#DDD6FE")}}>
+        <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:16,borderRadius:14,background:risk.overdue>0?"#FEF2F2":risk.next7>0?"#FFFBEB":"#F8FAFC",border:"1.5px solid "+(risk.overdue>0?"#FECACA":risk.next7>0?"#FDE68A":"#E2E8F0")}}>
           <span style={{fontSize:26,flexShrink:0}}>{risk.overdue>0?"🚨":risk.next7>0?"⏰":"📁"}</span>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:17,fontWeight:800,color:risk.overdue>0?"#B91C1C":risk.next7>0?"#92400E":"#5B21B6"}}>
+            <div style={{fontSize:17,fontWeight:800,color:risk.overdue>0?"#B91C1C":risk.next7>0?"#92400E":"#1E293B"}}>
               {risk.overdue>0?"지연 신청 "+risk.overdue+"건 — 예상 "+fMan(risk.overdueAmt)+"이 걸려 있습니다":risk.next7>0?"신청 임박 "+risk.next7+"건 — 곧 신청 가능합니다":"미제출 서류 "+risk.docMiss+"건 — 보완이 필요합니다"}
             </div>
             <div style={{fontSize:14,color:"#64748B",marginTop:3}}>
               {[risk.overdue>0&&risk.next7>0?"7일 내 신청 "+risk.next7+"건":null,risk.docMiss>0?"미제출 서류 "+risk.docMiss+"건":null,"즉시 서류 확인 및 신청 여부를 점검하세요"].filter(Boolean).join(" · ")}
             </div>
           </div>
-          <button onClick={function(){stTab[1](risk.docMiss>0&&risk.overdue===0&&risk.next7===0?"docs":"employees");}} style={{flexShrink:0,background:risk.overdue>0?"#DC2626":risk.next7>0?"#D97706":"#7C3AED",color:"#fff",border:"none",borderRadius:9,padding:"9px 18px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF}}>확인하기 →</button>
+          <button onClick={function(){stTab[1](risk.docMiss>0&&risk.overdue===0&&risk.next7===0?"docs":"employees");}} style={{flexShrink:0,background:risk.overdue>0?"#DC2626":risk.next7>0?"#D97706":"#475569",color:"#fff",border:"none",borderRadius:9,padding:"9px 18px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF}}>확인하기 →</button>
         </div>
       )}
 
@@ -1809,7 +1808,7 @@ function CompDet(props){
         {[
           {l:"지원 대상자",v:activeCount+"명",c:"#2563EB",i:"👤"},
           {l:"누적 수령액",v:fMan(totalPaid),c:"#059669",i:"✅"},
-          {l:"예상 잔여액",v:fMan(totalExp-totalPaid),c:"#8B5CF6",i:"💰"},
+          {l:"예상 잔여액",v:fMan(totalExp-totalPaid),c:"#2563EB",i:"💰"},
           {l:"예상 수수료 ("+commRate+"%)",v:fMan(commExpected),c:"#0D9488",i:"🧾"},
           {l:"서류 완료율",v:docPct+"%",c:"#10B981",i:"📁",sub:risk.docMiss>0?"미제출 "+risk.docMiss+"건":"모두 완료"},
           {l:"지연 신청 건",v:risk.overdue+"건",c:risk.overdue>0?"#DC2626":"#059669",i:risk.overdue>0?"🚨":"👍",sub:risk.overdue>0?fMan(risk.overdueAmt)+" 위험":"지연 없음"}
@@ -1900,7 +1899,7 @@ function CompDet(props){
               <div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:28,marginBottom:6}}>🗒️</div><p style={{color:"#94A3B8",fontSize:15,margin:0}}>첫 일지를 남겨보세요.</p></div>
             ):notes.slice(0,3).map(function(n){return(
               <div key={n.id} style={{padding:"10px 12px",borderRadius:8,background:"#F8FAFC",border:"1px solid #F1F5F9",marginBottom:6}}>
-                <div style={{fontSize:12,color:"#94A3B8",marginBottom:3,display:"flex",alignItems:"center",gap:6}}>{n.type&&<span style={{fontWeight:700,color:n.auto?"#7C3AED":"#2563EB"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?"·자동":""}</span>}<span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span></div>
+                <div style={{fontSize:12,color:"#94A3B8",marginBottom:3,display:"flex",alignItems:"center",gap:6}}>{n.type&&<span style={{fontWeight:700,color:n.auto?"#64748B":"#2563EB"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?"·자동":""}</span>}<span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span></div>
                 <div style={{fontSize:15,color:"#1E293B",lineHeight:1.5}}>{n.text}</div>
               </div>
             );})}
@@ -1924,11 +1923,11 @@ function CompDet(props){
       {stTab[0]==="commission"&&(
         <div className="fade-in">
           {!(props.tier&&props.tier.feat.commission)?(
-            <Card style={{padding:"44px 32px",textAlign:"center",border:"2px dashed #DDD6FE",background:"linear-gradient(135deg,#F5F3FF,#EEF2FF)"}}>
+            <Card style={{padding:"44px 32px",textAlign:"center",border:"2px dashed #BFDBFE",background:"linear-gradient(135deg,#EFF6FF,#F8FAFC)"}}>
               <div style={{fontSize:46,marginBottom:14}}>🔒</div>
-              <h3 style={{margin:"0 0 8px",fontSize:22,fontWeight:800,color:"#5B21B6"}}>수수료 정산은 프로 플랜 전용입니다</h3>
-              <p style={{margin:"0 0 22px",fontSize:15,color:"#6D28D9",lineHeight:1.7}}>업체별 수수료율·착수금·청구/입금 상태·미수금을 한 곳에서 관리하고,<br/>정산서를 자동 생성해 고객에게 바로 보낼 수 있습니다.</p>
-              <button style={Object.assign({},btnP,{background:"linear-gradient(135deg,#7C3AED,#6D28D9)",padding:"14px 32px",fontSize:16})} onClick={props.onOpenBilling||function(){}}>프로 플랜으로 업그레이드 →</button>
+              <h3 style={{margin:"0 0 8px",fontSize:22,fontWeight:800,color:"#1D4ED8"}}>수수료 정산은 프로 플랜 전용입니다</h3>
+              <p style={{margin:"0 0 22px",fontSize:15,color:"#475569",lineHeight:1.7}}>업체별 수수료율·착수금·청구/입금 상태·미수금을 한 곳에서 관리하고,<br/>정산서를 자동 생성해 고객에게 바로 보낼 수 있습니다.</p>
+              <button style={Object.assign({},btnP,{padding:"14px 32px",fontSize:16})} onClick={props.onOpenBilling||function(){}}>프로 플랜으로 업그레이드 →</button>
             </Card>
           ):(
             <div>
@@ -2018,11 +2017,11 @@ function CompDet(props){
                   var isEditing=stEditId[0]===n.id;
                   return(
                     <div key={n.id} style={{marginBottom:14,position:"relative"}}>
-                      <div style={{position:"absolute",left:-19,top:14,width:10,height:10,borderRadius:5,background:n.auto?"#7C3AED":"#3B82F6",border:"2px solid #fff",boxShadow:"0 0 0 2px "+(n.auto?"#EDE9FE":"#DBEAFE")}}/>
+                      <div style={{position:"absolute",left:-19,top:14,width:10,height:10,borderRadius:5,background:n.auto?"#94A3B8":"#2563EB",border:"2px solid #fff",boxShadow:"0 0 0 2px "+(n.auto?"#E2E8F0":"#DBEAFE")}}/>
                       <div style={{background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0",padding:"12px 14px",marginLeft:4}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
                           <div style={{fontSize:13,color:"#94A3B8",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                            {n.type&&<span style={{fontWeight:700,fontSize:12,padding:"1px 8px",borderRadius:6,background:n.auto?"#EDE9FE":"#DBEAFE",color:n.auto?"#7C3AED":"#1D4ED8"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?" · 자동":""}</span>}
+                            {n.type&&<span style={{fontWeight:700,fontSize:12,padding:"1px 8px",borderRadius:6,background:n.auto?"#F1F5F9":"#DBEAFE",color:n.auto?"#64748B":"#1D4ED8"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?" · 자동":""}</span>}
                             <span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span>
                             {n.editedAt&&<span style={{color:"#CBD5E1",fontSize:12}}>(수정됨)</span>}
                           </div>
@@ -2334,7 +2333,7 @@ function TrendChip(props){
 }
 
 // ── 재사용: 알림 인박스 (벨) ──────────────────────────────
-var PRIO_META=[{key:0,label:"긴급",color:"#DC2626",bg:"#FEE2E2"},{key:1,label:"주의",color:"#D97706",bg:"#FEF3C7"},{key:2,label:"일반",color:"#2563EB",bg:"#DBEAFE"}];
+var PRIO_META=[{key:0,label:"긴급",color:"#DC2626",bg:"#FEE2E2"},{key:1,label:"주의",color:"#D97706",bg:"#FFFBEB"},{key:2,label:"일반",color:"#2563EB",bg:"#EFF6FF"}];
 function NotifBell(props){
   var ddayLimit=(props.settings&&props.settings.ddayAlert)||7;
   var st=useState(false); var open=st[0],setOpen=st[1];
@@ -2378,7 +2377,7 @@ function NotifBell(props){
   return(<div style={{position:"relative"}}>
     <button onClick={function(){setOpen(!open);}} title="알림센터" style={{position:"relative",background:open?"#EFF6FF":"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,width:48,height:48,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
       🔔
-      {alerts.length>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:22,height:22,padding:"0 5px",borderRadius:11,background:urgent>0?"#DC2626":"#F59E0B",color:"#fff",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{alerts.length>99?"99+":alerts.length}</span>}
+      {alerts.length>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:22,height:22,padding:"0 5px",borderRadius:11,background:urgent>0?"#DC2626":"#D97706",color:"#fff",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{alerts.length>99?"99+":alerts.length}</span>}
     </button>
     {open&&<div onClick={function(){setOpen(false);}} style={{position:"fixed",inset:0,zIndex:300}}/>}
     {open&&(
@@ -2740,7 +2739,7 @@ function KanbanBoard(props){
         </Card>
         <Card className="kpi-card" style={{padding:"16px 20px",flex:"1 1 140px"}}>
           <div style={{fontSize:15,color:"#64748B",fontWeight:600,marginBottom:4}}>진행 중 대상자</div>
-          <div style={{fontSize:30,fontWeight:800,color:"#8B5CF6"}}>{activeEmps.length}<span style={{fontSize:16,color:"#94A3B8",marginLeft:3}}>명</span></div>
+          <div style={{fontSize:30,fontWeight:800,color:"#2563EB"}}>{activeEmps.length}<span style={{fontSize:16,color:"#94A3B8",marginLeft:3}}>명</span></div>
         </Card>
         <Card className="kpi-card" style={{padding:"16px 20px",flex:"1 1 140px"}}>
           <div style={{fontSize:15,color:"#64748B",fontWeight:600,marginBottom:4}}>완료 전환율</div>
@@ -3081,7 +3080,7 @@ export default function SubsidyApp(props){
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
             <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
-            {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#DDD6FE",background:"rgba(124,58,237,0.3)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
+            {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
           </div>
           <button style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
           <div style={SB.actions}>
@@ -3143,12 +3142,12 @@ export default function SubsidyApp(props){
           <div key={stView[0]+(stCompany[0]||"")} className="page-enter">
 
           {companies.length===0&&(
-            <div style={{background:"linear-gradient(135deg,#EFF6FF,#F5F3FF)",border:"2px dashed #C7D2FE",borderRadius:20,padding:"44px 32px",marginBottom:32,textAlign:"center"}}>
+            <div style={{background:"#F8FAFC",border:"2px dashed #BFDBFE",borderRadius:20,padding:"44px 32px",marginBottom:32,textAlign:"center"}}>
               <div style={{fontSize:52,marginBottom:16}}>✨</div>
               <h3 style={{margin:"0 0 10px",fontSize:24,fontWeight:800,color:"#0F172A"}}>처음이신가요?</h3>
               <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>실제 컨설팅 현장과 똑같은 <strong>5개 고객사·18명 대상자</strong> 데이터로 먼저 둘러보세요.<br/>지연 신청 건, 신청 임박 알림, 수령 현황, 고객 보고서까지 한 번에 확인할 수 있어요.</p>
               <p style={{margin:"0 0 28px",fontSize:14,color:"#94A3B8"}}>둘러본 뒤 "샘플 데이터 삭제" 버튼 한 번이면 깔끔하게 초기화됩니다.</p>
-              <button onClick={loadSampleData} style={{background:"linear-gradient(135deg,#4F46E5,#7C3AED)",color:"#fff",border:"none",borderRadius:14,padding:"16px 40px",fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 6px 20px rgba(79,70,229,0.35)",display:"inline-flex",alignItems:"center",gap:10}}>
+              <button onClick={loadSampleData} style={{background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",border:"none",borderRadius:14,padding:"16px 40px",fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 6px 20px rgba(37,99,235,0.30)",display:"inline-flex",alignItems:"center",gap:10}}>
                 <span>🎮</span><span>샘플 데이터로 둘러보기</span>
               </button>
             </div>
