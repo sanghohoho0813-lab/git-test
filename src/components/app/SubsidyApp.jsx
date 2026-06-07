@@ -576,7 +576,7 @@ function PDFReport(props){ var company=props.company,employees=props.employees,p
 function CommissionReport(props){
   var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile;
   var st1=useState(false);
-  var stRate=useState("5");
+  var stRate=useState(String((company.commission&&company.commission.rate)!=null?company.commission.rate:10));
   var activeEmps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";});
   var totalReceived=activeEmps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);
   var fee=Math.round(totalReceived*(Number(stRate[0])||0)/100);
@@ -1006,7 +1006,7 @@ function Dashboard(props){
     var thisMonthFee=0,unbilled=0,unpaid=0,collected=0;
     var now=new Date(),cy=now.getFullYear(),cm=now.getMonth();
     (st1[0]==="all"?props.companies:props.companies.filter(function(c){return c.id===st1[0];})).forEach(function(c){
-      var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0;
+      var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0; var useS=cc.successFee!==false;
       var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
       var rcv=0,monthExp=0;
       emps.forEach(function(e){(e.rounds||[]).forEach(function(r){
@@ -1014,7 +1014,7 @@ function Dashboard(props){
         if(!e.startDate)return; var ed=new Date(addMo(e.startDate,r.month));
         if(ed.getFullYear()===cy&&ed.getMonth()===cm)monthExp+=r.expectedAmount||r.amount||0;
       });});
-      var billable=Math.round(ret+rcv*rate/100);
+      var billable=Math.round(ret+(useS?rcv*rate/100:0));
       thisMonthFee+=Math.round(monthExp*rate/100);
       if(cc.paid)collected+=billable; else if(cc.billed)unpaid+=billable; else if(billable>0)unbilled+=billable;
     });
@@ -1626,8 +1626,9 @@ function CompDet(props){
   var comm=company.commission||{};
   var commRate=comm.rate!=null?comm.rate:10;
   var commRetainer=comm.retainer||0;
-  var commSuccessFee=totalPaid*commRate/100;
-  var commExpected=Math.round(commRetainer+totalExp*commRate/100);
+  var commUseSuccess=comm.successFee!==false; // 성공보수 적용 여부
+  var commSuccessFee=commUseSuccess?totalPaid*commRate/100:0;
+  var commExpected=Math.round(commRetainer+(commUseSuccess?totalExp*commRate/100:0));
   var commBillable=Math.round(commRetainer+commSuccessFee);
   var commReceivable=comm.paid?0:(comm.billed?commBillable:0);
   function patchComm(patch){ props.onPatchCompany(company.id,{commission:Object.assign({},comm,patch)}); }
@@ -1808,9 +1809,9 @@ function CompDet(props){
       </div>
 
       {/* 탭 바 */}
-      <div style={{display:"flex",gap:4,borderBottom:"2px solid #E2E8F0",marginBottom:20}}>
+      <div style={{display:"flex",gap:4,borderBottom:"2px solid #E2E8F0",marginBottom:20,overflowX:"auto"}}>
         {TABS.map(function(t){var on=stTab[0]===t.key;return(
-          <button key={t.key} onClick={function(){stTab[1](t.key);}} style={{padding:"12px 22px",fontSize:18,fontWeight:on?700:500,color:on?"#2563EB":"#64748B",background:"none",border:"none",borderBottom:on?"3px solid #2563EB":"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:FF}}>
+          <button key={t.key} onClick={function(){stTab[1](t.key);}} style={{padding:"12px 22px",fontSize:18,fontWeight:on?700:500,color:on?"#2563EB":"#64748B",background:"none",border:"none",borderBottom:on?"3px solid #2563EB":"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",flexShrink:0}}>
             {t.icon} {t.label}
           </button>
         );})}
@@ -2345,13 +2346,13 @@ function NotifBell(props){
         if(emp.salary){var w=checkWage(emp.salary,emp.weeklyHours||40);if(w&&!w.isAboveMin)list.push({id:emp.id+"-mw",type:"최저임금 미달",prio:1,companyId:c.id,companyName:c.name,empName:emp.name,progName:program?program.name:"",text:"환산 시급 "+w.hourlyWage.toLocaleString()+"원 — 최저임금 미달",amount:0,dd:null});else if(w&&!w.isAboveFloor)list.push({id:emp.id+"-fl",type:"월보수 기준 미달",prio:1,companyId:c.id,companyName:c.name,empName:emp.name,progName:program?program.name:"",text:"월보수 124만원 미만 — 지원금 제외 위험",amount:0,dd:null});}
       });
       var docMiss=0; emps.forEach(function(e){(e.employeeDocs||[]).forEach(function(d){if(!docIsDone(d))docMiss++;});}); (c.companyDocs||[]).forEach(function(d){if(!docIsDone(d))docMiss++;});
-      if(docMiss>0)list.push({id:c.id+"-docs",type:"서류 미제출",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"미제출 서류 "+docMiss+"건 — 요청 필요",amount:0,dd:null});
+      if(docMiss>0)list.push({id:c.id+"-docs-"+docMiss,type:"서류 미제출",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"미제출 서류 "+docMiss+"건 — 요청 필요",amount:0,dd:null});
       if(feat.commission){
         var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0;
         var rcv=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(r.isPaid)rcv+=r.received||0;});});
         var billable=Math.round(ret+rcv*rate/100);
-        if(billable>0&&!cc.billed)list.push({id:c.id+"-ub",type:"수수료 미청구",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구 가능 수수료 "+fMan(billable)+" 미청구",amount:billable,dd:null});
-        else if(cc.billed&&!cc.paid)list.push({id:c.id+"-up",type:"수수료 미입금",prio:1,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구한 수수료 "+fMan(billable)+" 미입금",amount:billable,dd:null});
+        if(billable>0&&!cc.billed)list.push({id:c.id+"-ub-"+billable,type:"수수료 미청구",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구 가능 수수료 "+fMan(billable)+" 미청구",amount:billable,dd:null});
+        else if(cc.billed&&!cc.paid)list.push({id:c.id+"-up-"+billable,type:"수수료 미입금",prio:1,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구한 수수료 "+fMan(billable)+" 미입금",amount:billable,dd:null});
       }
     });
     return list.filter(function(a){return stDismiss[0].indexOf(a.id)<0;}).sort(function(a,b){return a.prio-b.prio||((a.dd===null?999:a.dd)-(b.dd===null?999:b.dd));});
@@ -2414,7 +2415,7 @@ function NotifBell(props){
 // 실행 시점 기준 실제 날짜로 변환. 항상 "지연 3건·신청 임박 5건"이 살아있는 데모가 됨.
 var SAMPLE_DATA = [
   {
-    company:{isSample:true,name:"한라식품 주식회사",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:18,phone:"055-321-7700",email:"hr@hanlafood.co.kr",
+    company:{isSample:true,name:"한라식품 주식회사",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:18,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:10,billed:true,paid:false,taxInvoice:false,successFee:true},
       notes:[{id:"sn1",text:"청년채용 사전신청 완료. 이서연 2차(6개월) 신청기한 경과 — 즉시 보완서류 확인 필요.",at:"2026-05-20T09:10:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"박준혁",birthDate:"1999-03-15",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:4,
@@ -2450,7 +2451,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"더좋은푸드",bizNo:"105-23-67891",ceoName:"오세라",addr:"서울 마포구 양화로 45, 2층",region:"수도권",corpType:"법인",bizType:"외식업(프랜차이즈)",empCount:7,phone:"02-336-1180",email:"admin@thebetterfood.kr",
+    company:{isSample:true,name:"더좋은푸드",bizNo:"105-23-67891",ceoName:"오세라",addr:"서울 마포구 양화로 45, 2층",region:"수도권",corpType:"법인",bizType:"외식업(프랜차이즈)",empCount:7,phone:"02-336-1180",email:"admin@thebetterfood.kr",commission:{rate:12,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"성공보수 12% 계약 · 세금계산서 발행 완료"},
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"오하린",birthDate:"1989-09-25",gender:"female",programId:"saeil_women",status:"completed",totalExpected:4000000,startOff:18,ds:0,
@@ -2465,7 +2466,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀 제조업",empCount:24,phone:"043-905-3300",email:"hr@miraeprecision.com",
+    company:{isSample:true,name:"미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀 제조업",empCount:24,phone:"043-905-3300",email:"hr@miraeprecision.com",commission:{rate:10,retainer:300000,billed:false,paid:false,successFee:true},
       notes:[{id:"sn3",text:"강태양 고령자 계속고용 2분기 신청기한 경과. 재고용 취업규칙 사본 추가 확인 필요.",at:"2026-05-12T07:00:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"강태양",birthDate:"1958-04-12",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:7,ds:-12,
