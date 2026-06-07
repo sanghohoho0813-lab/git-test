@@ -35,20 +35,20 @@ function parseExcelData(text,programs){ var lines=text.trim().split("\n"); if(li
 // ── 지원금 데이터 ───────────────────────────────────────────
 var DEFAULT_PROGRAMS = {
   youth_jump:{id:"youth_jump",name:"청년일자리도약장려금",year:2026,group:"신규채용",color:"#1D4ED8",totalAmount:7200000,rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],companyDocs:["사업자등록증","사업참여신청서","사업주확인서","협약서","기업통장사본","4대보험가입자명부","개인정보동의서(사업주)","고용보험취득확인서"],employeeDocs:["근로계약서","임금대장(6개월)","급여이체확인서류","개인정보동의서(근로자)","최종학력확인서(졸업증명서)","사실증명확인서"],hasEligibility:true,isCustom:false,isBuiltIn:true,note:"수도권: 기업 720만(취업애로요건 필수). 비수도권: 기업 720만+청년 근속인센티브 480~720만. 사전신청 후 채용(예외: 입사일 기준 3개월 내). 6개월 유지 후 1차 지급.",applyUrl:"고용24(work24.go.kr)",match:{cats:["청년"],ageMin:15,ageMax:34,milExtend:true,gender:"any",empTypes:["정규직"],preApply:true,companyMax:null,regionSensitive:true,bosuFloor:true}},
-  work_exp:{id:"work_exp",name:"미래내일 일경험",year:2026,group:"신규채용",color:"#3B82F6",totalAmount:1400000,rounds:[{month:1,amount:200000,label:"1개월"},{month:2,amount:200000,label:"2개월"},{month:3,amount:200000,label:"3개월"},{month:4,amount:200000,label:"4개월"}],companyDocs:["사업자등록증","사업참여신청서","운영계획서","협약서","개인정보동의서"],employeeDocs:["참여신청서","동의서및서약서","출근부","수당지급확인서"],isCustom:false,isBuiltIn:true,note:"인턴형 기준 기업 월20만+멘토수당 별도. 청년 주35만 수당. 기업 고용보험 10인↑(예외 벤처/이노/메인). 청년 미취업·사업자등록 불가.",applyUrl:"고용24 / 1811-8447",match:{cats:["청년"],ageMin:15,ageMax:34,milExtend:true,gender:"any",empTypes:["인턴"],preApply:true,companyMax:null,regionSensitive:false,bosuFloor:false}},
-  saeil_women:{id:"saeil_women",name:"새일여성인턴제",year:2026,group:"신규채용",color:"#0EA5E9",totalAmount:4000000,rounds:[{month:1,amount:800000,label:"인턴1개월"},{month:2,amount:800000,label:"인턴2개월"},{month:3,amount:800000,label:"인턴3개월"},{month:9,amount:800000,label:"고용유지1차"},{month:15,amount:800000,label:"고용유지2차"}],companyDocs:["사업자등록증","사업참여신청서","인턴약정서","협약서","기업통장사본"],employeeDocs:["구직등록확인서","근로계약서","임금대장","급여이체확인서류"],isCustom:false,isBuiltIn:true,note:"기업 최대 400만. 새일센터 연계·인턴약정 먼저. 고용보험 5인↑~1000인미만. 가족채용 영구배제.",applyUrl:"여성새로일하기센터(saeil.mogef.go.kr)",match:{cats:["여성"],ageMin:null,ageMax:null,gender:"female",empTypes:["인턴","정규직"],preApply:true,companyMax:1000,regionSensitive:false,bosuFloor:false,special:["경력단절"]}},
+  work_exp:{id:"work_exp",name:"미래내일 일경험",year:2026,group:"신규채용",color:"#2563EB",totalAmount:1400000,rounds:[{month:1,amount:200000,label:"1개월"},{month:2,amount:200000,label:"2개월"},{month:3,amount:200000,label:"3개월"},{month:4,amount:200000,label:"4개월"}],companyDocs:["사업자등록증","사업참여신청서","운영계획서","협약서","개인정보동의서"],employeeDocs:["참여신청서","동의서및서약서","출근부","수당지급확인서"],isCustom:false,isBuiltIn:true,note:"인턴형 기준 기업 월20만+멘토수당 별도. 청년 주35만 수당. 기업 고용보험 10인↑(예외 벤처/이노/메인). 청년 미취업·사업자등록 불가.",applyUrl:"고용24 / 1811-8447",match:{cats:["청년"],ageMin:15,ageMax:34,milExtend:true,gender:"any",empTypes:["인턴"],preApply:true,companyMax:null,regionSensitive:false,bosuFloor:false}},
+  saeil_women:{id:"saeil_women",name:"새일여성인턴제",year:2026,group:"신규채용",color:"#2563EB",totalAmount:4000000,rounds:[{month:1,amount:800000,label:"인턴1개월"},{month:2,amount:800000,label:"인턴2개월"},{month:3,amount:800000,label:"인턴3개월"},{month:9,amount:800000,label:"고용유지1차"},{month:15,amount:800000,label:"고용유지2차"}],companyDocs:["사업자등록증","사업참여신청서","인턴약정서","협약서","기업통장사본"],employeeDocs:["구직등록확인서","근로계약서","임금대장","급여이체확인서류"],isCustom:false,isBuiltIn:true,note:"기업 최대 400만. 새일센터 연계·인턴약정 먼저. 고용보험 5인↑~1000인미만. 가족채용 영구배제.",applyUrl:"여성새로일하기센터(saeil.mogef.go.kr)",match:{cats:["여성"],ageMin:null,ageMax:null,gender:"female",empTypes:["인턴","정규직"],preApply:true,companyMax:1000,regionSensitive:false,bosuFloor:false,special:["경력단절"]}},
   emp_promo:{id:"emp_promo",name:"고용촉진장려금",year:2026,group:"신규채용",color:"#0284C7",totalAmount:7200000,rounds:[{month:6,amount:3600000,label:"1회차(6개월)"},{month:12,amount:3600000,label:"2회차(12개월)"}],companyDocs:["사업자등록증","고용촉진장려금 지급신청서","근로계약서","고용보험확인서"],employeeDocs:["근로계약서","월별급여대장","급여이체증빙","취업지원프로그램 이수증"],isCustom:false,isBuiltIn:true,note:"우선지원/중견 연 720만. 취업지원프로그램 이수자·중증장애인·여성가장 정규직. 보수 124만↑. 12개월 내 첫 신청.",applyUrl:"고용24(work24.go.kr)",match:{cats:["취약계층"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["프로그램이수"]}},
   senior_intern:{id:"senior_intern",name:"시니어 인턴십",year:2026,group:"신규채용",color:"#2563EB",totalAmount:5500000,rounds:[{month:3,amount:1200000,label:"1단계(3개월)"},{month:9,amount:1500000,label:"2단계(6개월)"},{month:18,amount:900000,label:"3단계(18개월)"},{month:24,amount:900000,label:"3단계(24개월)"},{month:36,amount:1000000,label:"3단계(36개월)"}],companyDocs:["사업자등록증","사업참여신청서","협약서","4대보험가입자명부"],employeeDocs:["근로계약서","사전교육 이수증","월별급여대장"],isCustom:false,isBuiltIn:true,note:"일반형 최대 550만. 만60세↑. 한국노인인력개발원 사전승인 필수. 요양보호사·경비·청소 등 단순노무 제외.",applyUrl:"한국노인인력개발원 / seniorro.or.kr",match:{cats:["고령자"],ageMin:60,ageMax:null,gender:"any",empTypes:["정규직","인턴"],preApply:true,companyMax:null,regionSensitive:false,bosuFloor:false}},
   disabled_emp:{id:"disabled_emp",name:"장애인 고용장려금",year:2026,group:"신규채용",color:"#1E3A5F",totalAmount:5400000,rounds:[{month:1,amount:450000,label:"월(예시·중증여)"}],companyDocs:["고용장려금 지급신청서","장애인 근로자 명부","근로계약서"],employeeDocs:["장애인증명서","근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"경증 남35/여50, 중증 남70/여90만 매월. 고용보험 가입+최저임금↑ 필수.",applyUrl:"한국장애인고용공단 e-신고(esingo.or.kr)",match:{cats:["장애인"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직","계약직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:false,special:["장애"]}},
-  regular_convert:{id:"regular_convert",name:"정규직 전환 지원금",year:2026,group:"재직자유지",color:"#7C3AED",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1차(3개월)"},{month:6,amount:1800000,label:"2차(6개월)"},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],companyDocs:["사업참여신청서","정규직전환 근로계약서","사업자등록증","취업규칙"],employeeDocs:["전환 전 근로계약서","전환 후 근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"기본 월40만+임금인상보전 월20만=연720. 5~30인미만. 2026 예산 한정·상반기 사전승인 필수. 6개월↑ 기간제→정규직. 먼저 전환하면 0원.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["계약직"],preApply:true,companyMax:30,regionSensitive:false,bosuFloor:true,special:["정규직전환"]}},
-  senior_continue:{id:"senior_continue",name:"고령자 계속고용 장려금",year:2026,group:"재직자유지",color:"#9333EA",totalAmount:7200000,rounds:[{month:3,amount:900000,label:"1분기"},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],companyDocs:["지급신청서","취업규칙(정년 명문화)","재고용 근로계약서"],employeeDocs:["근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"수도권 분기90만 2년 최대720. 비수도권 분기120만 3년 최대1440(2026). 정년연장/폐지/재고용 취업규칙 필수. 100인미만.",applyUrl:"고용24(work24.go.kr)",match:{cats:["고령자","재직"],ageMin:55,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:100,regionSensitive:true,bosuFloor:false,special:["정년도달"]}},
-  worklife45:{id:"worklife45",name:"워라밸+4.5 프로젝트",year:2026,group:"재직자유지",color:"#A855F7",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1분기"},{month:6,amount:1800000,label:"2분기"},{month:9,amount:1800000,label:"3분기"},{month:12,amount:1800000,label:"4분기"}],companyDocs:["노사합의서","사업참여신청서(재단)","근태관리 증빙","취업규칙"],employeeDocs:["변경 근로계약서"],isCustom:false,isBuiltIn:true,note:"기존직원 부분단축 연240/전면단축 연720. 신규채용 보너스 별도. 20인↑. 노사발전재단(nosa.or.kr) 사전신청.",applyUrl:"노사발전재단(nosa.or.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:true,companyMin:20,companyMax:null,regionSensitive:false,bosuFloor:false,special:["주4.5일제"]}},
+  regular_convert:{id:"regular_convert",name:"정규직 전환 지원금",year:2026,group:"재직자유지",color:"#475569",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1차(3개월)"},{month:6,amount:1800000,label:"2차(6개월)"},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],companyDocs:["사업참여신청서","정규직전환 근로계약서","사업자등록증","취업규칙"],employeeDocs:["전환 전 근로계약서","전환 후 근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"기본 월40만+임금인상보전 월20만=연720. 5~30인미만. 2026 예산 한정·상반기 사전승인 필수. 6개월↑ 기간제→정규직. 먼저 전환하면 0원.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["계약직"],preApply:true,companyMax:30,regionSensitive:false,bosuFloor:true,special:["정규직전환"]}},
+  senior_continue:{id:"senior_continue",name:"고령자 계속고용 장려금",year:2026,group:"재직자유지",color:"#475569",totalAmount:7200000,rounds:[{month:3,amount:900000,label:"1분기"},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],companyDocs:["지급신청서","취업규칙(정년 명문화)","재고용 근로계약서"],employeeDocs:["근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"수도권 분기90만 2년 최대720. 비수도권 분기120만 3년 최대1440(2026). 정년연장/폐지/재고용 취업규칙 필수. 100인미만.",applyUrl:"고용24(work24.go.kr)",match:{cats:["고령자","재직"],ageMin:55,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:100,regionSensitive:true,bosuFloor:false,special:["정년도달"]}},
+  worklife45:{id:"worklife45",name:"워라밸+4.5 프로젝트",year:2026,group:"재직자유지",color:"#475569",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1분기"},{month:6,amount:1800000,label:"2분기"},{month:9,amount:1800000,label:"3분기"},{month:12,amount:1800000,label:"4분기"}],companyDocs:["노사합의서","사업참여신청서(재단)","근태관리 증빙","취업규칙"],employeeDocs:["변경 근로계약서"],isCustom:false,isBuiltIn:true,note:"기존직원 부분단축 연240/전면단축 연720. 신규채용 보너스 별도. 20인↑. 노사발전재단(nosa.or.kr) 사전신청.",applyUrl:"노사발전재단(nosa.or.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:true,companyMin:20,companyMax:null,regionSensitive:false,bosuFloor:false,special:["주4.5일제"]}},
   parental_leave:{id:"parental_leave",name:"육아휴직 지원금(사업주)",year:2026,group:"육아",color:"#059669",totalAmount:3600000,rounds:[{month:3,amount:900000,label:"1차(3개월)"},{month:6,amount:900000,label:"2차(6개월)"},{month:9,amount:900000,label:"3차(9개월)"},{month:12,amount:900000,label:"4차(12개월)"}],companyDocs:["육아휴직 확인서","사업자등록증","근로계약서"],employeeDocs:["육아휴직 신청서","가족관계증명서","휴직 발령 증빙"],isCustom:false,isBuiltIn:true,note:"사업주 월30만(남성 +10만). 생후12개월내 특례 첫3개월 월100만. 우선지원대상+30일↑ 허용.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["육아휴직"]}},
-  parental_reduce:{id:"parental_reduce",name:"육아기 근로시간 단축(사업주)",year:2026,group:"육아",color:"#10B981",totalAmount:3600000,rounds:[{month:3,amount:900000,label:"1차(3개월)"},{month:6,amount:900000,label:"2차(6개월)"},{month:9,amount:900000,label:"3차(9개월)"},{month:12,amount:900000,label:"4차(12개월)"}],companyDocs:["근로시간 단축 확인서","사업자등록증","변경 근로계약서"],employeeDocs:["단축 신청서","가족관계증명서","변경 근로계약서"],isCustom:false,isBuiltIn:true,note:"사업주 월30만(남성 +10만). 근로자 단축급여 월최대250만. 만12세↓ 자녀, 최대3년.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["근로시간단축"]}},
+  parental_reduce:{id:"parental_reduce",name:"육아기 근로시간 단축(사업주)",year:2026,group:"육아",color:"#059669",totalAmount:3600000,rounds:[{month:3,amount:900000,label:"1차(3개월)"},{month:6,amount:900000,label:"2차(6개월)"},{month:9,amount:900000,label:"3차(9개월)"},{month:12,amount:900000,label:"4차(12개월)"}],companyDocs:["근로시간 단축 확인서","사업자등록증","변경 근로계약서"],employeeDocs:["단축 신청서","가족관계증명서","변경 근로계약서"],isCustom:false,isBuiltIn:true,note:"사업주 월30만(남성 +10만). 근로자 단축급여 월최대250만. 만12세↓ 자녀, 최대3년.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["근로시간단축"]}},
   replace_worker:{id:"replace_worker",name:"대체인력 지원금",year:2026,group:"육아",color:"#047857",totalAmount:21000000,rounds:[{month:1,amount:1400000,label:"월(예시·30인미만)"}],companyDocs:["대체인력 채용 증빙","육아휴직 확인서","사업자등록증"],employeeDocs:["대체인력 근로계약서","월별임금대장","급여이체증빙"],isCustom:false,isBuiltIn:true,note:"육아휴직 대체 30인미만 월최대140(최대15개월=2100). 100% 즉시 선지급. 채용전3개월~후1년 감원 시 전액환수.",applyUrl:"고용24 + 인재채움뱅크",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["계약직","정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:true,special:["대체인력"]}},
-  work_share:{id:"work_share",name:"동료 업무분담 지원금",year:2026,group:"육아",color:"#34D399",totalAmount:600000,rounds:[{month:1,amount:600000,label:"월(예시)"}],companyDocs:["업무분담수당 지급 증빙","육아휴직 확인서"],employeeDocs:["임금명세서(업무분담수당 명시)"],isCustom:false,isBuiltIn:true,note:"육아휴직 분담 30인미만 월최대60(2026 3배인상). 대체인력과 중복불가.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:false,special:["업무분담"]}},
-  emp_retention:{id:"emp_retention",name:"고용유지지원금",year:2026,group:"재직자유지",color:"#6366F1",totalAmount:6000000,rounds:[{month:1,amount:1500000,label:"1개월"},{month:2,amount:1500000,label:"2개월"},{month:3,amount:1500000,label:"3개월"},{month:4,amount:1500000,label:"4개월"}],companyDocs:["고용유지조치계획서","사업자등록증","임금대장","고용보험 피보험자 명부","휴업·단축 협약서"],employeeDocs:["고용유지조치 동의서","월별임금대장","출근부(단축 확인)"],isCustom:false,isBuiltIn:true,note:"경영 위기 시 해고 대신 휴업·단축 선택 기업 지원. 우선지원 2/3, 대규모 1/2 보전. 연간 최대 180일(고용위기지역 등 특례). 사전 계획 신청 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직","계약직"],preApply:true,companyMax:null,regionSensitive:false,bosuFloor:true}},
-  job_sharing:{id:"job_sharing",name:"일자리함께하기 지원금",year:2026,group:"재직자유지",color:"#7C3AED",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1분기"},{month:6,amount:1800000,label:"2분기"},{month:9,amount:1800000,label:"3분기"},{month:12,amount:1800000,label:"4분기"}],companyDocs:["사업참여신청서","노사합의서(단축협약)","취업규칙","4대보험 피보험자 명부","근태관리 증빙"],employeeDocs:["변경 근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"재직자 근로시간 단축 후 신규 채용 시 지원. 교대제 도입·심야근로 단축·정년연장형 등 유형별 지원. 우선지원 연최대 720만. 사전승인 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:true,companyMin:null,companyMax:null,regionSensitive:false,bosuFloor:false,special:["일자리나누기"]}}
+  work_share:{id:"work_share",name:"동료 업무분담 지원금",year:2026,group:"육아",color:"#059669",totalAmount:600000,rounds:[{month:1,amount:600000,label:"월(예시)"}],companyDocs:["업무분담수당 지급 증빙","육아휴직 확인서"],employeeDocs:["임금명세서(업무분담수당 명시)"],isCustom:false,isBuiltIn:true,note:"육아휴직 분담 30인미만 월최대60(2026 3배인상). 대체인력과 중복불가.",applyUrl:"고용24(work24.go.kr)",match:{cats:["육아"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:false,companyMax:null,regionSensitive:false,bosuFloor:false,special:["업무분담"]}},
+  emp_retention:{id:"emp_retention",name:"고용유지지원금",year:2026,group:"재직자유지",color:"#475569",totalAmount:6000000,rounds:[{month:1,amount:1500000,label:"1개월"},{month:2,amount:1500000,label:"2개월"},{month:3,amount:1500000,label:"3개월"},{month:4,amount:1500000,label:"4개월"}],companyDocs:["고용유지조치계획서","사업자등록증","임금대장","고용보험 피보험자 명부","휴업·단축 협약서"],employeeDocs:["고용유지조치 동의서","월별임금대장","출근부(단축 확인)"],isCustom:false,isBuiltIn:true,note:"경영 위기 시 해고 대신 휴업·단축 선택 기업 지원. 우선지원 2/3, 대규모 1/2 보전. 연간 최대 180일(고용위기지역 등 특례). 사전 계획 신청 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직","계약직"],preApply:true,companyMax:null,regionSensitive:false,bosuFloor:true}},
+  job_sharing:{id:"job_sharing",name:"일자리함께하기 지원금",year:2026,group:"재직자유지",color:"#475569",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1분기"},{month:6,amount:1800000,label:"2분기"},{month:9,amount:1800000,label:"3분기"},{month:12,amount:1800000,label:"4분기"}],companyDocs:["사업참여신청서","노사합의서(단축협약)","취업규칙","4대보험 피보험자 명부","근태관리 증빙"],employeeDocs:["변경 근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"재직자 근로시간 단축 후 신규 채용 시 지원. 교대제 도입·심야근로 단축·정년연장형 등 유형별 지원. 우선지원 연최대 720만. 사전승인 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:true,companyMin:null,companyMax:null,regionSensitive:false,bosuFloor:false,special:["일자리나누기"]}}
 };
 
 var ELIG = [
@@ -80,13 +80,13 @@ var STS = [
   {key:"resigned",label:"퇴사",color:"#94A3B8",bg:"#F1F5F9",icon:"🚪"}
 ];
 var TAGS = [
-  {id:"vip",label:"VIP",color:"#D97706",bg:"#FFFBEB"},
+  {id:"vip",label:"VIP",color:"#1D4ED8",bg:"#EFF6FF"},
   {id:"new",label:"신규",color:"#2563EB",bg:"#DBEAFE"},
   {id:"caution",label:"주의",color:"#DC2626",bg:"#FEE2E2"},
   {id:"priority",label:"우선",color:"#2563EB",bg:"#EFF6FF"},
   {id:"hold",label:"보류",color:"#64748B",bg:"#F1F5F9"},
   {id:"stop",label:"중단",color:"#6B7280",bg:"#E5E7EB"},
-  {id:"star",label:"⭐즐겨찾기",color:"#D97706",bg:"#FFFBEB"}
+  {id:"star",label:"⭐즐겨찾기",color:"#475569",bg:"#F1F5F9"}
 ];
 var CERT_TYPES = [
   {id:"venture",label:"벤처기업 인증",color:"#2563EB"},
@@ -113,7 +113,7 @@ var DOC_STATUS = [
   {id:"none",label:"미요청",color:"#94A3B8",bg:"#F1F5F9"},
   {id:"requested",label:"요청완료",color:"#2563EB",bg:"#EFF6FF"},
   {id:"submitted",label:"제출완료",color:"#0D9488",bg:"#F0FDFA"},
-  {id:"revise",label:"보완필요",color:"#D97706",bg:"#FFFBEB"},
+  {id:"revise",label:"보완필요",color:"#DC2626",bg:"#FEF2F2"},
   {id:"confirmed",label:"확인완료",color:"#059669",bg:"#ECFDF5"}
 ];
 function docStatusMeta(id){ return DOC_STATUS.find(function(s){return s.id===id;})||DOC_STATUS[0]; }
@@ -134,7 +134,7 @@ var COLORS = {
   primary:"#2563EB", primarySoft:"#EFF6FF",
   danger:"#DC2626",  dangerSoft:"#FEF2F2",
   success:"#059669", successSoft:"#ECFDF5",
-  warning:"#D97706", warningSoft:"#FFFBEB",
+  warning:"#475569", warningSoft:"#F1F5F9",
   text:"#0F172A", subtext:"#64748B",
   grayText:"#64748B",
   border:"#E5E7EB", bg:"#F8FAFC",
@@ -154,7 +154,7 @@ function ToastHost(){
     };
     return function(){_toastFn=null;};
   },[]);
-  var C={success:{bg:"#ECFDF5",bd:"#6EE7B7",c:"#047857",i:"✅"},warn:{bg:"#FFFBEB",bd:"#FDE68A",c:"#B45309",i:"⚠️"},error:{bg:"#FEF2F2",bd:"#FECACA",c:"#DC2626",i:"⛔"},info:{bg:"#EFF6FF",bd:"#BFDBFE",c:"#1D4ED8",i:"ℹ️"}};
+  var C={success:{bg:"#ECFDF5",bd:"#6EE7B7",c:"#047857",i:"✅"},warn:{bg:"#F1F5F9",bd:"#CBD5E1",c:"#475569",i:"⚠️"},error:{bg:"#FEF2F2",bd:"#FECACA",c:"#DC2626",i:"⛔"},info:{bg:"#EFF6FF",bd:"#BFDBFE",c:"#1D4ED8",i:"ℹ️"}};
   return(<div style={{position:"fixed",bottom:24,right:24,zIndex:6000,display:"flex",flexDirection:"column",gap:10,pointerEvents:"none"}}>
     {st[0].map(function(t){var s=C[t.type]||C.success;return(
       <div key={t.id} className="slide-in" style={{display:"flex",alignItems:"center",gap:10,background:s.bg,border:"1.5px solid "+s.bd,color:s.c,borderRadius:12,padding:"13px 18px",fontSize:15,fontWeight:600,fontFamily:FF,boxShadow:"0 8px 28px rgba(15,23,42,0.16)",maxWidth:400}}>
@@ -193,7 +193,7 @@ function dangerBadge(){ return Object.assign({},BADGE_BASE,{background:"#FEF2F2"
 function successBadge(){ return Object.assign({},BADGE_BASE,{background:"#ECFDF5",color:"#059669",borderColor:"#A7F3D0"}); }
 function UBadge(props){ var kind=props.kind||"neutral"; var st=kind==="danger"?dangerBadge():kind==="primary"?primaryBadge():kind==="success"?successBadge():neutralBadge(); return <span style={Object.assign(st,props.style||{})}>{props.children}</span>; }
 function DdayBadge(props){ var d=props.dday; if(d===null) return null; var st=d<=0?dangerBadge():d<=7?primaryBadge():neutralBadge(); return <span style={st}>{formatDday(d)}</span>; }
-function Notice(props){ return <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,fontSize:17,color:"#92400E",lineHeight:1.5,marginBottom:10}}>{props.children}</div>; }
+function Notice(props){ return <div style={{padding:"10px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8,fontSize:17,color:"#475569",lineHeight:1.5,marginBottom:10}}>{props.children}</div>; }
 
 // ── FileAt: 클라우드 파일 업로드 지원 ───────────────────
 function FileAt(props){
@@ -479,12 +479,12 @@ function WageCalc(){
               {/* 공제 명세 */}
               <Card style={{padding:0,overflow:"hidden",marginBottom:12}}>
                 <div style={{padding:"11px 16px",background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",fontSize:15,fontWeight:700,color:"#1E293B"}}>급여 공제 내역</div>
-                <div style={{background:"#FFFBEB"}}>
-                  <div style={{padding:"8px 16px",fontSize:12,fontWeight:700,color:"#92400E",letterSpacing:"0.05em"}}>▸ 4대보험 (총 {result.total4_ee.toLocaleString()}원)</div>
-                  {DRow("국민연금","4.5%",result.pension_ee,"#D97706")}
-                  {DRow("건강보험","3.545%",result.health_ee,"#D97706")}
-                  {DRow("장기요양","건보×12.95%",result.care_ee,"#D97706")}
-                  {DRow("고용보험","0.9%",result.employ_ee,"#D97706")}
+                <div style={{background:"#F8FAFC"}}>
+                  <div style={{padding:"8px 16px",fontSize:12,fontWeight:700,color:"#475569",letterSpacing:"0.05em"}}>▸ 4대보험 (총 {result.total4_ee.toLocaleString()}원)</div>
+                  {DRow("국민연금","4.5%",result.pension_ee,"#475569")}
+                  {DRow("건강보험","3.545%",result.health_ee,"#475569")}
+                  {DRow("장기요양","건보×12.95%",result.care_ee,"#475569")}
+                  {DRow("고용보험","0.9%",result.employ_ee,"#475569")}
                 </div>
                 <div style={{background:"#FEF2F2"}}>
                   <div style={{padding:"8px 16px",fontSize:12,fontWeight:700,color:"#991B1B",letterSpacing:"0.05em"}}>▸ 세금 (총 {(result.incomeTax+result.localTax).toLocaleString()}원)</div>
@@ -559,7 +559,7 @@ function WageCalc(){
                   <span>{result.isAboveMin?"✅ 최저임금 충족":"❌ 최저임금 미달"}</span>
                   {!result.isAboveMin&&<span style={{fontSize:14,opacity:0.8}}>월 {result.minMonthly.toLocaleString()}원 이상 필요</span>}
                 </div>
-                <div style={{padding:"16px 20px",borderRadius:12,fontSize:17,fontWeight:600,background:result.isAboveFloor?"#DBEAFE":"#FEF3C7",color:result.isAboveFloor?"#2563EB":"#D97706"}}>
+                <div style={{padding:"16px 20px",borderRadius:12,fontSize:17,fontWeight:600,background:result.isAboveFloor?"#EFF6FF":"#F1F5F9",color:result.isAboveFloor?"#2563EB":"#64748B"}}>
                   {result.isAboveFloor?"✅ 월보수 하한선(124만원) 충족 — 주요 지원금 신청 가능":"⚠️ 월보수 124만원 미만 — 고용촉진장려금·청년도약 등 원천 제외"}
                 </div>
                 <div style={{padding:"14px 20px",borderRadius:12,background:"#F8FAFC",border:"1px solid #E2E8F0",fontSize:15,color:"#475569",lineHeight:1.7}}>
@@ -694,7 +694,7 @@ function AgencyReport(props){
     }).join("");
 
     var upcomingHtml=rd.upcoming.slice(0,12).map(function(u){
-      var ddStyle=u.dday<=7?'background:#FEE2E2;color:#DC2626;font-weight:800':u.dday<=30?'background:#FEF3C7;color:#D97706;font-weight:700':'background:#DBEAFE;color:#2563EB;font-weight:600';
+      var ddStyle=u.dday<=7?'background:#FEE2E2;color:#DC2626;font-weight:800':u.dday<=30?'background:#EFF6FF;color:#2563EB;font-weight:700':'background:#DBEAFE;color:#2563EB;font-weight:600';
       var ddLabel=u.dday===0?"D-Day":"D-"+u.dday;
       return'<tr><td style="font-weight:600;color:#0F172A">'+u.empName+'</td><td style="color:#64748B">'+u.prog+'</td><td>'+u.roundLabel+'</td><td style="color:#475569">'+fD(u.eligDate)+'</td><td><span style="padding:3px 10px;border-radius:20px;font-size:12px;'+ddStyle+'">'+ddLabel+'</span></td><td style="text-align:right;font-weight:700;color:#2563EB">'+fN(u.amount)+'원</td></tr>';
     }).join("");
