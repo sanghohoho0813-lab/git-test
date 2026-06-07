@@ -103,14 +103,15 @@ function CellVal({ v }) {
 
 export default function BillingPage({ onBack }) {
   const { org, profile, signOut } = useAuth();
-  const { sub, trialDaysLeft } = useSub(org?.id);
+  const { sub, trialDaysLeft, isTrialing } = useSub(org);
   const [loading, setLoading] = useState(null);
   const [planType, setPlanType] = useState("individual");
-  const [period, setPeriod] = useState("annual");
+  const [period, setPeriod] = useState("monthly"); // 기본값: 월간 결제
 
   const def = PLAN_DEFS[planType];
   const selectedPlan = period === "annual" ? def.annual : def.monthly;
   const monthlyEquiv = Math.round(def.annual.price / 12);
+  const annualSavePct = Math.round((1 - def.annual.price / (def.monthly.price * 12)) * 100);
   const isActive = sub?.status === "active";
   const isExpired = sub && sub.status !== "active" && sub.status !== "trialing";
 
@@ -170,11 +171,14 @@ export default function BillingPage({ onBack }) {
         </div>
 
         {/* Trial Banner */}
-        {sub?.status === "trialing" && trialDaysLeft !== null && (
-          <div style={{ padding: "14px 20px", background: trialDaysLeft <= 3 ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${trialDaysLeft <= 3 ? "#FECACA" : "#FDE68A"}`, borderRadius: 12, marginBottom: 24, textAlign: "center", fontSize: 14, color: trialDaysLeft <= 3 ? "#DC2626" : "#92400E", fontWeight: 600 }}>
+        {isTrialing && trialDaysLeft !== null && (
+          <div style={{ padding: "14px 20px", background: trialDaysLeft <= 3 ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${trialDaysLeft <= 3 ? "#FECACA" : "#FDE68A"}`, borderRadius: 12, marginBottom: 24, textAlign: "center", fontSize: 14, color: trialDaysLeft <= 3 ? "#DC2626" : "#92400E", fontWeight: 600, lineHeight: 1.6 }}>
             {trialDaysLeft <= 0
               ? "⚠️ 무료 체험이 종료되었습니다. 구독을 시작해주세요."
-              : `⏳ 무료 체험 ${trialDaysLeft}일 남음 — 체험 종료 전에 구독하면 중단 없이 사용 가능합니다.`}
+              : `⏳ 무료체험 ${trialDaysLeft}일 남음 · 결제 없이 모든 기능을 먼저 사용해볼 수 있습니다.`}
+            <div style={{ fontSize: 12, fontWeight: 500, color: "#94A3B8", marginTop: 4 }}>
+              무료체험 종료 전까지 결제하지 않아도 입력하신 데이터는 그대로 유지됩니다.
+            </div>
           </div>
         )}
 
@@ -233,7 +237,8 @@ export default function BillingPage({ onBack }) {
                     <button key={k} onClick={() => setPeriod(k)}
                       style={{ flex: 1, padding: "12px 16px", borderRadius: 9, border: "none", fontSize: 15, fontWeight: on ? 700 : 500, color: on ? def.colorBase : "#64748B", background: on ? "#fff" : "transparent", cursor: "pointer", fontFamily: FF, boxShadow: on ? "0 1px 6px rgba(0,0,0,0.10)" : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                       {l}
-                      {badge && on && (
+                      {/* 연간 17% 할인 배지는 월간이 선택되어 있어도 항상 노출해 연간 전환을 유도한다 */}
+                      {badge && (
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#059669", background: "#D1FAE5", padding: "2px 7px", borderRadius: 8 }}>{badge}</span>
                       )}
                     </button>
@@ -264,7 +269,11 @@ export default function BillingPage({ onBack }) {
                       → 월 환산 약 <strong style={{ color: def.colorBase }}>₩{monthlyEquiv.toLocaleString()}</strong> · 부가세(10%) 별도
                     </div>
                   )}
-                  {period === "monthly" && <div style={{ fontSize: 13, color: "#64748B" }}>부가세(10%) 별도</div>}
+                  {period === "monthly" && (
+                    <div style={{ fontSize: 13, color: "#64748B" }}>
+                      부가세(10%) 별도 · <button onClick={() => setPeriod("annual")} style={{ background: "none", border: "none", padding: 0, color: "#059669", fontWeight: 700, cursor: "pointer", fontFamily: FF, fontSize: 13 }}>연간 결제 시 {annualSavePct}% 할인 →</button>
+                    </div>
+                  )}
                   <div style={{ marginTop: 4, fontSize: 13, color: "#059669", fontWeight: 600 }}>{selectedPlan.desc}</div>
                 </div>
 

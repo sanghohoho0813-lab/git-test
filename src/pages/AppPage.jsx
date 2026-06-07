@@ -61,7 +61,7 @@ function AppLoading() {
 
 export default function AppPage() {
   const { org, profile, orgRole, signOut, updateProfile, authLoading } = useAuth();
-  const { sub, isActive, trialDaysLeft, loading: subLoading } = useSub(org?.id);
+  const { sub, isExpired, trialDaysLeft, loading: subLoading } = useSub(org);
   const data = useData(org?.id);
   const [showBilling, setShowBilling] = useState(false);
 
@@ -70,7 +70,10 @@ export default function AppPage() {
     return <AppLoading />;
   }
 
-  if (!isActive || showBilling) return <BillingPage onBack={isActive ? () => setShowBilling(false) : null} />;
+  // 무료체험 중(trialing)·유료(active)면 그대로 대시보드 진입.
+  // 체험까지 끝난 만료 상태(isExpired)에서만 결제 화면을 강제하고,
+  // 그 외에는 사용자가 사이드바 "구독" 버튼을 눌러 명시적으로 열 때만 표시한다.
+  if (isExpired || showBilling) return <BillingPage onBack={!isExpired ? () => setShowBilling(false) : null} />;
 
   return (
     <SubsidyApp
