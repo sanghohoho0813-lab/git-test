@@ -1312,7 +1312,7 @@ function EmpCard(props){
           {nextRound&&<DdayBadge dday={nextRound.dday}/>}
           <div style={{display:"flex",gap:4}}>
             <button style={Object.assign({},btnSm,{fontSize:10,padding:"3px 7px"})} onClick={function(e){e.stopPropagation();props.onEdit(emp);}}>편집</button>
-            <button style={Object.assign({},btnSm,{fontSize:10,padding:"3px 7px",color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(e){e.stopPropagation();if(window.confirm(emp.name+" 삭제?"))props.onDelete(emp.id);}}>삭제</button>
+            <button style={Object.assign({},btnSm,{fontSize:10,padding:"3px 7px",color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(e){e.stopPropagation();if(window.confirm("'"+emp.name+"' 직원을 삭제하시겠습니까?\n삭제된 직원은 기본 목록에서 숨겨지며, 회차와 서류 관리 내역도 함께 보이지 않습니다."))props.onDelete(emp.id);}}>삭제</button>
           </div>
         </div>
       </div>
@@ -1740,7 +1740,7 @@ function CompDet(props){
                       <td style={{padding:"10px 12px"}}>{dd!==null?<DdayBadge dday={dd}/>:<span style={{color:"#CBD5E1",fontSize:12}}>—</span>}</td>
                       <td style={{padding:"10px 8px",whiteSpace:"nowrap"}}>
                         <button onClick={function(){st2[1](emp);}} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="편집">✏️</button>
-                        <button onClick={function(){if(window.confirm(emp.name+" 삭제하겠습니까?"))props.onDeleteEmployee(emp.id);}} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="삭제">🗑️</button>
+                        <button onClick={function(){if(window.confirm("'"+emp.name+"' 직원을 삭제하시겠습니까?\n삭제된 직원은 기본 목록에서 숨겨지며, 회차와 서류 관리 내역도 함께 보이지 않습니다."))props.onDeleteEmployee(emp.id);}} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="삭제">🗑️</button>
                       </td>
                     </tr>
                   );

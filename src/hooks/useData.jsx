@@ -51,8 +51,9 @@ export function useData(orgId) {
     if (showLoading) setLoading(true);
 
     const [{ data: comps }, { data: emps }, { data: memos }] = await Promise.all([
-      supabase.from("companies").select("id, data").eq("org_id", orgId).order("created_at"),
-      supabase.from("employees").select("id, company_id, data").eq("org_id", orgId).order("created_at"),
+      // soft delete: deleted_at 이 있는 행은 기본 목록에서 제외
+      supabase.from("companies").select("id, data").eq("org_id", orgId).is("deleted_at", null).order("created_at"),
+      supabase.from("employees").select("id, company_id, data").eq("org_id", orgId).is("deleted_at", null).order("created_at"),
       supabase.from("calendar_memos").select("date_key, memos").eq("org_id", orgId),
     ]);
 
@@ -159,15 +160,22 @@ export function useData(orgId) {
 
   async function deleteCompany(companyId) {
     const target = companiesRef.current.find((c) => c.id === companyId);
-    // 소속 직원 먼저 삭제
-    await supabase.from("employees").delete().eq("company_id", companyId).eq("org_id", orgId);
-    const { error } = await supabase.from("companies").delete().eq("id", companyId).eq("org_id", orgId);
-    if (error) throw error;
+
+    if (target?.isSample) {
+      // 샘플 데이터는 실제 hard delete (실제 고객 데이터와 분리)
+      await supabase.from("employees").delete().eq("company_id", companyId).eq("org_id", orgId);
+      const { error } = await supabase.from("companies").delete().eq("id", companyId).eq("org_id", orgId);
+      if (error) throw error;
+    } else {
+      // 실제 고객 데이터는 soft delete: deleted_at 만 기록 (소속 직원 포함)
+      const now = new Date().toISOString();
+      await supabase.from("employees").update({ deleted_at: now }).eq("company_id", companyId).eq("org_id", orgId);
+      const { error } = await supabase.from("companies").update({ deleted_at: now }).eq("id", companyId).eq("org_id", orgId);
+      if (error) throw error;
+      logActivity({ action: "company.delete", targetType: "company", companyId: companyId, targetId: companyId, before: { name: target?.name }, message: `업체 '${target?.name || ""}' 삭제(soft delete · 소속 직원 포함)` });
+    }
     setCompanies((prev) => prev.filter((c) => c.id !== companyId));
     setEmployees((prev) => prev.filter((e) => e.companyId !== companyId));
-    if (!target?.isSample) {
-      logActivity({ action: "company.delete", targetType: "company", companyId: companyId, targetId: companyId, before: { name: target?.name }, message: `업체 '${target?.name || ""}' 삭제(소속 직원 포함)` });
-    }
   }
 
   // ── Employees ─────────────────────────────────────────────
@@ -237,12 +245,18 @@ export function useData(orgId) {
 
   async function deleteEmployee(empId) {
     const target = employeesRef.current.find((e) => e.id === empId);
-    const { error } = await supabase.from("employees").delete().eq("id", empId).eq("org_id", orgId);
-    if (error) throw error;
-    setEmployees((prev) => prev.filter((e) => e.id !== empId));
-    if (!target?.isSample) {
-      logActivity({ action: "employee.delete", targetType: "employee", companyId: target?.companyId, employeeId: empId, targetId: empId, before: { name: target?.name }, message: `대상자 '${target?.name || ""}' 삭제` });
+
+    if (target?.isSample) {
+      // 샘플 데이터는 실제 hard delete
+      const { error } = await supabase.from("employees").delete().eq("id", empId).eq("org_id", orgId);
+      if (error) throw error;
+    } else {
+      // 실제 고객 데이터는 soft delete
+      const { error } = await supabase.from("employees").update({ deleted_at: new Date().toISOString() }).eq("id", empId).eq("org_id", orgId);
+      if (error) throw error;
+      logActivity({ action: "employee.delete", targetType: "employee", companyId: target?.companyId, employeeId: empId, targetId: empId, before: { name: target?.name }, message: `대상자 '${target?.name || ""}' 삭제(soft delete)` });
     }
+    setEmployees((prev) => prev.filter((e) => e.id !== empId));
   }
 
   // ── Calendar Memos ────────────────────────────────────────
