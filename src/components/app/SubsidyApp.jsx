@@ -16,7 +16,7 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).substr
 function ruuid(){ return crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
 function fD(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate(); }
 function fDFull(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일"; }
-function fMan(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000)+"만원":((n||0).toLocaleString())+"원"; }
+function fMan(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000).toLocaleString()+"만 원":((n||0).toLocaleString())+"원"; }
 function fManS(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000)+"만":String(n||0); }
 function addMo(ds,m){ if(!ds) return ""; var d=new Date(ds); d.setMonth(d.getMonth()+m); return d.toISOString().split("T")[0]; }
 function getDday(ds){ if(!ds) return null; var today=new Date(); today.setHours(0,0,0,0); var target=new Date(ds); target.setHours(0,0,0,0); return Math.ceil((target-today)/(1000*60*60*24)); }
@@ -128,6 +128,19 @@ var inpKo = Object.assign({},inp,{lang:"ko"});
 var btnP = {background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",border:"none",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"};
 var btnS = {background:"#fff",color:"#475569",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:500,cursor:"pointer",fontFamily:FF};
 var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:8,padding:"10px 18px",fontSize:19,cursor:"pointer",fontFamily:FF};
+
+// ── 공통 색상 토큰 (의미 기반) ─────────────────────────────
+var COLORS = {
+  primary:"#2563EB",   // 메인 CTA·정보
+  danger:"#DC2626",    // 위험·지연
+  warning:"#D97706",   // 임박·주의
+  success:"#059669",   // 완료·수령·정상
+  purple:"#7C3AED",    // 서류·보조 강조(절제 사용)
+  grayText:"#64748B",
+  border:"#E5E7EB",
+  bg:"#F8FAFC",
+  card:"#FFFFFF"
+};
 
 // ── 전역 토스트 ───────────────────────────────────────────
 var _toastFn=null;
@@ -544,7 +557,8 @@ function WageCalc(){
                   {result.isAboveFloor?"✅ 월보수 하한선(124만원) 충족 — 주요 지원금 신청 가능":"⚠️ 월보수 124만원 미만 — 고용촉진장려금·청년도약 등 원천 제외"}
                 </div>
                 <div style={{padding:"14px 20px",borderRadius:12,background:"#F8FAFC",border:"1px solid #E2E8F0",fontSize:15,color:"#475569",lineHeight:1.7}}>
-                  <strong style={{color:"#1E293B"}}>참고</strong> · 2026년 최저임금 시급 {MIN_WAGE_2026.toLocaleString()}원 · 월환산 {MIN_WAGE_MONTH_2026.toLocaleString()}원(주40h·월209h 기준) · 고용보험 보수 하한선 {BOSU_FLOOR_2026.toLocaleString()}원
+                  <strong style={{color:"#1E293B"}}>참고</strong> · 2026년 최저임금 시급 {MIN_WAGE_2026.toLocaleString()}원 · 월환산 {MIN_WAGE_MONTH_2026.toLocaleString()}원(주40h·월209h 기준) · 고용보험 보수 하한선 {BOSU_FLOOR_2026.toLocaleString()}원<br/>
+                  <span style={{color:"#94A3B8",fontSize:13}}>※ 4대보험·세액은 근사치이며, 실제 신고·근로계약 조건 및 연도별 최신 기준은 별도 확인이 필요합니다.</span>
                 </div>
               </div>
             </div>
@@ -660,7 +674,7 @@ function AgencyReport(props){
     var stcol={preparing:"#64748B",submitted:"#2563EB",reviewing:"#8B5CF6",approved:"#0EA5E9",inprogress:"#F59E0B",completed:"#059669",resigned:"#94A3B8"};
     var stmap={}; STS.forEach(function(s){stmap[s.key]=s;});
     function fN(n){return(n||0).toLocaleString();}
-    function fM2(n){var v=Math.abs(n||0);return v>=100000000?Math.round(n/100000000)+"억원":v>=10000?Math.round(n/10000)+"만원":fN(n)+"원";}
+    function fM2(n){var v=Math.abs(n||0);return v>=100000000?Math.round(n/100000000)+"억 원":v>=10000?Math.round(n/10000).toLocaleString()+"만 원":fN(n)+"원";}
 
     var statusBarHtml=STS.map(function(s){
       var cnt=rd.sc[s.key]||0; if(!cnt||!rd.emps.length)return"";
@@ -1052,13 +1066,13 @@ function Dashboard(props){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
             {brief.map(function(b,i){return(
-              <div key={i} className="hover-card" style={{background:b.bg,border:"1.5px solid "+b.bd,borderRadius:16,padding:"16px 18px",display:"flex",flexDirection:"column",minHeight:128}}>
+              <div key={i} className="hover-card" style={{background:"#fff",border:"1px solid "+COLORS.border,borderTop:"3px solid "+b.color,borderRadius:14,padding:"16px 18px",display:"flex",flexDirection:"column",minHeight:128}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                  <span style={{fontSize:20}}>{b.icon}</span>
+                  <span style={{fontSize:18,width:34,height:34,borderRadius:9,background:b.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{b.icon}</span>
                   <span style={{fontSize:15,fontWeight:700,color:"#475569"}}>{b.label}</span>
                 </div>
                 <div style={{fontSize:30,fontWeight:900,color:b.color,letterSpacing:"-0.5px",lineHeight:1.1}}>{b.val}</div>
-                <div style={{fontSize:13,color:"#64748B",marginTop:5,fontWeight:500,flex:1}}>{b.sub}</div>
+                <div style={{fontSize:13,color:COLORS.grayText,marginTop:5,fontWeight:500,flex:1}}>{b.sub}</div>
                 {b.btn&&<button onClick={b.on} style={{marginTop:10,alignSelf:"flex-start",background:b.color,color:"#fff",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{b.btn} →</button>}
               </div>
             );})}
@@ -1100,7 +1114,7 @@ function Dashboard(props){
       var sched=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)sched++;});});
       var items=[["관리 중인 예상 지원금",fMan(stats.tE)],["등록한 업체",props.companies.length+"개"],["등록한 대상자",active.length+"명"],["생성된 신청 일정",sched+"건"],["확인한 지연 건",metrics.overdueCount+"건"]];
       return(
-        <div style={{marginBottom:18,borderRadius:16,overflow:"hidden",background:"linear-gradient(135deg,#312E81,#4F46E5,#7C3AED)",color:"#fff",boxShadow:"0 8px 28px rgba(79,70,229,0.28)"}}>
+        <div style={{marginBottom:18,borderRadius:16,overflow:"hidden",background:"linear-gradient(135deg,#1E293B,#3730A3)",color:"#fff",boxShadow:"0 6px 22px rgba(30,41,59,0.22)"}}>
           <div style={{padding:"18px 24px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
             <span style={{fontSize:20}}>🎁</span>
             <span style={{fontSize:17,fontWeight:800}}>무료체험 동안 이만큼 관리하고 계세요{props.trialDaysLeft!=null?" · "+props.trialDaysLeft+"일 남음":""}</span>
@@ -2749,7 +2763,9 @@ function KanbanBoard(props){
       {activeEmps.length===0&&colEmps("resigned").length===0?(
         <EmptyState icon="🗂️" title="보드에 표시할 직원이 없습니다" desc="직원을 등록하면 준비중 → 서류접수 → 심사중 → 승인 → 지급중 → 완료 단계로 카드가 표시됩니다. 카드를 드래그해 진행 상태를 옮길 수 있어요." />
       ):(
-        <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:14,alignItems:"flex-start"}}>
+        <div style={{position:"relative"}}>
+          <div style={{fontSize:13,color:"#94A3B8",fontWeight:500,marginBottom:8,textAlign:"right"}}>← 좌우로 스크롤해 전체 진행 단계를 확인하세요 →</div>
+          <div className="kanban-scroll" style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:14,alignItems:"flex-start"}}>
           {STS.map(function(col){
             var es=colEmps(col.key);
             var colExp=es.reduce(function(s,e){return s+empRemaining(e);},0);
@@ -2774,6 +2790,8 @@ function KanbanBoard(props){
               </div>
             );
           })}
+          </div>
+          <div style={{position:"absolute",top:30,right:0,bottom:14,width:42,background:"linear-gradient(90deg,rgba(241,245,249,0),#F1F5F9 75%)",pointerEvents:"none"}}/>
         </div>
       )}
       <Notice>카드를 드래그하거나 ⋮ 버튼으로 진행 상태를 변경하세요. 변경 즉시 모든 화면·팀원에게 실시간 반영됩니다.</Notice>
@@ -3113,7 +3131,7 @@ export default function SubsidyApp(props){
             <span style={{fontSize:20,flexShrink:0}}>🎮</span>
             <div style={{flex:1,minWidth:200}}>
               <span style={{fontSize:15,fontWeight:700,color:"#92400E"}}>샘플 데이터로 체험 중입니다 </span>
-              <span style={{fontSize:14,color:"#A16207"}}>— 5개 고객사·18명 대상자 가상 데이터입니다. 지연·임박 건이 실제처럼 표시됩니다. 본인 고객사 정보를 입력할 준비가 됐다면 아래 버튼을 누르세요.</span>
+              <span style={{fontSize:14,color:"#A16207"}}>— 실제 고객사 정보가 아닌 가상 데이터(5개 고객사·18명)이며, 언제든 삭제할 수 있습니다. 본인 고객사를 입력할 준비가 됐다면 오른쪽 버튼을 누르세요.</span>
             </div>
             <button onClick={deleteSampleData} style={{background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"9px 20px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>🗑️ 샘플 데이터 모두 삭제</button>
           </div>

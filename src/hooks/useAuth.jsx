@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [org, setOrg] = useState(null);
   const [orgRole, setOrgRole] = useState(null);
+  const [loadedFor, setLoadedFor] = useState(null); // org/profile 을 확정한 user id
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -20,14 +21,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (session === undefined) return; // 세션 확인 전
     if (!session) {
       setProfile(null);
       setOrg(null);
       setOrgRole(null);
+      setLoadedFor("none");
       return;
     }
-    loadUserData(session.user.id);
+    let cancelled = false;
+    loadUserData(session.user.id).finally(() => { if (!cancelled) setLoadedFor(session.user.id); });
+    return () => { cancelled = true; };
   }, [session]);
+
+  // 세션 확인 전이거나, 로그인 상태인데 아직 org/profile 을 못 불러왔으면 로딩 중
+  const authLoading = session === undefined
+    ? true
+    : (session ? loadedFor !== session.user.id : false);
 
   async function loadUserData(userId) {
     const [{ data: prof }, { data: mem }] = await Promise.all([
@@ -108,7 +118,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, org, orgRole, signUp, signIn, signOut, updateProfile, refreshOrg }}>
+    <AuthContext.Provider value={{ session, profile, org, orgRole, authLoading, signUp, signIn, signOut, updateProfile, refreshOrg }}>
       {children}
     </AuthContext.Provider>
   );

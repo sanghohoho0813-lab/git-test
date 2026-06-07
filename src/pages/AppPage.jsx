@@ -45,14 +45,29 @@ function AppSkeleton() {
   );
 }
 
+function AppLoading() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#F8FAFC", fontFamily: FF, padding: 20 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>🏛</div>
+        <div style={{ width: 30, height: 30, margin: "0 auto 18px", border: "3px solid #E2E8F0", borderTopColor: "#2563EB", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+        <div style={{ fontSize: 17, fontWeight: 700, color: "#1E293B", marginBottom: 6 }}>고용지원금 Pro를 불러오는 중입니다…</div>
+        <div style={{ fontSize: 14, color: "#64748B" }}>계정과 구독 상태를 확인하고 있습니다.</div>
+      </div>
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+    </div>
+  );
+}
+
 export default function AppPage() {
-  const { org, profile, orgRole, signOut, updateProfile } = useAuth();
+  const { org, profile, orgRole, signOut, updateProfile, authLoading } = useAuth();
   const { sub, isActive, trialDaysLeft, loading: subLoading } = useSub(org?.id);
   const data = useData(org?.id);
   const [showBilling, setShowBilling] = useState(false);
 
-  if (subLoading || data.loading) {
-    return <AppSkeleton />;
+  // 인증·구독 상태가 확정되기 전에는 절대 paywall/대시보드를 먼저 렌더링하지 않는다.
+  if (authLoading || subLoading || data.loading) {
+    return <AppLoading />;
   }
 
   if (!isActive || showBilling) return <BillingPage onBack={isActive ? () => setShowBilling(false) : null} />;

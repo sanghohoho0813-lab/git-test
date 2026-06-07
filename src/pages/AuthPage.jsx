@@ -40,9 +40,11 @@ export default function AuthPage() {
         await signIn(email, password);
       } else {
         if (!displayName.trim()) { setError("이름을 입력해주세요."); setLoading(false); return; }
-        if (!teamName.trim()) { setError("팀/사무소 이름을 입력해주세요."); setLoading(false); return; }
-        await signUp(email, password, displayName.trim(), teamName.trim());
-        setDone(true);
+        const team = teamName.trim() || (displayName.trim() + " 워크스페이스");
+        const res = await signUp(email, password, displayName.trim(), team);
+        // 이메일 인증이 꺼져 있으면 가입 즉시 세션이 발급됨 → 바로 대시보드(세션 효과가 이동 처리).
+        // 인증이 필요한 설정이면 세션이 없으므로 안내 화면을 보여준다.
+        if (!(res && res.session)) setDone(true);
       }
     } catch (err) {
       setError(err.message || "오류가 발생했습니다. 다시 시도해주세요.");
@@ -55,11 +57,13 @@ export default function AuthPage() {
       <div style={{ fontFamily: FF, minHeight: "100vh", background: "linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ background: "#fff", borderRadius: 16, padding: "40px 32px", maxWidth: 400, width: "100%", textAlign: "center", boxShadow: "0 25px 50px rgba(0,0,0,0.25)" }}>
           <div style={{ fontSize: 56, marginBottom: 12 }}>📧</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}>이메일을 확인하세요</h2>
-          <p style={{ color: "#64748B", fontSize: 14, lineHeight: 1.6 }}>
-            <strong>{email}</strong>로 인증 메일이 발송되었습니다.<br />
-            이메일의 링크를 클릭하면 로그인됩니다.
+          <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}>인증 메일을 보냈습니다</h2>
+          <p style={{ color: "#64748B", fontSize: 14, lineHeight: 1.7 }}>
+            <strong>{email}</strong> 메일함에서<br />
+            <strong>‘고용지원금 Pro’</strong> 인증 메일을 확인해주세요.<br />
+            인증 링크를 누르면 14일 무료 체험이 시작됩니다.
           </p>
+          <p style={{ color: "#94A3B8", fontSize: 12, marginTop: 10 }}>메일이 보이지 않으면 스팸함도 확인해주세요.</p>
           <button style={{ ...btnP, marginTop: 20, background: "#F1F5F9", color: "#475569" }} onClick={() => { setMode("login"); setDone(false); }}>
             로그인 화면으로
           </button>
@@ -73,9 +77,9 @@ export default function AuthPage() {
       <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 25px 50px rgba(0,0,0,0.25)", overflow: "hidden" }}>
         {/* Header */}
         <div style={{ padding: "36px 32px 24px", textAlign: "center", borderBottom: "1px solid #F1F5F9" }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>📋</div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1E293B" }}>고용지원금 매니저</h1>
-          <p style={{ margin: "4px 0 0", color: "#64748B", fontSize: 13 }}>Pro · 2026 지원금 15종</p>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>🏛</div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1E293B" }}>고용지원금 Pro</h1>
+          <p style={{ margin: "4px 0 0", color: "#64748B", fontSize: 13 }}>컨설턴트를 위한 고용지원금 운영관리 시스템</p>
         </div>
 
         {/* Tabs */}
@@ -92,7 +96,7 @@ export default function AuthPage() {
           {mode === "signup" && (
             <>
               <Field label="이름 *" value={displayName} onChange={setDisplayName} placeholder="홍길동" />
-              <Field label="팀/사무소 이름 *" value={teamName} onChange={setTeamName} placeholder="○○ 노무사사무소" />
+              <Field label="팀/사무소 이름 (선택)" value={teamName} onChange={setTeamName} placeholder="비워두면 자동 생성됩니다" />
             </>
           )}
           <Field label="이메일 *" type="email" value={email} onChange={setEmail} placeholder="hong@example.com" />
