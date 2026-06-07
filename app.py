@@ -106,188 +106,205 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# 레이아웃 열 수 — 기본 2열 (모바일 최적화)
+if "ncols" not in st.session_state:
+    st.session_state.ncols = 2
+
 st.markdown("""
 <style>
-.grid-card {
-    background: #16213e;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid #2a2a5a;
-    margin-bottom: 18px;
+/* ─── Inter font ──────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+html, body, [class*="css"], .stMarkdown, .stApp {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
-.grid-card:hover { border-color: #5a5aaa; }
-.grid-card.mine  { border: 2px solid #ffd700; }
 
-.thumb-wrap {
-    display: block;
-    position: relative;
-    width: 100%;
+/* ─── App background ─────────────────────────────────────── */
+.stApp { background: #0b0b14 !important; }
+
+/* ─── Grid card ──────────────────────────────────────────── */
+.grid-card {
+    background: #16162a;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 16px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.45);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
+.grid-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.65);
+    border-color: rgba(255,255,255,0.13);
+}
+.grid-card.mine {
+    border: 1.5px solid rgba(251,191,36,0.5);
+    box-shadow: 0 4px 24px rgba(251,191,36,0.12), 0 2px 20px rgba(0,0,0,0.45);
+}
+
+/* ─── Thumbnail ──────────────────────────────────────────── */
+.thumb-wrap { display:block; position:relative; width:100%; }
 .thumb-wrap img {
-    width: 100%;
-    display: block;
-    border-radius: 14px 14px 0 0;
-    aspect-ratio: 16/9;
-    object-fit: cover;
+    width:100%; display:block;
+    border-radius:16px 16px 0 0;
+    aspect-ratio:16/9; object-fit:cover;
 }
+
+/* ─── Badges ─────────────────────────────────────────────── */
 .rank-badge {
-    position: absolute;
-    top: 8px; left: 8px;
-    background: rgba(0,0,0,0.82);
-    font-size: 22px;
-    font-weight: 900;
-    padding: 3px 12px;
-    border-radius: 9px;
-    pointer-events: none;
+    position:absolute; top:8px; left:8px;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    font-size:14px; font-weight:900;
+    padding:3px 9px; border-radius:8px;
+    pointer-events:none;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 .mine-badge {
-    position: absolute;
-    top: 8px; right: 8px;
-    background: rgba(255,200,0,0.92);
-    color: #000;
-    font-size: 13px;
-    font-weight: 900;
-    padding: 3px 9px;
-    border-radius: 8px;
-    pointer-events: none;
+    position:absolute; top:8px; right:8px;
+    background: rgba(251,191,36,0.9);
+    color:#000; font-size:10px; font-weight:900;
+    padding:2px 7px; border-radius:6px;
+    pointer-events:none;
+}
+.rising-badge {
+    position:absolute; bottom:8px; right:8px;
+    background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+    color:#fff; font-size:10px; font-weight:900;
+    padding:2px 7px; border-radius:6px;
+    pointer-events:none;
 }
 
-.card-body { padding: 12px 13px 14px; }
-
+/* ─── Card body ──────────────────────────────────────────── */
+.card-body { padding: 11px 13px 13px; }
 .card-channel {
-    font-size: 20px;
-    color: #8888dd;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size:10px; color:#55556a;
+    margin-bottom:3px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-transform:uppercase; letter-spacing:0.05em;
 }
 .card-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #e8e8ff;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    min-height: 56px;
-    margin-bottom: 10px;
-    text-decoration: none;
+    font-size:13px; font-weight:700; color:#ddddf0;
+    line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden;
+    min-height:38px; margin-bottom:8px;
+    text-decoration:none;
 }
-.card-title:hover { color: #a0a0ff; }
+.card-title:hover { color:#9898e8; }
+.card-stats { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
 
-.card-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 4px;
-}
+/* ─── Pills ──────────────────────────────────────────────── */
 .pill {
-    font-size: 18px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 8px;
-    white-space: nowrap;
+    font-size:10px; font-weight:600;
+    padding:3px 8px; border-radius:20px;
+    white-space:nowrap;
 }
-.pill-view  { background:#1a2d60; color:#90c8ff; font-size:20px; font-weight:800; }
-.pill-like  { background:#2d1a50; color:#d090ff; font-size:20px; font-weight:800; }
-.pill-cmt   { background:#1a3a2a; color:#60e0a0; }
-.pill-short { background:#3a1030; color:#ff80c0; }
-.pill-long  { background:#103030; color:#60d8e8; }
-.pill-date  { background:#222; color:#aaa; font-size:18px; }
-.pill-mine  { background:#3a3000; color:#ffd700; font-weight:800; }
-.pill-rate  { background:#1a3a1a; color:#80e060; font-size:18px; font-weight:700; }
+.pill-view  { background:rgba(59,130,246,0.16); color:#7ec8e3; }
+.pill-like  { background:rgba(139,92,246,0.16); color:#c4b5fd; }
+.pill-cmt   { background:rgba(52,211,153,0.14); color:#6ee7b7; }
+.pill-short { background:rgba(236,72,153,0.16); color:#f9a8d4; }
+.pill-long  { background:rgba(20,184,166,0.14); color:#5eead4; }
+.pill-date  { background:rgba(255,255,255,0.04); color:#44445a; }
+.pill-mine  { background:rgba(251,191,36,0.16); color:#fcd34d; }
+.pill-rate  { background:rgba(74,222,128,0.14); color:#4ade80; }
 
+/* ─── Summary boxes ─────────────────────────────────────── */
 .summary-box {
-    background: #16213e;
-    border-radius: 12px;
-    padding: 16px 20px;
-    border: 1px solid #2a2a5a;
-    text-align: center;
-    margin-bottom: 20px;
+    background: #16162a;
+    border-radius:14px;
+    padding:16px 18px;
+    border: 1px solid rgba(255,255,255,0.06);
+    text-align:center; margin-bottom:18px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.32);
 }
-.summary-label { font-size: 18px; color: #888; margin-bottom: 4px; }
-.summary-value { font-size: 30px; font-weight: 900; color: #e8e8ff; }
-.summary-sub   { font-size: 15px; color: #666; margin-top: 3px; }
+.summary-label {
+    font-size:10px; color:#44445a; margin-bottom:5px;
+    text-transform:uppercase; letter-spacing:0.06em; font-weight:600;
+}
+.summary-value { font-size:26px; font-weight:900; color:#ededf5; }
+.summary-sub   { font-size:11px; color:#38384e; margin-top:4px; }
 
+/* ─── Keyword section ────────────────────────────────────── */
 .keyword-section {
-    background: #16213e;
-    border-radius: 14px;
-    padding: 18px 22px;
-    border: 1px solid #2a2a5a;
-    margin-bottom: 22px;
+    background: #16162a;
+    border-radius:14px;
+    padding:14px 18px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom:18px;
 }
-.keyword-title { font-size: 18px; color: #888; margin-bottom: 12px; font-weight: 600; }
+.keyword-title {
+    font-size:10px; color:#44446a;
+    margin-bottom:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.06em;
+}
 .kw-tag {
-    display: inline-block;
-    background: #1e2d5a;
-    color: #90c8ff;
-    border-radius: 20px;
-    padding: 5px 14px;
-    margin: 4px;
-    font-size: 17px;
-    font-weight: 700;
+    display:inline-block;
+    background:rgba(91,141,238,0.12);
+    color:#7eb8f0;
+    border:1px solid rgba(91,141,238,0.2);
+    border-radius:20px;
+    padding:4px 12px; margin:3px;
+    font-size:12px; font-weight:700;
 }
-.kw-tag.top3 { background: #2d4080; color: #ffd700; font-size: 20px; }
+.kw-tag.top3 {
+    background:rgba(251,191,36,0.14);
+    color:#fcd34d;
+    border-color:rgba(251,191,36,0.28);
+    font-size:13px;
+}
 
+/* ─── Topic rec cards ────────────────────────────────────── */
 .topic-rec-card {
-    background: #0f1f3d;
-    border-radius: 14px;
-    padding: 20px 22px;
-    border: 1px solid #2a4a8a;
-    margin-bottom: 18px;
-    height: 100%;
+    background: #13132a;
+    border-radius:14px;
+    padding:18px 20px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom:16px; height:100%;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.35);
 }
-.topic-rank   { font-size: 14px; color: #5577cc; font-weight: 700; margin-bottom: 4px; }
-.topic-keyword { font-size: 26px; font-weight: 900; color: #ffd700; margin-bottom: 10px; }
-.topic-stat   { font-size: 14px; color: #7799cc; margin-bottom: 8px; }
-.topic-rep    { font-size: 13px; color: #8888aa; margin-bottom: 14px; line-height: 1.5; }
-.topic-ideas-title { font-size: 14px; color: #aaccff; font-weight: 700; margin-bottom: 8px; }
-.topic-idea   { font-size: 14px; color: #cce0ff; margin-bottom: 6px; line-height: 1.5;
-                padding: 7px 12px; background: #1a2d5a; border-radius: 8px; }
-
-.rising-badge {
-    position: absolute;
-    bottom: 8px; right: 8px;
-    background: rgba(255, 80, 0, 0.92);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 900;
-    padding: 3px 9px;
-    border-radius: 8px;
-    pointer-events: none;
+.topic-rank {
+    font-size:10px; color:#4466bb; font-weight:700; margin-bottom:4px;
+    text-transform:uppercase; letter-spacing:0.05em;
+}
+.topic-keyword { font-size:20px; font-weight:900; color:#fbbf24; margin-bottom:8px; }
+.topic-stat    { font-size:12px; color:#5577aa; margin-bottom:8px; }
+.topic-rep     { font-size:11px; color:#44445a; margin-bottom:12px; line-height:1.5; }
+.topic-ideas-title {
+    font-size:10px; color:#7799bb; font-weight:700; margin-bottom:7px;
+    text-transform:uppercase; letter-spacing:0.05em;
+}
+.topic-idea {
+    font-size:12px; color:#99aacc; margin-bottom:5px; line-height:1.5;
+    padding:6px 11px; background:rgba(255,255,255,0.04); border-radius:7px;
 }
 
+/* ─── Analysis sections ──────────────────────────────────── */
 .analysis-section {
-    background: #16213e;
-    border-radius: 14px;
-    padding: 22px 26px;
-    border: 1px solid #2a2a5a;
-    margin-bottom: 28px;
+    background: #16162a;
+    border-radius:14px;
+    padding:18px 22px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom:22px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.32);
 }
-.analysis-title {
-    font-size: 22px;
-    font-weight: 800;
-    color: #e8e8ff;
-    margin-bottom: 6px;
-}
-.analysis-desc { font-size: 14px; color: #7788aa; margin-bottom: 16px; }
+.analysis-title { font-size:17px; font-weight:800; color:#ddddf0; margin-bottom:4px; }
+.analysis-desc  { font-size:12px; color:#38385a; margin-bottom:14px; }
 
-.weekly-banner { display: flex; gap: 10px; margin-bottom: 4px; }
+/* ─── Weekly banner ──────────────────────────────────────── */
+.weekly-banner { display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
 .weekly-mini-card {
-    flex: 1;
-    background: #0f1f3d;
-    border-radius: 10px;
-    padding: 8px 14px;
-    border: 1px solid #1e3a6a;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    flex:1; min-width:110px;
+    background: #13132a;
+    border-radius:10px;
+    padding:10px 14px;
+    border: 1px solid rgba(255,255,255,0.07);
+    display:flex; align-items:center; gap:8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
-.wmini-rank { font-size: 12px; color: #5577cc; font-weight: 800; white-space: nowrap; }
-.wmini-kw   { font-size: 15px; font-weight: 900; color: #ffd700; }
-.wmini-stat { font-size: 11px; color: #667799; margin-left: auto; white-space: nowrap; }
+.wmini-rank { font-size:10px; color:#3355aa; font-weight:800; white-space:nowrap; }
+.wmini-kw   { font-size:13px; font-weight:900; color:#fbbf24; }
+.wmini-stat { font-size:10px; color:#333352; margin-left:auto; white-space:nowrap; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -295,7 +312,7 @@ st.markdown("""
 api_key = st.secrets.get("youtube_api_key", "")
 cache   = load_cache()
 
-hc1, hc2, hc3, hc4 = st.columns([4, 1, 1, 2])
+hc1, hc2, hc3, hc4, hc5 = st.columns([3, 1, 1, 1, 2])
 with hc1:
     st.markdown("## 📊 김팀장 벤치마킹 대시보드")
 with hc2:
@@ -313,6 +330,15 @@ with hc3:
             mime="text/csv", use_container_width=True,
         )
 with hc4:
+    if st.session_state.ncols == 2:
+        if st.button("💻 5열", use_container_width=True, help="PC 5열 보기로 전환"):
+            st.session_state.ncols = 5
+            st.rerun()
+    else:
+        if st.button("📱 2열", use_container_width=True, help="모바일 2열 보기로 전환"):
+            st.session_state.ncols = 2
+            st.rerun()
+with hc5:
     if cache:
         dt = datetime.fromisoformat(cache["fetched_at"]).astimezone(KST)
         st.caption(f"마지막 수집: {dt.strftime('%Y-%m-%d %H:%M')} (KST)")
@@ -369,7 +395,6 @@ def duration_bucket(sec: int) -> str:
 ch_map   = {r["channel_id"]: r["title"] for r in channels_raw}
 
 # 채널 제목에서 4자+ 한글 단어를 추출 → 채널명 파편이 키워드로 노출되는 것 방지
-# (예: "절세미녀", "김팀장의경영노트" 등)
 _CHANNEL_TITLE_WORDS.clear()
 for _ct in ch_map.values():
     for _cw in re.findall(r"[가-힣]{4,}", _ct):
@@ -395,7 +420,7 @@ with fc3:
     all_ch = sorted(vdf["channel_name"].unique().tolist())
     sel_ch = st.multiselect("채널 선택 (선택 안 하면 전체)", all_ch, placeholder="채널을 골라보세요...")
 with fc4:
-    top_n = st.selectbox("표시 개수", [20, 40, 60], index=0)
+    top_n = st.selectbox("표시 개수", [20, 30, 40, 60], index=1)
 
 def apply_filter(df: pd.DataFrame) -> pd.DataFrame:
     d = df.copy()
@@ -452,10 +477,10 @@ def render_keywords(df: pd.DataFrame, tab_key: str = "") -> str | None:
     tags = ""
     for i, (word, cnt) in enumerate(qualified):
         cls = "kw-tag top3" if i < 3 else "kw-tag"
-        tags += f'<span class="{cls}">#{word} <small style="opacity:.6">({cnt}영상)</small></span>'
+        tags += f'<span class="{cls}">#{word} <small style="opacity:.55">({cnt}영상)</small></span>'
     st.markdown(f"""
     <div class="keyword-section">
-        <div class="keyword-title">🔑 이 기간 인기 영상 핵심 키워드 — 아래 키워드 클릭 시 관련 영상만 표시</div>
+        <div class="keyword-title">🔑 인기 핵심 키워드 — 클릭 시 관련 영상만 표시</div>
         {tags}
     </div>""", unsafe_allow_html=True)
 
@@ -573,7 +598,7 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
 
 
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
-NCOLS = 5
+NCOLS = st.session_state.ncols
 
 def build_card(rank: int, row, avg_views: int = 0) -> str:
     vid_id  = str(row.get("video_id", ""))
@@ -599,10 +624,10 @@ def build_card(rank: int, row, avg_views: int = 0) -> str:
         and raw_views >= avg_views * 2
     )
 
-    if rank == 1:   rc = "#ffd700"
+    if rank == 1:   rc = "#fbbf24"
     elif rank == 2: rc = "#c0c0c0"
     elif rank == 3: rc = "#cd7f32"
-    else:           rc = "#aaa"
+    else:           rc = "#66668a"
 
     mine_cls      = " mine" if is_mine else ""
     mine_badge    = '<span class="mine-badge">👤 내 채널</span>' if is_mine else ""
@@ -623,10 +648,10 @@ def build_card(rank: int, row, avg_views: int = 0) -> str:
         f'<div class="card-title">{title}</div>'
         f'</a>'
         f'<div class="card-stats">'
-        f'<span class="pill pill-view">조회수 {views}</span>'
-        f'<span class="pill pill-like">좋아요 {likes}</span>'
-        f'<span class="pill pill-cmt">댓글 {cmts}</span>'
-        f'<span class="pill pill-rate">좋아요율 {rate_str}</span>'
+        f'<span class="pill pill-view">👁 {views}</span>'
+        f'<span class="pill pill-like">👍 {likes}</span>'
+        f'<span class="pill pill-cmt">💬 {cmts}</span>'
+        f'<span class="pill pill-rate">❤️ {rate_str}</span>'
         f'<span class="pill {t_cls}">{t_txt}</span>'
         f'<span class="pill pill-date">📅 {date}</span>'
         f'{mine_pill}'
@@ -681,9 +706,9 @@ def render_grid(df: pd.DataFrame, tab_key: str = "default"):
         if not mine_rows.empty:
             best = mine_rows.iloc[0]
             best_rank = int(mine_rows.index[0]) + 1
-            st.markdown(f"""<div class="summary-box" style="border-color:#ffd700;">
+            st.markdown(f"""<div class="summary-box" style="border-color:rgba(251,191,36,0.4);">
                 <div class="summary-label">👤 내 채널 최고 순위</div>
-                <div class="summary-value" style="color:#ffd700;">#{best_rank}위</div>
+                <div class="summary-value" style="color:#fbbf24;">#{best_rank}위</div>
                 <div class="summary-sub">👁 {int(best['view_count']):,}회</div>
             </div>""", unsafe_allow_html=True)
         else:
@@ -696,11 +721,12 @@ def render_grid(df: pd.DataFrame, tab_key: str = "default"):
 
     period_avg = int(display_df["view_count"].mean()) if not display_df.empty else 0
 
-    col_buckets: list[list[str]] = [[] for _ in range(NCOLS)]
+    ncols = st.session_state.ncols
+    col_buckets: list[list[str]] = [[] for _ in range(ncols)]
     for i, row in dsp.iterrows():
-        col_buckets[i % NCOLS].append(build_card(i + 1, row, period_avg))
+        col_buckets[i % ncols].append(build_card(i + 1, row, period_avg))
 
-    cols = st.columns(NCOLS)
+    cols = st.columns(ncols)
     for col_widget, cards in zip(cols, col_buckets):
         with col_widget:
             st.markdown("".join(cards), unsafe_allow_html=True)
@@ -721,8 +747,8 @@ if _banner_topics:
             f'</div>'
         )
     st.markdown(
-        f'<div style="font-size:12px;color:#5577cc;font-weight:700;margin-bottom:6px;">'
-        f'⚡ 이번 주 주목 주제 TOP 3</div>'
+        f'<div style="font-size:11px;color:#334488;font-weight:700;margin-bottom:6px;'
+        f'text-transform:uppercase;letter-spacing:0.06em;">⚡ 이번 주 주목 주제 TOP 3</div>'
         f'<div class="weekly-banner">{_banner_html}</div>',
         unsafe_allow_html=True,
     )
