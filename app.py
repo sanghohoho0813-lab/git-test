@@ -106,9 +106,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# 레이아웃 열 수 — 기본 2열 (모바일 최적화)
+# PC 레이아웃 열 수 — 기본 5열 (모바일은 CSS 미디어쿼리로 항상 2열)
 if "ncols" not in st.session_state:
-    st.session_state.ncols = 2
+    st.session_state.ncols = 5
 
 st.markdown("""
 <style>
@@ -305,6 +305,27 @@ html, body, [class*="css"], .stMarkdown, .stApp {
 .wmini-rank { font-size:10px; color:#3355aa; font-weight:800; white-space:nowrap; }
 .wmini-kw   { font-size:13px; font-weight:900; color:#fbbf24; }
 .wmini-stat { font-size:10px; color:#333352; margin-left:auto; white-space:nowrap; }
+
+/* ─── Responsive card grid ───────────────────────────────── */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-top: 6px;
+}
+/* PC 토글: 2열 or 3열 모드 */
+.card-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* 모바일: 항상 2열 강제 */
+@media (max-width: 768px) {
+    .card-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
+    .card-title { font-size:12px; min-height:34px; }
+    .card-channel { font-size:9px; }
+    .pill { font-size:9px; padding:2px 6px; }
+    .rank-badge { font-size:12px; padding:2px 7px; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -330,14 +351,12 @@ with hc3:
             mime="text/csv", use_container_width=True,
         )
 with hc4:
-    if st.session_state.ncols == 2:
-        if st.button("💻 5열", use_container_width=True, help="PC 5열 보기로 전환"):
-            st.session_state.ncols = 5
-            st.rerun()
-    else:
-        if st.button("📱 2열", use_container_width=True, help="모바일 2열 보기로 전환"):
-            st.session_state.ncols = 2
-            st.rerun()
+    _col_options = {5: "5열▾", 4: "4열▾", 3: "3열▾", 2: "2열▾"}
+    _next = {5: 3, 3: 2, 2: 5, 4: 5}
+    _cur = st.session_state.ncols
+    if st.button(f"💻 {_col_options[_cur]}", use_container_width=True, help="PC 열 수 변경 (5→3→2→5)"):
+        st.session_state.ncols = _next.get(_cur, 5)
+        st.rerun()
 with hc5:
     if cache:
         dt = datetime.fromisoformat(cache["fetched_at"]).astimezone(KST)
@@ -598,8 +617,6 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
 
 
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
-NCOLS = st.session_state.ncols
-
 def build_card(rank: int, row, avg_views: int = 0) -> str:
     vid_id  = str(row.get("video_id", ""))
     thumb   = f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg" if vid_id else ""
@@ -722,14 +739,9 @@ def render_grid(df: pd.DataFrame, tab_key: str = "default"):
     period_avg = int(display_df["view_count"].mean()) if not display_df.empty else 0
 
     ncols = st.session_state.ncols
-    col_buckets: list[list[str]] = [[] for _ in range(ncols)]
-    for i, row in dsp.iterrows():
-        col_buckets[i % ncols].append(build_card(i + 1, row, period_avg))
-
-    cols = st.columns(ncols)
-    for col_widget, cards in zip(cols, col_buckets):
-        with col_widget:
-            st.markdown("".join(cards), unsafe_allow_html=True)
+    all_cards = "".join(build_card(i + 1, row, period_avg) for i, row in dsp.iterrows())
+    grid_cls = f"card-grid cols-{ncols}" if ncols != 5 else "card-grid"
+    st.markdown(f'<div class="{grid_cls}">{all_cards}</div>', unsafe_allow_html=True)
 
 # ── 이번 주 핫토픽 배너 ──────────────────────────────────────────
 _banner_topics = _extract_top_topics(vdf[vdf["days_ago"] <= 7], n=3)
