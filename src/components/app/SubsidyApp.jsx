@@ -1622,9 +1622,12 @@ function EmpCard(props){
 function EmpModal(props){
   var programs=props.programs,company=props.company;
   var init=props.emp||{};
+  var CUR_YEAR=new Date().getFullYear();
+  function defYear(pid){ return (programs[pid]||{}).year||CUR_YEAR; }
   var st={
     name:useState(init.name||""),
     programId:useState(init.programId||(programs["youth_jump"]&&programs["youth_jump"].enabled!==false?"youth_jump":Object.keys(programs).find(function(k){return programs[k].enabled!==false;})||Object.keys(programs)[0]||"")),
+    programYear:useState(init.programYear||""),
     startDate:useState(init.startDate||""),
     birthDate:useState(init.birthDate||"2000-01-01"),
     gender:useState(init.gender||"male"),
@@ -1653,6 +1656,16 @@ function EmpModal(props){
     if(!st.programId[0]){toast("지원금을 선택하세요","warn");return;}
     if(!isValidEmail(st.email[0])){toast("이메일 형식을 확인하세요","warn");return;}
     var p=programs[st.programId[0]];
+    var selYear=Number(st.programYear[0])||defYear(st.programId[0]);
+    var info=getProgramInfo(company,st.programId[0],selYear);
+    var quota=info?Number(info.quota||0):0;
+    if(quota>0){
+      var curCnt=(props.employees||[]).filter(function(e){
+        return e.programId===st.programId[0]&&e.status!=="resigned"&&e.id!==init.id&&
+               (Number(e.programYear)||defYear(e.programId))===selYear;
+      }).length;
+      if(curCnt+1>quota&&!window.confirm("지원한도를 초과할 수 있습니다. 운영기관 확인 후 저장하시겠습니까?"))return;
+    }
     var rounds=init.rounds||(p?JSON.parse(JSON.stringify(p.rounds||[])).map(function(r){return Object.assign({},r,{isPaid:false,received:0});}):[]);
     var certDocs=init.certDocs||(p?(CERT_TYPES[st.programId[0]]||[]).map(function(ct){return{id:uid(),label:ct,done:false,files:[]};}):[]);
     var empDocs=init.employeeDocs||(p?(p.employeeDocs||[]).map(function(d){return{id:uid(),label:typeof d==="string"?d:d.label||"",done:false,files:[]};}):[]);
@@ -1661,6 +1674,7 @@ function EmpModal(props){
       companyId:company.id,
       name:st.name[0].trim(),
       programId:st.programId[0],
+      programYear:selYear,
       startDate:st.startDate[0],
       birthDate:st.bd[0]||st.birthDate[0],
       gender:st.gen[0]||st.gender[0],
@@ -1717,23 +1731,6 @@ function EmpModal(props){
               </div>
               {(st.gen[0]||st.gender[0])==="male"&&<div><Label>군복무(월)</Label><input type="number" style={inp} value={st.mil[0]||st.milSvc[0]||""} onChange={function(e){st.mil[1](Number(e.target.value));st.milSvc[1](Number(e.target.value));}} placeholder="18"/></div>}
             </div>
-            {(function(){
-              var quota=Number(company.youthQuota||0);
-              var curYouth=(props.employees||[]).filter(function(e){return e.programId==="youth_jump"&&e.status!=="resigned"&&e.id!==init.id;}).length;
-              var willCount=curYouth+1;
-              var over=quota>0&&willCount>quota;
-              var applyD=company.youthApplyDate||"";
-              var inWindow=null;
-              if(applyD&&st.startDate[0]){var lo=addMo(applyD,-3),hi=addMo(applyD,3);inWindow=st.startDate[0]>=lo&&st.startDate[0]<=hi;}
-              return(
-                <div style={{padding:"10px 14px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,display:"grid",gap:6}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#1D4ED8"}}>⭐ 청년도약 업체 기준 확인</div>
-                  {quota>0&&<div style={{fontSize:12,color:over?"#DC2626":"#475569",fontWeight:over?700:500}}>{over?"🚨 ":"✅ "}청년도약 대상자 {willCount}명 / 기업 지원한도 {quota}명{over?" — 지원한도 초과! 운영기관 확인이 필요합니다.":""}</div>}
-                  {applyD&&st.startDate[0]&&inWindow!==null&&<div style={{fontSize:12,color:inWindow?"#059669":"#DC2626",fontWeight:inWindow?500:700}}>{inWindow?"✅ 참여신청일("+fD(applyD)+") 기준 전후 3개월 이내 채용자입니다.":"⚠️ 참여신청일("+fD(applyD)+") 기준 전후 3개월 기간을 벗어났습니다. 운영기관 확인이 필요합니다."}</div>}
-                  {company.agreementDate?<div style={{fontSize:12,color:"#059669"}}>✅ 협약 체결 완료 ({fD(company.agreementDate)})</div>:<div style={{fontSize:11,color:"#B45309",fontWeight:600}}>⚠️ 협약 체결 전에는 실제 신청 진행이 제한될 수 있습니다. (업체 정보에서 협약일 입력)</div>}
-                </div>
-              );
-            })()}
           </>
         )}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1779,6 +1776,49 @@ function EmpModal(props){
             });
           })()}
         </div>
+        {selectedP&&(function(){
+          var defY=selectedP.year||CUR_YEAR;
+          var years=[];for(var y=2020;y<=CUR_YEAR+1;y++)years.push(y);
+          var selY=Number(st.programYear[0])||defY;
+          var info=getProgramInfo(company,st.programId[0],selY);
+          var quota=info?Number(info.quota||0):0;
+          var curCnt=(props.employees||[]).filter(function(e){
+            return e.programId===st.programId[0]&&e.status!=="resigned"&&e.id!==init.id&&
+                   (Number(e.programYear)||defYear(e.programId))===selY;
+          }).length;
+          var willCnt=curCnt+1;
+          var noInfo=!info||(quota===0&&!(info.agreementDate||info.applyDate));
+          var overQ=quota>0&&willCnt>quota;
+          var nearQ=!overQ&&quota>0&&willCnt>Math.floor(quota*0.8);
+          var qBg=noInfo?"#F8FAFC":overQ?"#FEE2E2":nearQ?"#FEF3C7":"#D1FAE5";
+          var qBorder=noInfo?"#E2E8F0":overQ?"#FECACA":nearQ?"#FDE68A":"#6EE7B7";
+          var qColor=noInfo?"#94A3B8":overQ?"#DC2626":nearQ?"#D97706":"#059669";
+          var applyD=info?info.applyDate||"":"";
+          var inWin=null;
+          if(applyD&&st.startDate[0]){var lo=addMo(applyD,-3),hi=addMo(applyD,3);inWin=st.startDate[0]>=lo&&st.startDate[0]<=hi;}
+          return(<React.Fragment>
+            <div><Label>지원 연도</Label>
+              <select style={inp} value={selY} onChange={function(e){st.programYear[1](String(e.target.value));}}>
+                {years.map(function(y){return <option key={y} value={y}>{y}년{y===defY?" (기본)":""}</option>;})}
+              </select>
+            </div>
+            <div style={{padding:"12px 16px",background:qBg,border:"1px solid "+qBorder,borderRadius:10,fontSize:13,lineHeight:1.6}}>
+              {noInfo?(
+                <span style={{color:qColor}}>ℹ️ 지원한도 미입력 — 업체 정보 편집 &gt; 지원금별 진행 정보에서 입력하세요</span>
+              ):(
+                <React.Fragment>
+                  <div style={{fontWeight:700,color:qColor,marginBottom:3}}>👥 {quota>0?"지원한도: "+quota+"명 (현재 "+curCnt+"명 → 추가시 "+willCnt+"명)":(info.agreementDate?"협약 체결됨":"협약 미체결")}</div>
+                  {quota>0&&overQ&&<div style={{color:qColor,fontSize:12}}>⚠️ 한도 초과 — 운영기관 확인 필요</div>}
+                  {info.agreementDate&&<div style={{color:"#047857",fontSize:12}}>✅ 협약 체결: {fD(info.agreementDate)}</div>}
+                  {!info.agreementDate&&<div style={{color:"#B45309",fontSize:12}}>⚠️ 협약 미체결 — 신청 전 협약 필요</div>}
+                  {applyD&&<div style={{color:"#475569",fontSize:12}}>📋 사전신청일: {fD(applyD)}</div>}
+                  {applyD&&st.startDate[0]&&inWin!==null&&<div style={{color:inWin?"#059669":"#DC2626",fontSize:12,fontWeight:inWin?500:700}}>{inWin?"✅ 참여신청일 기준 전후 3개월 이내":"⚠️ 참여신청일 기준 전후 3개월 범위 벗어남 — 운영기관 확인"}</div>}
+                </React.Fragment>
+              )}
+            </div>
+            {selY!==defY&&<div style={{padding:"10px 14px",background:"#FEF9C3",border:"1px solid #FDE047",borderRadius:8,fontSize:13,color:"#713F12",lineHeight:1.6}}>⚠️ 선택한 연도의 지원금 기준은 현재 시스템에 입력된 기준과 다를 수 있습니다. 실제 진행 전 반드시 해당 연도 공문과 운영기관 안내를 확인하세요. 미확인으로 발생한 불이익에 대해서는 책임지지 않습니다.</div>}
+          </React.Fragment>);
+        })()}
         {selectedP&&st.programId[0]==="replace_worker"&&(
           <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8}}>
             <div style={{fontSize:12,fontWeight:700,color:"#065F46",marginBottom:8}}>📝 대체인력 기본 정보</div>
@@ -2428,11 +2468,26 @@ function CompDet(props){
       )}
       <RoundModal open={!!st3[0]&&st4[0]!==null} onClose={function(){st3[1](null);st4[1](null);}}
         emp={st3[0]} roundIndex={st4[0]} programs={programs} onSave={handleRoundSave}/>
-      {st6[0]&&<CompanyEditModal open={true} onClose={function(){st6[1](false);}} company={company}
+      {st6[0]&&<CompanyEditModal open={true} onClose={function(){st6[1](false);}} company={company} programs={programs}
         onSave={function(data){props.onPatchCompany(company.id,data);st6[1](false);toast("업체 정보가 저장되었습니다.","success");}}
         onDelete={props.onDeleteCompany?function(id){props.onDeleteCompany(id);st6[1](false);if(props.goBack)props.goBack();}:null}/>}
     </div>
   );
+}
+
+// ── getProgramInfo 헬퍼 ──────────────────────────────────
+function getProgramInfo(company,programId,year){
+  var infos=(company&&company.programInfos)||[];
+  var match=infos.find(function(i){return i.programId===programId&&Number(i.year)===Number(year);});
+  if(match)return match;
+  if(programId==="youth_jump"){
+    return{programId:programId,year:year,
+           quota:Number((company&&company.youthQuota)||0),
+           applyDate:(company&&company.youthApplyDate)||"",
+           agreementDate:(company&&company.agreementDate)||"",
+           payday:(company&&company.payday)||""};
+  }
+  return null;
 }
 
 // ── CompanyEditModal ──────────────────────────────────────
@@ -2465,9 +2520,22 @@ function CompanyEditModal(props){
     customStatus:useState(c.customStatus||""),
     statusMemo:useState(c.statusMemo||""),
     memo:useState(c.memo||""),
-    tags:useState(c.tags||[])
+    tags:useState(c.tags||[]),
+    programInfos:useState(c.programInfos||[])
   };
   var needsStatusMemo=["보류","중단","진행불가"].indexOf(st.bizStatus[0])>=0;
+  var progs=props.programs||DEFAULT_PROGRAMS;
+  function addProgramInfo(){
+    var pid=Object.keys(progs)[0]||"youth_jump";
+    var p=progs[pid]||{};
+    st.programInfos[1](st.programInfos[0].concat([{id:uid(),programId:pid,programName:p.name||pid,year:p.year||new Date().getFullYear(),quota:"",applyDate:"",agreementDate:"",agencyName:"",memo:""}]));
+  }
+  function updateProgramInfo(idx,patch){
+    var arr=st.programInfos[0].slice();arr[idx]=Object.assign({},arr[idx],patch);st.programInfos[1](arr);
+  }
+  function removeProgramInfo(idx){
+    st.programInfos[1](st.programInfos[0].filter(function(_,i){return i!==idx;}));
+  }
   function save(){
     if(!st.name[0].trim()){toast("업체명을 입력하세요","warn");return;}
     if(!isValidEmail(st.email[0])){toast("이메일 형식을 확인하세요","warn");return;}
@@ -2557,6 +2625,38 @@ function CompanyEditModal(props){
             <div><Label>협약일</Label><input type="date" style={inp} value={st.agreementDate[0]} onChange={function(e){st.agreementDate[1](e.target.value);}}/></div>
           </div>
           {!st.agreementDate[0]&&<div style={{fontSize:11,color:"#B45309",marginTop:8,padding:"6px 10px",background:"#FFFBEB",borderRadius:6,border:"1px solid #FDE68A"}}>⚠️ 협약 체결 전에는 실제 신청 진행이 제한될 수 있습니다.</div>}
+        </div>
+        {/* 지원금별 진행 정보 (programInfos) */}
+        <div style={{padding:"14px 16px",background:"#F0F9FF",borderRadius:12,border:"1px solid #BAE6FD"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#0284C7"}}>📋 지원금별 진행 정보 (범용)</div>
+            <button style={Object.assign({},btnSm,{fontSize:13,background:"#0284C7",color:"#fff",border:"none",padding:"5px 12px"})} onClick={addProgramInfo}>+ 추가</button>
+          </div>
+          {st.programInfos[0].length===0&&(
+            <div style={{fontSize:12,color:"#64748B",padding:"6px 0",textAlign:"center"}}>추가 버튼을 눌러 지원금별 협약·한도 정보를 등록하세요 (청년도약 이외 지원금도 지원)</div>
+          )}
+          {st.programInfos[0].map(function(info,idx){
+            return(
+              <div key={info.id||idx} style={{background:"#fff",borderRadius:10,border:"1px solid #BAE6FD",padding:"12px 14px",marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8}}>
+                  <select value={info.programId} onChange={function(e){var pid=e.target.value;var pp=progs[pid]||{};updateProgramInfo(idx,{programId:pid,programName:pp.name||pid,year:pp.year||new Date().getFullYear()});}}
+                    style={Object.assign({},inp,{fontSize:13,padding:"8px 12px",flex:1})}>
+                    {Object.values(progs).map(function(pp){return <option key={pp.id} value={pp.id}>{pp.name}</option>;})}
+                  </select>
+                  <button onClick={function(){removeProgramInfo(idx);}} style={{background:"none",border:"none",color:"#94A3B8",cursor:"pointer",fontSize:18,padding:"4px 6px",flexShrink:0}} title="삭제">🗑️</button>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <div><Label>연도</Label><input type="number" style={Object.assign({},inp,{fontSize:13,padding:"8px 12px"})} value={info.year||""} onChange={function(e){updateProgramInfo(idx,{year:Number(e.target.value)||0});}} placeholder="2026"/></div>
+                  <div><Label>지원한도 (인원)</Label><input type="number" style={Object.assign({},inp,{fontSize:13,padding:"8px 12px"})} value={info.quota||""} onChange={function(e){updateProgramInfo(idx,{quota:e.target.value});}} placeholder="3"/></div>
+                  <div><Label>사전신청일</Label><input type="date" style={Object.assign({},inp,{fontSize:13,padding:"8px 12px"})} value={info.applyDate||""} onChange={function(e){updateProgramInfo(idx,{applyDate:e.target.value});}}/></div>
+                  <div><Label>협약 체결일</Label><input type="date" style={Object.assign({},inp,{fontSize:13,padding:"8px 12px"})} value={info.agreementDate||""} onChange={function(e){updateProgramInfo(idx,{agreementDate:e.target.value});}}/></div>
+                  <div><Label>운영기관명</Label><input style={Object.assign({},inp,{fontSize:13,padding:"8px 12px"})} value={info.agencyName||""} onChange={function(e){updateProgramInfo(idx,{agencyName:e.target.value});}} placeholder="고용센터명"/></div>
+                  <div><Label>메모</Label><input style={Object.assign({},inp,{fontSize:13,padding:"8px 12px"})} value={info.memo||""} onChange={function(e){updateProgramInfo(idx,{memo:e.target.value});}} placeholder="진행 메모"/></div>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{fontSize:11,color:"#0369A1",marginTop:st.programInfos[0].length>0?8:0,lineHeight:1.5}}>💡 직원 등록 시 이 정보로 한도·협약 상태가 자동 표시됩니다. 청년도약은 위 개별 항목도 fallback으로 참조됩니다.</div>
         </div>
         {/* 업체 진행 상태 */}
         <div>
@@ -3713,7 +3813,7 @@ export default function SubsidyApp(props){
 
       {/* Add Company Modal */}
       {stAddComp[0]&&(
-        <CompanyEditModal open={true} onClose={function(){stAddComp[1](false);}} company={null}
+        <CompanyEditModal open={true} onClose={function(){stAddComp[1](false);}} company={null} programs={programs}
           onSave={function(data){
             var prog=Object.values(DEFAULT_PROGRAMS)[0];
             var defaultDocs=COMPANY_DEFAULT_DOCS.reduce(function(acc,cat){return acc.concat(cat.docs.map(function(d){return{id:uid(),label:d,done:false,files:[]};}));},[]);
