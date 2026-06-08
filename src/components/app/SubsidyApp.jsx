@@ -175,15 +175,15 @@ function docIsDone(d){ var s=docEffStatus(d); return s==="submitted"||s==="confi
 var FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif";
 // 반응형 타이포 스케일 (clamp: 모바일 축소 · 데스크톱 균형)
 var FS_INPUT="clamp(15px,4vw,17px)";   // 입력창·기본 버튼
-var FS_BTN_SM="clamp(13px,3.4vw,15px)"; // 보조 버튼
-var FS_LABEL="clamp(13px,3.4vw,14px)";  // 라벨
-var FS_BADGE="clamp(11px,3vw,13px)";    // 배지
+var FS_BTN_SM="var(--fs-btn)"; // 보조 버튼 (PC 상향)
+var FS_LABEL="var(--fs-label)";  // 라벨 (PC 상향)
+var FS_BADGE="var(--fs-badge)";    // 배지 (PC 상향)
 var FS_PAGE_TITLE="clamp(20px,5vw,26px)"; // 페이지 메인 제목
 var FS_SECTION="clamp(17px,4.4vw,22px)";  // 섹션 제목
 var FS_CARD_TITLE="clamp(15px,4vw,18px)"; // 카드 제목
 var FS_HERO_NUM="clamp(28px,8.5vw,44px)"; // 히어로 수치(시뮬레이터 총액 등)
-var FS_BODY="clamp(13px,3.6vw,15px)";     // 본문/설명
-var FS_LIST="clamp(13px,3.6vw,16px)";     // 표/리스트
+var FS_BODY="var(--fs-body)";     // 본문/설명 (PC 상향)
+var FS_LIST="var(--fs-list)";     // 표/리스트 (PC 상향)
 var inp = {width:"100%",padding:"12px 15px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:FS_INPUT,outline:"none",boxSizing:"border-box",fontFamily:FF,color:"#1E293B",background:"#fff",transition:"border-color 0.15s"};
 var inpKo = Object.assign({},inp,{lang:"ko"});
 var btnP = {background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontSize:FS_INPUT,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 2px rgba(37,99,235,0.18)",whiteSpace:"nowrap"};
@@ -247,7 +247,7 @@ function Label(props){ return <label style={{fontSize:FS_LABEL,fontWeight:600,co
 function Card(props){ return <div onClick={props.onClick} style={Object.assign({background:"#fff",borderRadius:14,border:"1px solid #F1F5F9",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},props.style||{})}>{props.children}</div>; }
 function Badge(props){ return <span style={{fontSize:FS_BADGE,fontWeight:600,padding:"4px 11px",borderRadius:20,background:props.bg||"#EFF6FF",color:props.color||"#2563EB",whiteSpace:"nowrap",display:"inline-block"}}>{props.children}</span>; }
 // ── 통일 배지 시스템 (연한 배경 + 의미 텍스트 색만) ────────
-var BADGE_BASE={fontSize:12,fontWeight:700,padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:4,lineHeight:1.4,border:"1px solid transparent"};
+var BADGE_BASE={fontSize:"var(--fs-badge)",fontWeight:700,padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:4,lineHeight:1.4,border:"1px solid transparent"};
 function neutralBadge(){ return Object.assign({},BADGE_BASE,{background:"#F1F5F9",color:"#475569",borderColor:"#E2E8F0"}); }
 function primaryBadge(){ return Object.assign({},BADGE_BASE,{background:"#EFF6FF",color:"#1D4ED8",borderColor:"#DBEAFE"}); }
 function dangerBadge(){ return Object.assign({},BADGE_BASE,{background:"#FEF2F2",color:"#DC2626",borderColor:"#FECACA"}); }
@@ -1068,9 +1068,9 @@ function DdayAlerts(props){
             <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginBottom:2,borderRadius:8,cursor:"pointer",background:isOverdue?"#FFF5F5":"transparent"}}
               onClick={function(){props.goCompany(a.companyId);}}>
               <div>
-                <span style={{fontSize:14,fontWeight:700,color:isOverdue?"#DC2626":"#0F172A"}}>{a.empName}</span>
-                <span style={{fontSize:13,color:"#94A3B8",marginLeft:6}}>{a.companyName}</span>
-                {a.roundLabel&&<span style={{fontSize:12,color:"#CBD5E1",marginLeft:4}}>· {a.roundLabel}</span>}
+                <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:isOverdue?"#DC2626":"#0F172A"}}>{a.empName}</span>
+                <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginLeft:6}}>{a.companyName}</span>
+                {a.roundLabel&&<span style={{fontSize:"var(--fs-meta)",color:"#CBD5E1",marginLeft:4}}>· {a.roundLabel}</span>}
               </div>
               <DdayBadge dday={a.dday}/>
             </div>
@@ -1085,9 +1085,9 @@ function GlobalSearch(props){ var st1=useState(""); var results=useMemo(function
 
 function MonthlyReport(props){ var st1=useState(new Date().getFullYear()); var data=useMemo(function(){var arr=[];for(var m=1;m<=12;m++){var rcv=0;props.employees.forEach(function(emp){(emp.rounds||[]).forEach(function(r){if(r.isPaid&&r.paidDate){var pd=new Date(r.paidDate);if(pd.getFullYear()===st1[0]&&pd.getMonth()+1===m){rcv+=r.received||0;}}});});arr.push({month:m,received:rcv});}return arr;},[props.employees,st1[0]]); var total=data.reduce(function(s,d){return s+d.received;},0); var maxR=Math.max.apply(null,data.map(function(d){return d.received;}))||1; return(<Card style={{padding:16,marginBottom:16}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h4 style={{margin:0,fontSize:14,fontWeight:700}}>📈 월별 수령</h4><div style={{display:"flex",alignItems:"center",gap:6}}><button onClick={function(){st1[1](st1[0]-1);}} style={btnSm}>◀</button><span style={{fontWeight:600,fontSize:12}}>{st1[0]}</span><button onClick={function(){st1[1](st1[0]+1);}} style={btnSm}>▶</button></div></div><div style={{display:"flex",gap:3,height:80,alignItems:"flex-end",marginBottom:8}}>{data.map(function(d){var h=d.received>0?Math.max(12,(d.received/maxR)*60):3;return(<div key={d.month} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center"}}><div style={{fontSize:8,color:"#64748B",marginBottom:1}}>{d.received>0?fManS(d.received):""}</div><div style={{width:"100%",height:h,background:d.received>0?"#2563EB":"#E2E8F0",borderRadius:2}}/><div style={{fontSize:9,color:"#64748B",marginTop:2}}>{d.month}</div></div>);})}</div><div style={{textAlign:"center",fontSize:13}}><span style={{color:"#64748B"}}>연간: </span><span style={{fontWeight:700,color:"#2563EB"}}>{fMan(total)}</span></div></Card>); }
 
-function CompanyRanking(props){ var ranking=useMemo(function(){return props.companies.map(function(c){var emps=props.employees.filter(function(e){return e.companyId===c.id;});var total=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);return{id:c.id,name:c.name,total:total,empCount:emps.filter(function(e){return e.status!=="resigned";}).length};}).sort(function(a,b){return b.total-a.total;}).slice(0,5);},[props.companies,props.employees]); if(ranking.length===0)return null; return(<Card style={{padding:16,marginBottom:16}}><h4 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>🏆 업체별 수령 순위</h4>{ranking.map(function(r,i){var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+""; return(<div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",marginBottom:4,borderRadius:6,background:"#FAFBFC",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(r.id);}}><div style={{display:"flex",alignItems:"center",gap:8}}><span>{medal}</span><div><div style={{fontWeight:600}}>{r.name}</div><div style={{fontSize:10,color:"#64748B"}}>{r.empCount}명</div></div></div><div style={{fontWeight:700,color:"#059669"}}>{fMan(r.total)}</div></div>);})}</Card>); }
+function CompanyRanking(props){ var ranking=useMemo(function(){return props.companies.map(function(c){var emps=props.employees.filter(function(e){return e.companyId===c.id;});var total=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);return{id:c.id,name:c.name,total:total,empCount:emps.filter(function(e){return e.status!=="resigned";}).length};}).sort(function(a,b){return b.total-a.total;}).slice(0,5);},[props.companies,props.employees]); if(ranking.length===0)return null; return(<Card style={{padding:16,marginBottom:16}}><h4 style={{margin:"0 0 12px",fontSize:"var(--fs-name)",fontWeight:700}}>🏆 업체별 수령 순위</h4>{ranking.map(function(r,i){var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+""; return(<div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 10px",marginBottom:4,borderRadius:6,background:"#FAFBFC",cursor:"pointer",fontSize:"var(--fs-row)"}} onClick={function(){props.goCompany(r.id);}}><div style={{display:"flex",alignItems:"center",gap:8}}><span>{medal}</span><div><div style={{fontWeight:700,fontSize:"var(--fs-name)"}}>{r.name}</div><div style={{fontSize:"var(--fs-meta)",color:"#64748B"}}>{r.empCount}명</div></div></div><div style={{fontWeight:700,color:"#059669"}}>{fMan(r.total)}</div></div>);})}</Card>); }
 
-function PendingPaymentsList(props){ var employees=props.employees,programs=props.programs; var pendingList=useMemo(function(){var list=[];employees.forEach(function(emp){if(emp.status==="resigned"||emp.status==="completed")return;var program=programs[emp.programId];if(!program)return;var paidCount=0,totalRounds=(emp.rounds||[]).length,remainingAmount=0,nextEligDate=null;(emp.rounds||[]).forEach(function(r){if(r.isPaid){paidCount++;}else{remainingAmount+=r.expectedAmount||0;var ed=emp.startDate?addMo(emp.startDate,r.month):null;if(ed&&(!nextEligDate||new Date(ed)<new Date(nextEligDate))){nextEligDate=ed;}}});if(paidCount<totalRounds&&totalRounds>0){list.push({id:emp.id,name:emp.name,companyId:emp.companyId,paidCount:paidCount,totalRounds:totalRounds,remainingAmount:remainingAmount,nextDday:nextEligDate?getDday(nextEligDate):null});}});return list.sort(function(a,b){if(a.nextDday===null)return 1;if(b.nextDday===null)return-1;return a.nextDday-b.nextDday;});},[employees,programs]); var totalRemaining=pendingList.reduce(function(s,p){return s+p.remainingAmount;},0); return(<Card style={{padding:16,marginBottom:16}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h4 style={{margin:0,fontSize:14,fontWeight:700}}>💳 미지급 대상자</h4><Badge color="#2563EB" bg="#EFF6FF">{pendingList.length}명/{fMan(totalRemaining)}</Badge></div>{pendingList.length===0?(<p style={{color:"#94A3B8",fontSize:12,textAlign:"center",padding:16}}>없음</p>):(<div style={{maxHeight:180,overflow:"auto"}}>{pendingList.map(function(p){return(<div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",marginBottom:4,borderRadius:6,background:"#FAFBFC",border:"1px solid #F1F5F9",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(p.companyId);}}><div><span style={{fontWeight:600}}>{p.name}</span><span style={{color:"#64748B",marginLeft:6}}>{p.paidCount}/{p.totalRounds}회차</span></div><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:700,color:"#2563EB"}}>{fMan(p.remainingAmount)}</span>{p.nextDday!==null&&<DdayBadge dday={p.nextDday}/>}</div></div>);})}</div>)}</Card>); }
+function PendingPaymentsList(props){ var employees=props.employees,programs=props.programs; var pendingList=useMemo(function(){var list=[];employees.forEach(function(emp){if(emp.status==="resigned"||emp.status==="completed")return;var program=programs[emp.programId];if(!program)return;var paidCount=0,totalRounds=(emp.rounds||[]).length,remainingAmount=0,nextEligDate=null;(emp.rounds||[]).forEach(function(r){if(r.isPaid){paidCount++;}else{remainingAmount+=r.expectedAmount||0;var ed=emp.startDate?addMo(emp.startDate,r.month):null;if(ed&&(!nextEligDate||new Date(ed)<new Date(nextEligDate))){nextEligDate=ed;}}});if(paidCount<totalRounds&&totalRounds>0){list.push({id:emp.id,name:emp.name,companyId:emp.companyId,paidCount:paidCount,totalRounds:totalRounds,remainingAmount:remainingAmount,nextDday:nextEligDate?getDday(nextEligDate):null});}});return list.sort(function(a,b){if(a.nextDday===null)return 1;if(b.nextDday===null)return-1;return a.nextDday-b.nextDday;});},[employees,programs]); var totalRemaining=pendingList.reduce(function(s,p){return s+p.remainingAmount;},0); return(<Card style={{padding:16,marginBottom:16}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h4 style={{margin:0,fontSize:"var(--fs-name)",fontWeight:700}}>💳 미지급 대상자</h4><Badge color="#2563EB" bg="#EFF6FF">{pendingList.length}명/{fMan(totalRemaining)}</Badge></div>{pendingList.length===0?(<p style={{color:"#94A3B8",fontSize:"var(--fs-meta)",textAlign:"center",padding:16}}>없음</p>):(<div style={{maxHeight:180,overflow:"auto"}}>{pendingList.map(function(p){return(<div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 10px",marginBottom:4,borderRadius:6,background:"#FAFBFC",border:"1px solid #F1F5F9",cursor:"pointer",fontSize:"var(--fs-row)"}} onClick={function(){props.goCompany(p.companyId);}}><div><span style={{fontWeight:700,fontSize:"var(--fs-name)"}}>{p.name}</span><span style={{color:"#64748B",marginLeft:6}}>{p.paidCount}/{p.totalRounds}회차</span></div><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:700,color:"#2563EB"}}>{fMan(p.remainingAmount)}</span>{p.nextDday!==null&&<DdayBadge dday={p.nextDday}/>}</div></div>);})}</div>)}</Card>); }
 
 function CalendarView(props){ var employees=props.employees,companies=props.companies,programs=props.programs; var calendarMemos=props.calendarMemos||{}; var onSaveMemo=props.onSaveMemo; var st1=useState(new Date()); var st2=useState(null); var st3=useState(""); var year=st1[0].getFullYear(),month=st1[0].getMonth(); var events=useMemo(function(){var list=[];employees.forEach(function(emp){if(emp.status==="resigned")return;var company=companies.find(function(c){return c.id===emp.companyId;});var program=programs[emp.programId];if(!emp.startDate||!program)return;(emp.rounds||[]).forEach(function(r){if(r.isPaid)return;var ed=addMo(emp.startDate,r.month);var d=new Date(ed);if(d.getFullYear()===year&&d.getMonth()===month){list.push({day:d.getDate(),empName:emp.name,companyId:emp.companyId,color:program.color});}});});return list;},[employees,companies,programs,year,month]); var firstDay=new Date(year,month,1).getDay(); var daysInMonth=new Date(year,month+1,0).getDate(); var weeks=[]; var day=1; for(var w=0;w<6;w++){var week=[];for(var d2=0;d2<7;d2++){if(w===0&&d2<firstDay){week.push(null);}else if(day>daysInMonth){week.push(null);}else{week.push(day);day++;}}weeks.push(week);if(day>daysInMonth)break;} var today=new Date(); function isToday(d){return d&&today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===d;} function getMemoKey(d){return year+"-"+(month+1)+"-"+d;} function addMemoFn(){if(!st3[0].trim()||!st2[0])return;var key=getMemoKey(st2[0]);var existing=calendarMemos[key]||[];onSaveMemo(key,existing.concat([{id:uid(),text:st3[0].trim(),at:new Date().toISOString()}]));st3[1]("");} function delMemo(memoId){var key=getMemoKey(st2[0]);onSaveMemo(key,(calendarMemos[key]||[]).filter(function(m){return m.id!==memoId;}));}
   return(<Card style={{padding:20,marginBottom:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h4 style={{margin:0,fontSize:16,fontWeight:700}}>📅 신청 일정</h4><div style={{display:"flex",alignItems:"center",gap:8}}><button onClick={function(){st1[1](new Date(year,month-1,1));st2[1](null);}} style={btnSm}>◀</button><span style={{fontWeight:700,minWidth:100,textAlign:"center"}}>{year}년 {month+1}월</span><button onClick={function(){st1[1](new Date(year,month+1,1));st2[1](null);}} style={btnSm}>▶</button></div></div><div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>{["일","월","화","수","목","금","토"].map(function(dd,i){return <div key={i} style={{textAlign:"center",fontSize:12,fontWeight:600,color:i===0?"#DC2626":i===6?"#2563EB":"#64748B",padding:4}}>{dd}</div>;})}</div><div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>{weeks.map(function(week,wi){return week.map(function(dd,di){var dayEvents=dd?events.filter(function(e){return e.day===dd;}):[]; var dayKey=dd?getMemoKey(dd):null; var dayMemos=dayKey&&calendarMemos[dayKey]?calendarMemos[dayKey]:[]; var isSelected=st2[0]===dd; return(<div key={wi+"-"+di} onClick={dd?function(){st2[1](isSelected?null:dd);}:undefined} style={{minHeight:54,padding:3,background:dd?(isSelected?"#DBEAFE":"#FAFBFC"):"transparent",borderRadius:4,border:isSelected?"2px solid #2563EB":(isToday(dd)?"2px solid #059669":"1px solid #F1F5F9"),cursor:dd?"pointer":"default"}}>{dd&&(<React.Fragment><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:1}}><span style={{fontSize:11,fontWeight:isToday(dd)?700:500,color:di===0?"#DC2626":di===6?"#2563EB":"#334155"}}>{dd}</span>{dayMemos.length>0&&<span style={{fontSize:7}}>📝</span>}</div>{dayEvents.slice(0,2).map(function(e,i2){return <div key={i2} style={{fontSize:8,padding:"1px 3px",marginBottom:1,borderRadius:3,background:e.color+"20",color:e.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} onClick={function(ev){ev.stopPropagation();props.goCompany(e.companyId);}}>{e.empName}</div>;})} {dayEvents.length>2&&<div style={{fontSize:8,color:"#64748B"}}>+{dayEvents.length-2}</div>}</React.Fragment>)}</div>);}).flat()})}</div>{st2[0]&&(<div style={{marginTop:12,padding:12,background:"#F8FAFC",borderRadius:8,border:"1px solid #E2E8F0"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:13,fontWeight:700}}>{month+1}월 {st2[0]}일</span><button onClick={function(){st2[1](null);}} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",color:"#94A3B8"}}>×</button></div><div style={{display:"flex",gap:4,marginBottom:8}}><input style={Object.assign({},inpKo,{flex:1,fontSize:12,padding:"6px 10px"})} value={st3[0]} onChange={function(e){st3[1](e.target.value);}} placeholder="메모..." onKeyDown={function(e){if(e.key==="Enter")addMemoFn();}}/><button style={Object.assign({},btnP,{padding:"6px 12px",fontSize:11})} onClick={addMemoFn}>추가</button></div>{(calendarMemos[getMemoKey(st2[0])]||[]).map(function(memo){return(<div key={memo.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 8px",background:"#fff",borderRadius:4,marginBottom:3,border:"1px solid #E2E8F0",fontSize:11}}><span>{memo.text}</span><button onClick={function(){delMemo(memo.id);}} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:10}}>×</button></div>);})}</div>)}</Card>); }
@@ -1119,10 +1119,10 @@ function ProgramPipeline(props){
           <div key={r.program.id} style={{marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:6}}>
               <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
-                <span style={{fontSize:16,fontWeight:700,color:"#334155"}}>{r.program.name}</span>
-                <span style={{fontSize:14,color:"#94A3B8"}}>{r.count}명</span>
+                <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#334155"}}>{r.program.name}</span>
+                <span style={{fontSize:"var(--fs-sub)",color:"#94A3B8"}}>{r.count}명</span>
               </div>
-              <div style={{fontSize:14,color:"#64748B"}}>
+              <div style={{fontSize:"var(--fs-sub)",color:"#64748B"}}>
                 <span style={{fontWeight:700,color:"#059669"}}>{fMan(r.received)}</span>
                 <span style={{color:"#CBD5E1"}}> / {fMan(r.expected)}</span>
                 <span style={{marginLeft:6,fontWeight:700,color:"#0F172A"}}>{pct}%</span>
@@ -1136,8 +1136,8 @@ function ProgramPipeline(props){
         );
       })}
       <div style={{display:"flex",gap:14,flexWrap:"wrap",marginTop:14,paddingTop:12,borderTop:"1px solid #F1F5F9"}}>
-        <div style={{display:"flex",alignItems:"center",gap:5,fontSize:13,color:"#64748B"}}><span style={{width:10,height:10,borderRadius:3,background:"#059669",display:"inline-block"}}/>수령 완료</div>
-        <div style={{display:"flex",alignItems:"center",gap:5,fontSize:13,color:"#64748B"}}><span style={{width:10,height:10,borderRadius:3,background:"#E2E8F0",display:"inline-block"}}/>수령 예정</div>
+        <div style={{display:"flex",alignItems:"center",gap:5,fontSize:"var(--fs-meta)",color:"#64748B"}}><span style={{width:10,height:10,borderRadius:3,background:"#059669",display:"inline-block"}}/>수령 완료</div>
+        <div style={{display:"flex",alignItems:"center",gap:5,fontSize:"var(--fs-meta)",color:"#64748B"}}><span style={{width:10,height:10,borderRadius:3,background:"#E2E8F0",display:"inline-block"}}/>수령 예정</div>
       </div>
     </Card>
   );
@@ -1198,11 +1198,7 @@ function DashSection(props){
 
 function Dashboard(props){
   var st1=useState("all"),st2=useState(false); var selectedCompanyId=st1[0];
-  // 보기 밀도 (컴팩트/기본/넓게) — localStorage 유지, 기본값 "normal"
-  var stDensity=useState(function(){try{return localStorage.getItem("dash_density")||"normal";}catch(e){return "normal";}});
-  function setDensity(v){stDensity[1](v);try{localStorage.setItem("dash_density",v);}catch(e){}}
-  var DENS={compact:{zoom:0.9},normal:{zoom:1},wide:{zoom:1.1}};
-  var densZoom=(DENS[stDensity[0]]||DENS.normal).zoom;
+  // 보기 밀도 토글 제거 — PC는 항상 '넓게(가독성 우선)' 기준. 폰트 스케일은 CSS 변수로 처리.
   var fE=useMemo(function(){return st1[0]==="all"?props.employees:props.employees.filter(function(e){return e.companyId===st1[0];});},[props.employees,st1[0]]);
   var stats=useMemo(function(){var tE=0,tR=0,dT=0,dD=0,sc={};STS.forEach(function(s){sc[s.key]=0;});fE.forEach(function(e){if(sc[e.status]!==undefined)sc[e.status]++;var p=props.programs[e.programId];if(p)tE+=p.totalAmount||0;(e.rounds||[]).forEach(function(r){if(r.isPaid)tR+=r.received||0;});(e.employeeDocs||[]).forEach(function(d){dT++;if(d.done)dD++;});});(st1[0]==="all"?props.companies:props.companies.filter(function(c){return c.id===st1[0];})).forEach(function(c){(c.companyDocs||[]).forEach(function(d){dT++;if(d.done)dD++;});});return{tE:tE,tR:tR,pct:dT>0?Math.round(dD/dT*100):0,sc:sc};},[props.companies,fE,props.programs,st1[0]]);
   // 추세/요약 메트릭 + 업무 브리핑(지연·임박·서류·위험금액)
@@ -1265,18 +1261,7 @@ function Dashboard(props){
   var starredCompanies=props.companies.filter(function(c){return(c.tags||[]).includes("star");});
   function handleExcelCopy(){var data=makeExcelData(props.companies,props.employees,props.programs);navigator.clipboard.writeText(data).then(function(){st2[1](true);setTimeout(function(){st2[1](false);},2000);toast("엑셀용 데이터가 복사되었습니다.","success");});}
 
-  return(<div className="fade-in" style={{zoom:densZoom}}>
-    {/* 보기 밀도 조절 — 컴팩트 / 기본 / 넓게 */}
-    {props.mode!=="list"&&(
-      <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginBottom:10}}>
-        <span style={{fontSize:13,color:"#64748B",fontWeight:600}}>보기</span>
-        <div style={{display:"inline-flex",background:"#F1F5F9",borderRadius:10,padding:3,gap:2}}>
-          {[["compact","컴팩트"],["normal","기본"],["wide","넓게"]].map(function(o){var on=stDensity[0]===o[0];return(
-            <button key={o[0]} onClick={function(){setDensity(o[0]);}} style={{border:"none",borderRadius:8,padding:"6px 14px",fontSize:13,fontWeight:on?700:600,color:on?"#1D4ED8":"#64748B",background:on?"#fff":"transparent",cursor:"pointer",fontFamily:FF,boxShadow:on?"0 1px 4px rgba(0,0,0,0.08)":"none"}}>{o[1]}</button>
-          );})}
-        </div>
-      </div>
-    )}
+  return(<div className="fade-in">
     {props.mode!=="stats"&&<GlobalSearch employees={props.employees} companies={props.companies} goCompany={props.goCompany}/>}
 
     {/* ── 핵심 KPI 브리핑 (4-Card Executive View) ── */}
@@ -1336,16 +1321,16 @@ function Dashboard(props){
             <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 12px",borderRadius:8,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid #F8FAFC":"none"}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                  <span style={{fontSize:15,fontWeight:700,color:"#0F172A"}}>{o.empName}</span>
-                  <span style={{fontSize:13,color:"#94A3B8"}}>{o.companyName}</span>
+                  <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A"}}>{o.empName}</span>
+                  <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{o.companyName}</span>
                 </div>
-                <div style={{fontSize:13,color:"#64748B",marginTop:2}}>{o.programName} {o.roundLabel} · 신청 기한 <strong style={{color:"#DC2626"}}>{Math.abs(o.dd)}일 지연</strong></div>
+                <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:2}}>{o.programName} {o.roundLabel} · 신청 기한 <strong style={{color:"#DC2626"}}>{Math.abs(o.dd)}일 지연</strong></div>
               </div>
-              <span style={{fontSize:15,fontWeight:700,color:"#0F172A",flexShrink:0}}>{fMan(o.amount)}</span>
-              <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리하기 →</button>
+              <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A",flexShrink:0}}>{fMan(o.amount)}</span>
+              <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리하기 →</button>
             </div>
           );})}
-          {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"8px 0",fontSize:13,color:"#94A3B8"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
+          {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"8px 0",fontSize:"var(--fs-meta)",color:"#94A3B8"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
         </div>
       </div>
     )}
@@ -1359,18 +1344,18 @@ function Dashboard(props){
         <div style={{marginBottom:18,borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #2563EB"}}>
           <div style={{padding:"15px 20px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
             <span style={{...primaryBadge()}}>무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일 남음":""}</span>
-            <span style={{fontSize:15,fontWeight:700,color:"#0F172A"}}>무료체험 동안 이만큼 관리하고 계세요</span>
-            <button onClick={props.onOpenBilling||function(){}} style={{marginLeft:"auto",background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>지금 구독하기 →</button>
+            <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A"}}>무료체험 동안 이만큼 관리하고 계세요</span>
+            <button onClick={props.onOpenBilling||function(){}} style={{marginLeft:"auto",background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>지금 구독하기 →</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))"}}>
             {items.map(function(it,i){return(
               <div key={i} style={{padding:"14px 18px",borderRight:i<items.length-1?"1px solid #F1F5F9":"none"}}>
-                <div style={{fontSize:12,color:"#94A3B8",fontWeight:600,marginBottom:5}}>{it[0]}</div>
+                <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",fontWeight:600,marginBottom:5}}>{it[0]}</div>
                 <div style={{fontSize:20,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>{it[1]}</div>
               </div>
             );})}
           </div>
-          <div style={{padding:"11px 20px",fontSize:13,color:"#94A3B8",background:"#F8FAFC",borderTop:"1px solid #F1F5F9"}}>지금 구독하면 등록한 업체와 신청 일정을 계속 관리할 수 있습니다. 무료체험 종료 후에는 알림·보고서·수수료 정산 기능이 제한됩니다.</div>
+          <div style={{padding:"11px 20px",fontSize:"var(--fs-sub)",color:"#94A3B8",background:"#F8FAFC",borderTop:"1px solid #F1F5F9"}}>지금 구독하면 등록한 업체와 신청 일정을 계속 관리할 수 있습니다. 무료체험 종료 후에는 알림·보고서·수수료 정산 기능이 제한됩니다.</div>
         </div>
       );
     })()}
@@ -1389,11 +1374,11 @@ function Dashboard(props){
           {cards.map(function(c,i){return(
           <Card key={i} className="kpi-card" style={{padding:"16px 18px",border:"1px solid #F1F5F9"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <span style={{fontSize:13,color:"#64748B",fontWeight:600}}>{c.l}</span>
+              <span style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600}}>{c.l}</span>
               <span style={{fontSize:16,width:30,height:30,borderRadius:8,background:"#F8FAFC",display:"flex",alignItems:"center",justifyContent:"center"}}>{c.i}</span>
             </div>
             <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
-              <div><span style={{fontSize:28,fontWeight:800,color:c.c}}>{c.v}</span><span style={{fontSize:14,color:"#94A3B8",marginLeft:3}}>{c.u}</span></div>
+              <div><span style={{fontSize:28,fontWeight:800,color:c.c}}>{c.v}</span><span style={{fontSize:"var(--fs-label)",color:"#94A3B8",marginLeft:3}}>{c.u}</span></div>
               {c.extra==="spark"&&<Sparkline data={metrics.spark} width={60} height={22} color="#059669"/>}
             </div>
             {c.extra==="bar"&&<div style={{height:5,background:"#F1F5F9",borderRadius:3,overflow:"hidden",marginTop:10}}><div style={{height:"100%",width:c.v+"%",background:c.bar||"#2563EB",borderRadius:3,transition:"width 0.5s ease"}}/></div>}
@@ -1413,7 +1398,7 @@ function Dashboard(props){
             {l:"누적 수수료",v:fMan(commSummary.collected),c:"#059669",accent:null}
           ].map(function(c,i){return(
             <div key={i} className="kpi-card" style={{background:"#F8FAFC",borderRadius:14,padding:"15px 16px",border:"1px solid #E5EAF0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E5EAF0"}}>
-              <div style={{fontSize:13.5,color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
+              <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
               <div style={{fontSize:22,fontWeight:800,color:c.c}}>{c.v}</div>
             </div>
           );})}
@@ -1441,14 +1426,14 @@ function Dashboard(props){
         <Card style={{padding:"20px 22px",marginBottom:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
             <h4 style={{margin:0,fontSize:20,fontWeight:700}}>🛡️ 업체별 위험도</h4>
-            <span style={{fontSize:13,color:"#94A3B8"}}>지연·임박·서류·수령예정액 종합</span>
+            <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>지연·임박·서류·수령예정액 종합</span>
           </div>
           <div style={{display:"grid",gap:8}}>
             {rows.map(function(r){return(
               <div key={r.c.id} className="hover-card" onClick={function(){props.goCompany(r.c.id);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid #E2E8F0",borderLeft:r.overdue>0?"3px solid #DC2626":"1px solid #E2E8F0",background:"#fff",cursor:"pointer",flexWrap:"wrap"}}>
                 <div style={{flex:1,minWidth:140}}>
-                  <div style={{fontSize:17,fontWeight:700,color:"#1E293B"}}>{r.c.name}</div>
-                  <div style={{fontSize:13,color:"#94A3B8",marginTop:2}}>대상자 {r.empCount}명{r.nextDday!==null?" · 다음 신청 "+formatDday(r.nextDday):""}</div>
+                  <div style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#1E293B"}}>{r.c.name}</div>
+                  <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:2}}>대상자 {r.empCount}명{r.nextDday!==null?" · 다음 신청 "+formatDday(r.nextDday):""}</div>
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
                   {r.overdue>0&&<span style={dangerBadge()}>지연 {r.overdue}</span>}
@@ -1456,10 +1441,10 @@ function Dashboard(props){
                   {r.docMiss>0&&<span style={neutralBadge()}>서류 {r.docMiss}</span>}
                 </div>
                 <div style={{textAlign:"right",minWidth:96}}>
-                  <div style={{fontSize:16,fontWeight:800,color:"#0F172A"}}>{fMan(r.remaining)}</div>
-                  <div style={{fontSize:12,color:"#94A3B8"}}>수령 예정</div>
+                  <div style={{fontSize:"var(--fs-row)",fontWeight:800,color:"#0F172A"}}>{fMan(r.remaining)}</div>
+                  <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>수령 예정</div>
                 </div>
-                <span style={{fontSize:13,fontWeight:700,padding:"4px 12px",borderRadius:20,background:r.level.bg,color:r.level.c,flexShrink:0}}>{r.level.t}</span>
+                <span style={{fontSize:"var(--fs-badge)",fontWeight:700,padding:"4px 12px",borderRadius:20,background:r.level.bg,color:r.level.c,flexShrink:0}}>{r.level.t}</span>
               </div>
             );})}
           </div>
@@ -1522,15 +1507,15 @@ function EmpCard(props){
         </div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap",marginBottom:2}}>
-            <span style={{fontSize:14,fontWeight:700,color:"#1E293B"}}>{emp.name}</span>
+            <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#1E293B"}}>{emp.name}</span>
             {/* 클릭 가능한 상태 배지 */}
             <span onClick={function(e){e.stopPropagation();stSM[1](!stSM[0]);}}
-              style={{fontSize:12,fontWeight:600,padding:"3px 10px",borderRadius:999,background:st.bg,color:st.color,whiteSpace:"nowrap",cursor:"pointer",border:"1px solid "+st.color+"33",userSelect:"none"}} title="클릭해서 상태 변경">
+              style={{fontSize:"var(--fs-badge)",fontWeight:600,padding:"3px 10px",borderRadius:999,background:st.bg,color:st.color,whiteSpace:"nowrap",cursor:"pointer",border:"1px solid "+st.color+"33",userSelect:"none"}} title="클릭해서 상태 변경">
               {st.label} ▾
             </span>
             {p&&<span style={{...neutralBadge()}}>{p.name}</span>}
           </div>
-          <div style={{fontSize:11,color:"#64748B",display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{fontSize:"var(--fs-meta)",color:"#64748B",display:"flex",gap:8,flexWrap:"wrap"}}>
             {emp.startDate&&<span>입사 {fD(emp.startDate)}</span>}
             {emp.status==="resigned"&&emp.resignDate&&<span style={{color:"#94A3B8"}}>🚪 퇴사 {fD(emp.resignDate)}</span>}
             {ageD&&<span>만{ageD.years}세</span>}
@@ -1541,19 +1526,19 @@ function EmpCard(props){
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
           {nextRound&&<DdayBadge dday={nextRound.dday}/>}
           <div style={{display:"flex",gap:4}}>
-            <button style={Object.assign({},btnSm,{fontSize:10,padding:"3px 7px"})} onClick={function(e){e.stopPropagation();props.onEdit(emp);}}>편집</button>
-            <button style={Object.assign({},btnSm,{fontSize:10,padding:"3px 7px",color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(e){e.stopPropagation();if(window.confirm("'"+emp.name+"' 직원을 삭제하시겠습니까?\n삭제된 직원은 기본 목록에서 숨겨지며, 회차와 서류 관리 내역도 함께 보이지 않습니다."))props.onDelete(emp.id);}}>삭제</button>
+            <button style={Object.assign({},btnSm,{fontSize:"var(--fs-btn)",padding:"5px 11px"})} onClick={function(e){e.stopPropagation();props.onEdit(emp);}}>편집</button>
+            <button style={Object.assign({},btnSm,{fontSize:"var(--fs-btn)",padding:"5px 11px",color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(e){e.stopPropagation();if(window.confirm("'"+emp.name+"' 직원을 삭제하시겠습니까?\n삭제된 직원은 기본 목록에서 숨겨지며, 회차와 서류 관리 내역도 함께 보이지 않습니다."))props.onDelete(emp.id);}}>삭제</button>
           </div>
         </div>
       </div>
       {/* 빠른 상태 변경 드롭다운 */}
       {stSM[0]&&(
         <div onClick={function(e){e.stopPropagation();}} style={{position:"absolute",left:14,top:50,zIndex:50,background:"#fff",borderRadius:12,boxShadow:"0 8px 24px rgba(15,23,42,0.18)",border:"1px solid #E2E8F0",padding:6,width:190}}>
-          <div style={{fontSize:11,color:"#94A3B8",padding:"3px 8px 5px"}}>진행 상태 변경</div>
+          <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",padding:"3px 8px 5px"}}>진행 상태 변경</div>
           {STS.map(function(s){var on=emp.status===s.key;return(
             <div key={s.key} onClick={function(){props.onPatch(emp.id,{status:s.key});stSM[1](false);}}
-              style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:8,cursor:"pointer",fontSize:13,background:on?s.bg:"transparent",color:on?s.color:"#334155",fontWeight:on?700:400}}>
-              <span>{s.icon}</span><span>{s.label}</span>{on&&<span style={{marginLeft:"auto",fontSize:12}}>✓</span>}
+              style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:8,cursor:"pointer",fontSize:"var(--fs-row)",background:on?s.bg:"transparent",color:on?s.color:"#334155",fontWeight:on?700:400}}>
+              <span>{s.icon}</span><span>{s.label}</span>{on&&<span style={{marginLeft:"auto",fontSize:"var(--fs-badge)"}}>✓</span>}
             </div>
           );})}
         </div>
@@ -1563,17 +1548,17 @@ function EmpCard(props){
           {/* 회차 진행상황 */}
           {p&&(emp.rounds||[]).length>0&&(
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:"#475569"}}>📅 회차 현황</div>
+              <div style={{fontSize:"var(--fs-label)",fontWeight:600,marginBottom:6,color:"#475569"}}>📅 회차 현황</div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                 {(emp.rounds||[]).map(function(r,ri){
                   var ed=emp.startDate?addMo(emp.startDate,r.month):null;
                   var dd=ed?getDday(ed):null;
                   return(
                     <button key={ri} onClick={function(){props.onRoundClick(emp,ri);}}
-                      style={{padding:"6px 10px",borderRadius:8,fontSize:11,cursor:"pointer",border:"1.5px solid "+(r.isPaid?"#6EE7B7":dd!==null&&dd<=7?"#FECACA":"#E2E8F0"),background:r.isPaid?"#D1FAE5":dd!==null&&dd<=7?"#FEF2F2":"#F8FAFC",color:r.isPaid?"#059669":dd!==null&&dd<=7?"#DC2626":"#475569",fontWeight:r.isPaid?700:500}}>
+                      style={{padding:"6px 10px",borderRadius:8,fontSize:"var(--fs-badge)",cursor:"pointer",border:"1.5px solid "+(r.isPaid?"#6EE7B7":dd!==null&&dd<=7?"#FECACA":"#E2E8F0"),background:r.isPaid?"#D1FAE5":dd!==null&&dd<=7?"#FEF2F2":"#F8FAFC",color:r.isPaid?"#059669":dd!==null&&dd<=7?"#DC2626":"#475569",fontWeight:r.isPaid?700:500}}>
                       <div>{r.label}</div>
-                      {ed&&<div style={{fontSize:9,opacity:0.7}}>{fD(ed)}</div>}
-                      {r.isPaid?<div style={{fontSize:9,color:"#059669"}}>{fMan(r.received||0)}</div>:dd!==null?<div style={{fontSize:9}}>D-{dd}</div>:null}
+                      {ed&&<div style={{fontSize:"var(--fs-mini)",opacity:0.7}}>{fD(ed)}</div>}
+                      {r.isPaid?<div style={{fontSize:"var(--fs-mini)",color:"#059669"}}>{fMan(r.received||0)}</div>:dd!==null?<div style={{fontSize:"var(--fs-mini)"}}>D-{dd}</div>:null}
                     </button>
                   );
                 })}
@@ -1583,10 +1568,10 @@ function EmpCard(props){
           {/* 인증서류 */}
           {certDocs.length>0&&(
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:"#475569"}}>📋 인증서류 ({certDone}/{certDocs.length})</div>
+              <div style={{fontSize:"var(--fs-label)",fontWeight:600,marginBottom:6,color:"#475569"}}>📋 인증서류 ({certDone}/{certDocs.length})</div>
               <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                 {certDocs.map(function(d,di){return(
-                  <div key={di} style={{padding:"3px 8px",borderRadius:4,fontSize:10,background:d.done?"#D1FAE5":"#F1F5F9",color:d.done?"#059669":"#64748B",border:"1px solid "+(d.done?"#6EE7B7":"#E2E8F0"),cursor:"pointer"}} onClick={function(){props.onCertToggle(emp,di);}}>
+                  <div key={di} style={{padding:"4px 9px",borderRadius:4,fontSize:"var(--fs-badge)",background:d.done?"#D1FAE5":"#F1F5F9",color:d.done?"#059669":"#64748B",border:"1px solid "+(d.done?"#6EE7B7":"#E2E8F0"),cursor:"pointer"}} onClick={function(){props.onCertToggle(emp,di);}}>
                     {d.done?"✅":"○"} {d.label}
                   </div>
                 );})}
@@ -1606,7 +1591,7 @@ function EmpCard(props){
             <div><Label>이메일</Label><input style={inp} defaultValue={emp.email||""} placeholder="email" onBlur={function(e){props.onPatch(emp.id,{email:e.target.value});}}/></div>
             <div><Label>급여(원)</Label><input type="number" style={inp} min="0" defaultValue={emp.salary||""} placeholder="2200000" onBlur={function(e){props.onPatch(emp.id,{salary:clampMoney(e.target.value)});}}/></div>
           </div>
-          {emp.salary&&emp.weeklyHours&&(function(){var wc=checkWage(emp.salary,emp.weeklyHours);return wc&&!wc.isAboveMin&&(<div style={{marginTop:6,padding:"6px 10px",borderRadius:6,background:"#FEE2E2",fontSize:11,color:"#DC2626"}}>⚠️ 최저임금 미달 — 최소 {wc.minMonthly.toLocaleString()}원 필요</div>);})()||null}
+          {emp.salary&&emp.weeklyHours&&(function(){var wc=checkWage(emp.salary,emp.weeklyHours);return wc&&!wc.isAboveMin&&(<div style={{marginTop:6,padding:"6px 10px",borderRadius:6,background:"#FEE2E2",fontSize:"var(--fs-meta)",color:"#DC2626"}}>⚠️ 최저임금 미달 — 최소 {wc.minMonthly.toLocaleString()}원 필요</div>);})()||null}
           {/* 메모 */}
           <div style={{marginTop:8}}>
             <Label>메모</Label>
@@ -1744,8 +1729,8 @@ function EmpModal(props){
         {(function(){var wc=checkWage(clampMoney(st.salary[0]),st.weeklyHours[0]);if(!wc||!st.salary[0])return null;if(wc.isAboveMin)return null;return(
           <div style={{padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#DC2626",marginBottom:4}}>⚠️ 최저임금 미달 가능성</div>
-            <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>{st.programId[0]==="youth_jump"?"최저임금 미달 가능성이 있어 청년일자리도약장려금 진행이 어려울 수 있습니다. ":"최저임금 미달 가능성이 있습니다. "}월 환산 최저 {wc.minMonthly.toLocaleString()}원 이상이 필요합니다.</div>
-            {props.onOpenWage&&<button style={Object.assign({},btnSm,{marginTop:6,fontSize:12,background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE"})} onClick={function(){props.onClose&&props.onClose();props.onOpenWage();}}>🧮 급여 계산기로 확인하기</button>}
+            <div style={{fontSize:"var(--fs-sub)",color:"#475569",lineHeight:1.6}}>{st.programId[0]==="youth_jump"?"최저임금 미달 가능성이 있어 청년일자리도약장려금 진행이 어려울 수 있습니다. ":"최저임금 미달 가능성이 있습니다. "}월 환산 최저 {wc.minMonthly.toLocaleString()}원 이상이 필요합니다.</div>
+            {props.onOpenWage&&<button style={Object.assign({},btnSm,{marginTop:6,fontSize:"var(--fs-btn)",background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE"})} onClick={function(){props.onClose&&props.onClose();props.onOpenWage();}}>🧮 급여 계산기로 확인하기</button>}
           </div>
         );})()}
         <div>
@@ -1761,13 +1746,13 @@ function EmpModal(props){
               var gp=GROUP_COLORS[g]||GROUP_COLORS["커스텀"];
               return(
                 <div key={g} style={{marginTop:10}}>
-                  <div style={{fontSize:11,fontWeight:700,color:gp.dark,background:gp.light,borderRadius:5,padding:"3px 8px",display:"inline-flex",alignItems:"center",gap:4,marginBottom:6}}>{gp.icon} {GLBL[g]||g}</div>
+                  <div style={{fontSize:"var(--fs-label)",fontWeight:700,color:gp.dark,background:gp.light,borderRadius:5,padding:"3px 8px",display:"inline-flex",alignItems:"center",gap:4,marginBottom:6}}>{gp.icon} {GLBL[g]||g}</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                     {grouped[g].map(function(p){var on=st.programId[0]===p.id;return(
                       <button key={p.id} onClick={function(){st.programId[1](p.id);}}
                         style={{padding:"10px 12px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
-                        <div style={{fontWeight:on?700:500,fontSize:14,lineHeight:1.35}}>{p.year&&<span style={{fontSize:11,fontWeight:700,color:on?gp.dark:"#94A3B8",marginRight:4}}>{p.year}</span>}{p.name}</div>
-                        <div style={{fontSize:12,color:on?gp.dark:"#94A3B8",marginTop:2}}>{fProgramAmt(p)}</div>
+                        <div style={{fontWeight:on?700:500,fontSize:"var(--fs-name)",lineHeight:1.35}}>{p.year&&<span style={{fontSize:"var(--fs-meta)",fontWeight:700,color:on?gp.dark:"#94A3B8",marginRight:4}}>{p.year}</span>}{p.name}</div>
+                        <div style={{fontSize:"var(--fs-sub)",color:on?gp.dark:"#94A3B8",marginTop:2}}>{fProgramAmt(p)}</div>
                       </button>
                     );})}
                   </div>
@@ -1808,11 +1793,11 @@ function EmpModal(props){
               ):(
                 <React.Fragment>
                   <div style={{fontWeight:700,color:qColor,marginBottom:3}}>👥 {quota>0?"지원한도: "+quota+"명 (현재 "+curCnt+"명 → 추가시 "+willCnt+"명)":(info.agreementDate?"협약 체결됨":"협약 미체결")}</div>
-                  {quota>0&&overQ&&<div style={{color:qColor,fontSize:12}}>⚠️ 한도 초과 — 운영기관 확인 필요</div>}
-                  {info.agreementDate&&<div style={{color:"#047857",fontSize:12}}>✅ 협약 체결: {fD(info.agreementDate)}</div>}
-                  {!info.agreementDate&&<div style={{color:"#B45309",fontSize:12}}>⚠️ 협약 미체결 — 신청 전 협약 필요</div>}
-                  {applyD&&<div style={{color:"#475569",fontSize:12}}>📋 사전신청일: {fD(applyD)}</div>}
-                  {applyD&&st.startDate[0]&&inWin!==null&&<div style={{color:inWin?"#059669":"#DC2626",fontSize:12,fontWeight:inWin?500:700}}>{inWin?"✅ 참여신청일 기준 전후 3개월 이내":"⚠️ 참여신청일 기준 전후 3개월 범위 벗어남 — 운영기관 확인"}</div>}
+                  {quota>0&&overQ&&<div style={{color:qColor,fontSize:"var(--fs-sub)"}}>⚠️ 한도 초과 — 운영기관 확인 필요</div>}
+                  {info.agreementDate&&<div style={{color:"#047857",fontSize:"var(--fs-sub)"}}>✅ 협약 체결: {fD(info.agreementDate)}</div>}
+                  {!info.agreementDate&&<div style={{color:"#B45309",fontSize:"var(--fs-sub)"}}>⚠️ 협약 미체결 — 신청 전 협약 필요</div>}
+                  {applyD&&<div style={{color:"#475569",fontSize:"var(--fs-sub)"}}>📋 사전신청일: {fD(applyD)}</div>}
+                  {applyD&&st.startDate[0]&&inWin!==null&&<div style={{color:inWin?"#059669":"#DC2626",fontSize:"var(--fs-sub)",fontWeight:inWin?500:700}}>{inWin?"✅ 참여신청일 기준 전후 3개월 이내":"⚠️ 참여신청일 기준 전후 3개월 범위 벗어남 — 운영기관 확인"}</div>}
                 </React.Fragment>
               )}
             </div>
@@ -1843,8 +1828,8 @@ function EmpModal(props){
         )}
         {selectedP&&(
           <div style={{padding:"10px 14px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:8}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#0284C7",marginBottom:6}}>📋 {selectedP.name} 사전 검토</div>
-            <div style={{display:"grid",gap:3}}>{(PROGRAM_CHECKLISTS[st.programId[0]]||["신청 대상 사업장 여부 확인","대상 근로자 요건 확인","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"]).map(function(item,i){return <div key={i} style={{fontSize:11,color:"#475569",padding:"2px 0",display:"flex",gap:5,alignItems:"flex-start"}}><span style={{color:"#0284C7",flexShrink:0}}>☐</span><span>{item}</span></div>;})}</div>
+            <div style={{fontSize:"var(--fs-label)",fontWeight:700,color:"#0284C7",marginBottom:6}}>📋 {selectedP.name} 사전 검토</div>
+            <div style={{display:"grid",gap:3}}>{(PROGRAM_CHECKLISTS[st.programId[0]]||["신청 대상 사업장 여부 확인","대상 근로자 요건 확인","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"]).map(function(item,i){return <div key={i} style={{fontSize:"var(--fs-sub)",color:"#475569",padding:"2px 0",display:"flex",gap:5,alignItems:"flex-start"}}><span style={{color:"#0284C7",flexShrink:0}}>☐</span><span>{item}</span></div>;})}</div>
             <div style={{fontSize:10,color:"#94A3B8",marginTop:6}}>※ 지원금 세부 요건은 연도별 공고와 운영기관 기준에 따라 달라질 수 있습니다. 본 체크리스트는 사전 검토용입니다.</div>
           </div>
         )}
@@ -2042,7 +2027,7 @@ function CompDet(props){
             <div style={{display:"flex",background:"#F1F5F9",borderRadius:8,padding:2}}>
               {[["card","🗃️ 카드"],["table","📋 표"]].map(function(arr){var on=stViewMode[0]===arr[0];return(
                 <button key={arr[0]} onClick={function(){stViewMode[1](arr[0]);stSelected[1]([]);}}
-                  style={{padding:"5px 12px",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",background:on?"#fff":"transparent",color:on?"#2563EB":"#64748B",fontWeight:on?700:400,boxShadow:on?"0 1px 4px rgba(0,0,0,0.08)":"none",fontFamily:FF}}>
+                  style={{padding:"6px 13px",borderRadius:6,fontSize:"var(--fs-btn)",border:"none",cursor:"pointer",background:on?"#fff":"transparent",color:on?"#2563EB":"#64748B",fontWeight:on?700:400,boxShadow:on?"0 1px 4px rgba(0,0,0,0.08)":"none",fontFamily:FF}}>
                   {arr[1]}
                 </button>
               );})}
@@ -2054,7 +2039,7 @@ function CompDet(props){
         <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
           {[{key:"all",label:"전체 ("+compEmps.length+")"}].concat(STS.map(function(s){var cnt=compEmps.filter(function(e){return e.status===s.key;}).length;return{key:s.key,label:s.icon+" "+s.label+(cnt>0?" ("+cnt+")":""),cnt:cnt};})).map(function(f){return(
             <button key={f.key} onClick={function(){st5[1](f.key);stSelected[1]([]);}}
-              style={Object.assign({},btnSm,{fontSize:15,background:st5[0]===f.key?"#2563EB":"#fff",color:st5[0]===f.key?"#fff":"#475569",border:st5[0]===f.key?"none":"1px solid #E2E8F0"})}>
+              style={Object.assign({},btnSm,{fontSize:"var(--fs-btn)",background:st5[0]===f.key?"#2563EB":"#fff",color:st5[0]===f.key?"#fff":"#475569",border:st5[0]===f.key?"none":"1px solid #E2E8F0"})}>
               {f.label}
             </button>
           );})}
@@ -2065,14 +2050,14 @@ function CompDet(props){
             :<Card style={{padding:36,textAlign:"center"}}><div style={{fontSize:40,marginBottom:8}}>🔍</div><p style={{color:"#94A3B8",fontSize:17,margin:0}}>해당 상태의 직원이 없습니다.</p></Card>
         ):stViewMode[0]==="table"?(
           <Card style={{padding:0,overflow:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"var(--fs-list)"}}>
               <thead>
                 <tr style={{background:"#F8FAFC",borderBottom:"2px solid #E2E8F0"}}>
                   <th style={{padding:"10px 12px",textAlign:"center",width:36}}>
                     <input type="checkbox" checked={allChecked} onChange={toggleAll} style={{cursor:"pointer",width:15,height:15}}/>
                   </th>
                   {["이름","상태","지원금","입사일","나이","수령액","잔여예상","D-Day",""].map(function(h,i){return(
-                    <th key={i} style={{padding:"10px 12px",textAlign:"left",fontSize:13,fontWeight:700,color:"#475569",whiteSpace:"nowrap"}}>{h}</th>
+                    <th key={i} style={{padding:"10px 12px",textAlign:"left",fontSize:"var(--fs-label)",fontWeight:700,color:"#475569",whiteSpace:"nowrap"}}>{h}</th>
                   );})}
                 </tr>
               </thead>
@@ -2089,22 +2074,22 @@ function CompDet(props){
                       <td style={{padding:"10px 12px",textAlign:"center"}}>
                         <input type="checkbox" checked={isSel} onChange={function(){toggleSelect(emp.id);}} style={{cursor:"pointer",width:15,height:15}}/>
                       </td>
-                      <td style={{padding:"10px 12px",fontWeight:600,color:"#1E293B"}}>{emp.name}</td>
-                      <td style={{padding:"10px 12px"}}>
+                      <td style={{padding:"11px 12px",fontWeight:700,color:"#1E293B",fontSize:"var(--fs-name)"}}>{emp.name}</td>
+                      <td style={{padding:"11px 12px"}}>
                         <select value={emp.status} onChange={function(e){props.onPatchEmployee(emp.id,{status:e.target.value});}}
-                          style={{padding:"4px 7px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,background:s.bg,color:s.color,cursor:"pointer",fontFamily:FF,fontWeight:600}}>
+                          style={{padding:"5px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:"var(--fs-badge)",background:s.bg,color:s.color,cursor:"pointer",fontFamily:FF,fontWeight:600}}>
                           {STS.map(function(ss){return <option key={ss.key} value={ss.key}>{ss.icon+" "+ss.label}</option>;})}
                         </select>
                       </td>
-                      <td style={{padding:"10px 12px",color:"#475569"}}>{p?p.name:"-"}</td>
-                      <td style={{padding:"10px 12px",color:"#64748B",fontSize:13}}>{emp.startDate?fD(emp.startDate):"-"}</td>
-                      <td style={{padding:"10px 12px",color:"#64748B",fontSize:13}}>{getAge(emp)}</td>
-                      <td style={{padding:"10px 12px",fontWeight:600,color:"#059669"}}>{fMan(rcv)}</td>
-                      <td style={{padding:"10px 12px",color:"#2563EB"}}>{rem>0?fMan(rem):"—"}</td>
-                      <td style={{padding:"10px 12px"}}>{dd!==null?<DdayBadge dday={dd}/>:<span style={{color:"#CBD5E1",fontSize:12}}>—</span>}</td>
-                      <td style={{padding:"10px 8px",whiteSpace:"nowrap"}}>
-                        <button onClick={function(){st2[1](emp);}} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="편집">✏️</button>
-                        <button onClick={function(){if(window.confirm("'"+emp.name+"' 직원을 삭제하시겠습니까?\n삭제된 직원은 기본 목록에서 숨겨지며, 회차와 서류 관리 내역도 함께 보이지 않습니다."))props.onDeleteEmployee(emp.id);}} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:15,padding:"2px 6px"}} title="삭제">🗑️</button>
+                      <td style={{padding:"11px 12px",color:"#475569"}}>{p?p.name:"-"}</td>
+                      <td style={{padding:"11px 12px",color:"#64748B",fontSize:"var(--fs-meta)"}}>{emp.startDate?fD(emp.startDate):"-"}</td>
+                      <td style={{padding:"11px 12px",color:"#64748B",fontSize:"var(--fs-meta)"}}>{getAge(emp)}</td>
+                      <td style={{padding:"11px 12px",fontWeight:700,color:"#059669"}}>{fMan(rcv)}</td>
+                      <td style={{padding:"11px 12px",color:"#2563EB"}}>{rem>0?fMan(rem):"—"}</td>
+                      <td style={{padding:"11px 12px"}}>{dd!==null?<DdayBadge dday={dd}/>:<span style={{color:"#CBD5E1",fontSize:"var(--fs-meta)"}}>—</span>}</td>
+                      <td style={{padding:"11px 8px",whiteSpace:"nowrap"}}>
+                        <button onClick={function(){st2[1](emp);}} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:17,padding:"2px 6px"}} title="편집">✏️</button>
+                        <button onClick={function(){if(window.confirm("'"+emp.name+"' 직원을 삭제하시겠습니까?\n삭제된 직원은 기본 목록에서 숨겨지며, 회차와 서류 관리 내역도 함께 보이지 않습니다."))props.onDeleteEmployee(emp.id);}} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:17,padding:"2px 6px"}} title="삭제">🗑️</button>
                       </td>
                     </tr>
                   );
@@ -2135,12 +2120,12 @@ function CompDet(props){
             <div style={{width:1,height:22,background:"rgba(255,255,255,0.2)"}}/>
             <span style={{fontSize:13,opacity:0.7}}>상태 변경:</span>
             <select onChange={function(e){if(e.target.value){bulkStatus(e.target.value);}e.target.value="";}} defaultValue=""
-              style={{padding:"5px 8px",borderRadius:8,border:"none",fontSize:13,background:"#334155",color:"#fff",cursor:"pointer",fontFamily:FF}}>
+              style={{padding:"6px 10px",borderRadius:8,border:"none",fontSize:"var(--fs-btn)",background:"#334155",color:"#fff",cursor:"pointer",fontFamily:FF}}>
               <option value="" disabled>선택...</option>
               {STS.map(function(s){return <option key={s.key} value={s.key}>{s.icon+" "+s.label}</option>;})}
             </select>
-            <button onClick={bulkCopy} style={{padding:"6px 14px",borderRadius:8,background:"#334155",border:"none",color:"#fff",cursor:"pointer",fontSize:13,fontFamily:FF}}>📋 복사</button>
-            <button onClick={function(){stSelected[1]([]);}} style={{padding:"6px 10px",borderRadius:8,background:"transparent",border:"1px solid rgba(255,255,255,0.25)",color:"#94A3B8",cursor:"pointer",fontSize:13,fontFamily:FF}}>✕</button>
+            <button onClick={bulkCopy} style={{padding:"7px 14px",borderRadius:8,background:"#334155",border:"none",color:"#fff",cursor:"pointer",fontSize:"var(--fs-btn)",fontFamily:FF}}>📋 복사</button>
+            <button onClick={function(){stSelected[1]([]);}} style={{padding:"7px 11px",borderRadius:8,background:"transparent",border:"1px solid rgba(255,255,255,0.25)",color:"#94A3B8",cursor:"pointer",fontSize:"var(--fs-btn)",fontFamily:FF}}>✕</button>
           </div>
         )}
       </div>
@@ -2158,7 +2143,7 @@ function CompDet(props){
           </div>
           <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
           {(company.managerName||company.managerTitle||company.managerEmail)&&(
-            <div style={{fontSize:14,color:"#64748B",marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
+            <div style={{fontSize:"var(--fs-sub)",color:"#64748B",marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
               {(company.managerName||company.managerTitle)&&<span>👤 담당자 {company.managerName||""}{company.managerTitle?" "+company.managerTitle:""}</span>}
               {company.managerEmail&&<span style={{color:"#2563EB"}}>✉️ {company.managerEmail}</span>}
             </div>
@@ -2199,7 +2184,7 @@ function CompDet(props){
           <Card key={i} className="kpi-card" style={{padding:"18px 20px",border:"1px solid #E2E8F0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E2E8F0"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:15,color:"#64748B",fontWeight:600}}>{c.l}</span></div>
             <div style={{fontSize:24,fontWeight:800,color:c.c}}>{c.v}</div>
-            {c.sub&&<div style={{fontSize:12,color:"#94A3B8",marginTop:4,fontWeight:500}}>{c.sub}</div>}
+            {c.sub&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:4,fontWeight:500}}>{c.sub}</div>}
           </Card>
         );})}
       </div>
@@ -2237,8 +2222,8 @@ function CompDet(props){
                   <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:10,background:"#fff",border:"1px solid #E2E8F0",borderLeft:a.level==="danger"?"3px solid #DC2626":"3px solid #CBD5E1"}}>
                     <span style={{fontSize:18,flexShrink:0}}>{a.icon}</span>
                     <div style={{flex:1,minWidth:0}}>
-                      <span style={{fontSize:15,fontWeight:700,color:"#1E293B"}}>{a.emp}</span>
-                      <span style={{fontSize:14,color:"#64748B",marginLeft:8}}>{a.text}</span>
+                      <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#1E293B"}}>{a.emp}</span>
+                      <span style={{fontSize:"var(--fs-sub)",color:"#64748B",marginLeft:8}}>{a.text}</span>
                     </div>
                     <DdayBadge dday={a.dd}/>
                   </div>
@@ -2264,12 +2249,12 @@ function CompDet(props){
             return(
               <Card style={{padding:22,marginBottom:16}}>
                 <h3 style={{margin:"0 0 12px",fontSize:20,fontWeight:700}}>🏛️ 관할·운영기관</h3>
-                <div style={{fontSize:13,color:"#94A3B8",marginBottom:10}}>이 업체가 진행 중인 지원금의 관할기관입니다.</div>
+                <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginBottom:10}}>이 업체가 진행 중인 지원금의 관할기관입니다.</div>
                 <div style={{display:"grid",gap:8}}>
                   {rows.map(function(p){var gp=GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"];return(
                     <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,background:gp.badge,border:"1px solid "+gp.light,flexWrap:"wrap"}}>
-                      <span style={{fontSize:15,fontWeight:700,color:gp.dark}}>{gp.icon} {p.name}</span>
-                      <span style={{fontSize:14,color:"#2563EB",fontWeight:600}}>📍 {p.applyUrl||"공고문 확인"}</span>
+                      <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:gp.dark}}>{gp.icon} {p.name}</span>
+                      <span style={{fontSize:"var(--fs-sub)",color:"#2563EB",fontWeight:600}}>📍 {p.applyUrl||"공고문 확인"}</span>
                     </div>
                   );})}
                 </div>
@@ -2301,8 +2286,8 @@ function CompDet(props){
               <div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:28,marginBottom:6}}>🗒️</div><p style={{color:"#94A3B8",fontSize:15,margin:0}}>첫 일지를 남겨보세요.</p></div>
             ):notes.slice(0,3).map(function(n){return(
               <div key={n.id} style={{padding:"10px 12px",borderRadius:8,background:"#F8FAFC",border:"1px solid #F1F5F9",marginBottom:6}}>
-                <div style={{fontSize:12,color:"#94A3B8",marginBottom:3,display:"flex",alignItems:"center",gap:6}}>{n.type&&<span style={{fontWeight:700,color:n.auto?"#64748B":"#2563EB"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?"·자동":""}</span>}<span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span></div>
-                <div style={{fontSize:15,color:"#1E293B",lineHeight:1.5}}>{n.text}</div>
+                <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginBottom:3,display:"flex",alignItems:"center",gap:6}}>{n.type&&<span style={{fontWeight:700,color:n.auto?"#64748B":"#2563EB"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?"·자동":""}</span>}<span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span></div>
+                <div style={{fontSize:"var(--fs-sub)",color:"#1E293B",lineHeight:1.5}}>{n.text}</div>
               </div>
             );})}
             {notes.length>3&&<div style={{textAlign:"center",marginTop:8}}><button style={Object.assign({},btnSm,{fontSize:13})} onClick={function(){stTab[1]("notes");}}>일지 {notes.length-3}개 더 보기</button></div>}
@@ -2342,9 +2327,9 @@ function CompDet(props){
                   {l:"미수금",v:fMan(commReceivable),c:commReceivable>0?"#DC2626":"#94A3B8",i:commReceivable>0?"⏳":"👍",sub:comm.paid?"입금 완료":comm.billed?"청구 후 미입금":"미청구"}
                 ].map(function(c,i){return(
                   <Card key={i} className="kpi-card" style={{padding:"16px 18px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><span style={{fontSize:14,color:"#64748B",fontWeight:600}}>{c.l}</span><span style={{fontSize:18}}>{c.i}</span></div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><span style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600}}>{c.l}</span><span style={{fontSize:18}}>{c.i}</span></div>
                     <div style={{fontSize:23,fontWeight:800,color:c.c}}>{c.v}</div>
-                    {c.sub&&<div style={{fontSize:12,color:"#94A3B8",marginTop:3}}>{c.sub}</div>}
+                    {c.sub&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:3}}>{c.sub}</div>}
                   </Card>
                 );})}
               </div>
@@ -2423,10 +2408,10 @@ function CompDet(props){
                       <div style={{position:"absolute",left:-19,top:14,width:10,height:10,borderRadius:5,background:n.auto?"#94A3B8":"#2563EB",border:"2px solid #fff",boxShadow:"0 0 0 2px "+(n.auto?"#E2E8F0":"#DBEAFE")}}/>
                       <div style={{background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0",padding:"12px 14px",marginLeft:4}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
-                          <div style={{fontSize:13,color:"#94A3B8",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                            {n.type&&<span style={{fontWeight:700,fontSize:12,padding:"1px 8px",borderRadius:6,background:n.auto?"#F1F5F9":"#DBEAFE",color:n.auto?"#64748B":"#1D4ED8"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?" · 자동":""}</span>}
+                          <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                            {n.type&&<span style={{fontWeight:700,fontSize:"var(--fs-badge)",padding:"2px 8px",borderRadius:6,background:n.auto?"#F1F5F9":"#DBEAFE",color:n.auto?"#64748B":"#1D4ED8"}}>{noteTypeMeta(n.type).icon} {n.type}{n.auto?" · 자동":""}</span>}
                             <span>{fDateTime(n.at)}{n.author&&" · "+n.author}</span>
-                            {n.editedAt&&<span style={{color:"#CBD5E1",fontSize:12}}>(수정됨)</span>}
+                            {n.editedAt&&<span style={{color:"#CBD5E1",fontSize:"var(--fs-meta)"}}>(수정됨)</span>}
                           </div>
                           {!isEditing&&(
                             <div style={{display:"flex",gap:4,flexShrink:0}}>
@@ -2961,21 +2946,21 @@ function NotifBell(props){
             return(<div key={pm.key}>
               <div style={{padding:"8px 18px",background:"#FAFBFC",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:6}}>
                 <span style={{width:8,height:8,borderRadius:4,background:pm.color,display:"inline-block"}}/>
-                <span style={{fontSize:13,fontWeight:700,color:pm.color}}>{pm.label}</span>
-                <span style={{fontSize:12,color:"#94A3B8"}}>{group.length}건</span>
+                <span style={{fontSize:"var(--fs-label)",fontWeight:700,color:pm.color}}>{pm.label}</span>
+                <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{group.length}건</span>
               </div>
               {group.map(function(a){return(
                 <div key={a.id} style={{padding:"11px 18px",borderBottom:"1px solid #F8FAFC"}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                    <span style={{fontSize:11,fontWeight:700,padding:"1px 7px",borderRadius:5,background:pm.bg,color:pm.color}}>{a.type}</span>
+                    <span style={{fontSize:"var(--fs-badge)",fontWeight:700,padding:"2px 8px",borderRadius:5,background:pm.bg,color:pm.color}}>{a.type}</span>
                     {a.dd!==null&&<DdayBadge dday={a.dd}/>}
-                    {a.amount>0&&<span style={{fontSize:13,fontWeight:700,color:"#2563EB",marginLeft:"auto"}}>{fMan(a.amount)}</span>}
+                    {a.amount>0&&<span style={{fontSize:"var(--fs-sub)",fontWeight:700,color:"#2563EB",marginLeft:"auto"}}>{fMan(a.amount)}</span>}
                   </div>
-                  <div style={{fontSize:14,fontWeight:600,color:"#1E293B"}}>{a.empName?a.empName+" · ":""}<span style={{color:"#64748B",fontWeight:400}}>{a.companyName}</span></div>
-                  <div style={{fontSize:13,color:"#64748B",marginTop:1}}>{a.progName?a.progName+" · ":""}{a.text}</div>
+                  <div style={{fontSize:"var(--fs-name)",fontWeight:600,color:"#1E293B"}}>{a.empName?a.empName+" · ":""}<span style={{color:"#64748B",fontWeight:400}}>{a.companyName}</span></div>
+                  <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:1}}>{a.progName?a.progName+" · ":""}{a.text}</div>
                   <div style={{display:"flex",gap:6,marginTop:8}}>
-                    <button onClick={function(){go(a);}} style={{flex:1,background:"#EFF6FF",border:"1px solid #BFDBFE",color:"#1D4ED8",borderRadius:7,padding:"6px 0",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>바로가기</button>
-                    <button onClick={function(){dismiss(a.id);}} style={{flex:1,background:"#F1F5F9",border:"1px solid #E2E8F0",color:"#64748B",borderRadius:7,padding:"6px 0",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리 완료</button>
+                    <button onClick={function(){go(a);}} style={{flex:1,background:"#EFF6FF",border:"1px solid #BFDBFE",color:"#1D4ED8",borderRadius:7,padding:"7px 0",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>바로가기</button>
+                    <button onClick={function(){dismiss(a.id);}} style={{flex:1,background:"#F1F5F9",border:"1px solid #E2E8F0",color:"#64748B",borderRadius:7,padding:"7px 0",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리 완료</button>
                   </div>
                 </div>
               );})}

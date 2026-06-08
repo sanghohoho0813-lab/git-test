@@ -2,6 +2,38 @@
 
 :root {
   --ff: 'Pretendard', 'Pretendard Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+
+  /* ── 반응형 폰트 스케일 (모바일 기준값 = 현재 렌더 크기 유지) ── */
+  --fs-meta: 12px;    /* 리스트 메타: 업체명·날짜·기한·보조설명 */
+  --fs-sub: 13px;     /* 카드 보조 설명 */
+  --fs-name: 14px;    /* 직원명·업체명·지원금명 (리스트 내) */
+  --fs-row: 14px;     /* 리스트 행 본문·금액 */
+  --fs-badge: 12px;   /* 배지·칩 */
+  --fs-btn: 13px;     /* 보조 버튼 */
+  --fs-tab: 15px;     /* 탭 메뉴 */
+  --fs-label: 13px;   /* 카드 내부 라벨 */
+  --fs-dday: 12px;    /* D-day·상태값 */
+  --fs-body: 14px;    /* 본문 */
+  --fs-list: 14px;    /* 표·리스트 */
+  --fs-mini: 10px;    /* 아주 작은 칩 보조 */
+}
+
+/* ── PC 전용 타이포 상향 (모바일 ≤860px 은 위 기준값 유지) ── */
+@media (min-width: 861px) {
+  :root {
+    --fs-meta: 14.5px;
+    --fs-sub: 15px;
+    --fs-name: 17px;
+    --fs-row: 16px;
+    --fs-badge: 14px;
+    --fs-btn: 15.5px;
+    --fs-tab: 17px;
+    --fs-label: 15px;
+    --fs-dday: 15px;
+    --fs-body: 16px;
+    --fs-list: 17px;
+    --fs-mini: 12px;
+  }
 }
 
 body {
