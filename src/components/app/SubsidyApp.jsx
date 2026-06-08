@@ -651,7 +651,7 @@ function Simulator(props){ var programs=props.programs; var st1=useState("youth_
 function JuminInput(props){ var st1=useState(""); function handleChange(e){ var val=e.target.value.replace(/[^0-9]/g,"").substring(0,7); st1[1](val); if(val.length>=7){var parsed=parseJumin(val);if(parsed){props.onParsed(parsed);}}} return(<div><Label color="#1D4ED8">주민번호 앞 7자리 (자동입력)</Label><input style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff"})} value={st1[0]} onChange={handleChange} placeholder="9501011" maxLength={7}/>{st1[0].length===7&&(<div style={{fontSize:11,color:"#059669",marginTop:4}}>✅ 생년월일/성별만 추출되어 저장됩니다 (주민번호 원본은 저장되지 않음)</div>)}<div style={{fontSize:11,color:"#475569",marginTop:6,padding:"7px 9px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:6,lineHeight:1.5}}>🔒 민감정보 보호를 위해 주민등록번호 전체 저장은 권장하지 않습니다. 생년월일과 성별만으로 지원금 요건을 판정합니다. 입력한 7자리는 생년월일·성별 변환에만 쓰이고 저장되지 않습니다.</div></div>); }
 
 function EligChk(props){ var bd=props.bd,gen=props.gen,mil=props.mil,ec=props.ec,xc=props.xc,hd=props.hd; var ageD=calcAgeDetailed(bd,hd); var age=ageD?ageD.years:null; var ageMonths=ageD?ageD.totalMonths:0; var milLimit=gen==="male"?calcMilitaryLimit(mil):{maxTotalMonths:34*12,maxYears:34,maxRemainMonths:0}; var aOk=ageD!==null&&ageMonths>=15*12&&ageMonths<=milLimit.maxTotalMonths; var anyE=Object.values(ec).some(function(v){return v;}); var failedX=EXCL.filter(function(x){return xc[x.id]===false;}); var allXok=EXCL.every(function(x){return xc[x.id]===true;}); var ok=aOk&&anyE&&allXok; var has=bd&&bd!=="2000-01-01"; var maxLabel=milLimit.maxRemainMonths>0?"만"+milLimit.maxYears+"세"+milLimit.maxRemainMonths+"개월":"만"+milLimit.maxYears+"세"; var nearBorder=ageD&&gen==="male"&&mil>0&&ageMonths>34*12&&ageMonths<=milLimit.maxTotalMonths;
-  return(<div style={{border:"2px solid #BFDBFE",borderRadius:10,padding:12,background:"#F0F7FF"}}><div style={{fontSize:14,fontWeight:700,color:"#1D4ED8",marginBottom:8}}>🔍 청년도약 자격요건</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}><div><Label color="#1D4ED8">생년월일</Label><input type="date" style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff",fontSize:12,padding:"8px 10px"})} value={bd||"2000-01-01"} onChange={function(e){props.setBd(e.target.value);}}/></div><div><Label color="#1D4ED8">성별</Label><div style={{display:"flex",gap:3}}>{[["male","남"],["female","여"]].map(function(arr){return <button key={arr[0]} onClick={function(){props.setGen(arr[0]);}} style={Object.assign({},btnSm,{flex:1,background:gen===arr[0]?"#DBEAFE":"#fff",color:gen===arr[0]?"#2563EB":"#64748B",border:gen===arr[0]?"2px solid #93C5FD":"1px solid #E2E8F0",fontSize:11})}>{arr[1]}</button>;})}</div></div>{gen==="male"&&<div><Label color="#1D4ED8">군복무(월)</Label><input type="number" style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff",fontSize:12,padding:"8px 10px"})} value={mil||""} onChange={function(e){props.setMil(Number(e.target.value));}} placeholder="18"/></div>}</div>{age!==null&&<div style={{padding:"4px 8px",borderRadius:4,marginBottom:6,background:aOk?"#D1FAE5":"#FEE2E2",fontSize:12,fontWeight:600}}>{aOk?<span style={{color:"#059669"}}>✅ 만{age}세 (상한: {maxLabel})</span>:<span style={{color:"#DC2626"}}>❌ 만{age}세 미충족</span>}</div>}{nearBorder&&<div style={{padding:"4px 8px",borderRadius:4,marginBottom:6,background:"#F1F5F9",fontSize:11,color:"#64748B"}}>⚠️ 경계선 — 관할기관 확인 필요</div>}<div style={{marginBottom:8}}><div style={{fontSize:12,fontWeight:600,marginBottom:4,color:"#1D4ED8"}}>📋 취업애로요건 (1개↑)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>{ELIG.map(function(e){var isChecked=!!ec[e.id];return(<label key={e.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 6px",borderRadius:4,cursor:"pointer",background:isChecked?"#ECFDF5":"#fff",border:isChecked?"1px solid #A7F3D0":"1px solid #E2E8F0",fontSize:11}} title={e.desc}><input type="checkbox" checked={isChecked} onChange={function(){props.setEc(function(p){var n=Object.assign({},p);n[e.id]=!p[e.id];return n;});}} style={{accentColor:"#059669",width:12,height:12}}/><span style={{color:isChecked?"#059669":"#475569"}}>{e.label}</span></label>);})}</div></div><div style={{marginBottom:8}}><div style={{fontSize:12,fontWeight:600,marginBottom:4,color:"#DC2626"}}>🚫 제외요건 확인</div><div style={{display:"grid",gap:3}}>{EXCL.map(function(x){var isChecked=!!xc[x.id];return(<label key={x.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 6px",borderRadius:4,cursor:"pointer",background:isChecked?"#ECFDF5":"#FEF2F2",border:isChecked?"1px solid #A7F3D0":"1px solid #FECACA",fontSize:11}} title={x.desc}><input type="checkbox" checked={isChecked} onChange={function(){props.setXc(function(p){var n=Object.assign({},p);n[x.id]=!p[x.id];return n;});}} style={{accentColor:"#059669",width:12,height:12}}/><span style={{color:isChecked?"#059669":"#DC2626"}}>{x.label}</span></label>);})}</div></div>{has&&failedX.length>0&&<div style={{padding:"6px 8px",marginBottom:6,borderRadius:4,background:"#F1F5F9",fontSize:11,color:"#64748B"}}>⚠️ 미충족 제외요건 {failedX.length}개 — 진행 전 확인 필요</div>}<div style={{padding:"8px",borderRadius:6,textAlign:"center",background:ok?"#ECFDF5":has?"#F1F5F9":"#F1F5F9",fontSize:13,fontWeight:700}}>{ok?<span style={{color:"#059669"}}>✅ 대상자 예상</span>:has?<span style={{color:"#64748B"}}>⚠️ 일부 요건 확인 필요</span>:<span style={{color:"#64748B"}}>정보입력</span>}</div></div>);
+  return(<div style={{border:"2px solid #BFDBFE",borderRadius:10,padding:12,background:"#F0F7FF"}}><div style={{fontSize:14,fontWeight:700,color:"#1D4ED8",marginBottom:8}}>🔍 청년도약 자격요건</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}><div><Label color="#1D4ED8">생년월일</Label><input type="date" style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff",fontSize:12,padding:"8px 10px"})} value={bd||"2000-01-01"} onChange={function(e){props.setBd(e.target.value);}}/></div><div><Label color="#1D4ED8">성별</Label><div style={{display:"flex",gap:3}}>{[["male","남"],["female","여"]].map(function(arr){return <button key={arr[0]} onClick={function(){props.setGen(arr[0]);}} style={Object.assign({},btnSm,{flex:1,background:gen===arr[0]?"#DBEAFE":"#fff",color:gen===arr[0]?"#2563EB":"#64748B",border:gen===arr[0]?"2px solid #93C5FD":"1px solid #E2E8F0",fontSize:11})}>{arr[1]}</button>;})}</div></div>{gen==="male"&&<div><Label color="#1D4ED8">군복무(월)</Label><input type="number" style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff",fontSize:12,padding:"8px 10px"})} value={mil||""} onChange={function(e){props.setMil(Number(e.target.value));}} placeholder="18"/></div>}</div>{age!==null&&<div style={{padding:"4px 8px",borderRadius:4,marginBottom:6,background:aOk?"#D1FAE5":"#FEE2E2",fontSize:12,fontWeight:600}}>{aOk?<span style={{color:"#059669"}}>✅ 만{age}세 (상한: {maxLabel})</span>:<span style={{color:"#DC2626"}}>❌ 만{age}세 미충족</span>}</div>}{nearBorder&&<div style={{padding:"4px 8px",borderRadius:4,marginBottom:6,background:"#F1F5F9",fontSize:11,color:"#64748B"}}>⚠️ 경계선 — 관할기관 확인 필요</div>}<div style={{marginBottom:8}}><div style={{fontSize:12,fontWeight:600,marginBottom:4,color:"#1D4ED8"}}>📋 취업애로요건 (1개↑)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>{ELIG.map(function(e){var isChecked=!!ec[e.id];return(<label key={e.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 6px",borderRadius:4,cursor:"pointer",background:isChecked?"#ECFDF5":"#fff",border:isChecked?"1px solid #A7F3D0":"1px solid #E2E8F0",fontSize:11}} title={e.desc}><input type="checkbox" checked={isChecked} onChange={function(){props.setEc(function(p){var n=Object.assign({},p);n[e.id]=!p[e.id];return n;});}} style={{accentColor:"#059669",width:12,height:12}}/><span style={{color:isChecked?"#059669":"#475569"}}>{e.label}</span></label>);})}</div></div><div style={{marginBottom:8}}><div style={{fontSize:12,fontWeight:600,marginBottom:4,color:"#DC2626"}}>🚫 제외요건 확인</div><div style={{display:"grid",gap:3}}>{EXCL.map(function(x){var isChecked=!!xc[x.id];return(<label key={x.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 6px",borderRadius:4,cursor:"pointer",background:isChecked?"#ECFDF5":"#FEF2F2",border:isChecked?"1px solid #A7F3D0":"1px solid #FECACA",fontSize:11}} title={x.desc}><input type="checkbox" checked={isChecked} onChange={function(){props.setXc(function(p){var n=Object.assign({},p);n[x.id]=!p[x.id];return n;});}} style={{accentColor:"#059669",width:12,height:12}}/><span style={{color:isChecked?"#059669":"#DC2626"}}>{x.label}</span></label>);})}</div></div>{has&&failedX.length>0&&<div style={{padding:"7px 10px",marginBottom:6,borderRadius:6,background:"#FEF2F2",border:"1px solid #FECACA",fontSize:11,color:"#DC2626",fontWeight:600,lineHeight:1.5}}>🚫 제외요건 {failedX.length}개에 해당할 수 있습니다. 진행 전 반드시 운영기관 확인이 필요합니다. (저장은 가능하며, 상태를 '보류'로 관리하세요)</div>}<div style={{padding:"8px",borderRadius:6,textAlign:"center",background:ok?"#ECFDF5":has?"#F1F5F9":"#F1F5F9",fontSize:13,fontWeight:700}}>{ok?<span style={{color:"#059669"}}>✅ 대상자 예상</span>:has?<span style={{color:"#64748B"}}>⚠️ 일부 요건 확인 필요</span>:<span style={{color:"#64748B"}}>정보입력</span>}</div></div>);
 }
 
 function BulkUpload(props){ var programs=props.programs,onUpload=props.onUpload; var st1=useState(false),st2=useState(""),st3=useState([]),st4=useState(""); function parseData(){if(!st2[0].trim()){st4[1]("데이터를 붙여넣어 주세요");return;}var parsed=parseExcelData(st2[0],programs);if(parsed.length===0){st4[1]("유효한 데이터가 없습니다.");return;}st3[1](parsed);st4[1]("");} function doUpload(){if(st3[0].length===0)return;var n=st3[0].length;onUpload(st3[0]);st1[1](false);st2[1]("");st3[1]([]);toast(n+"명이 등록되었습니다.","success");} function copyTemplate(){navigator.clipboard.writeText(makeExcelTemplate());toast("엑셀 양식이 복사되었습니다.","success");} return(<React.Fragment><button style={btnSm} onClick={function(){st1[1](true);st2[1]("");st3[1]([]);st4[1]("");}}>📥 일괄등록</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📥 직원 일괄 등록" width={600}><div style={{display:"grid",gap:16}}><div style={{padding:14,background:"#EFF6FF",borderRadius:10,border:"1px solid #BFDBFE"}}><div style={{fontSize:14,fontWeight:700,color:"#2563EB",marginBottom:8}}>Step 1. 양식 복사</div><button style={btnSm} onClick={copyTemplate}>📋 양식 복사</button></div><div style={{padding:14,background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}><div style={{fontSize:14,fontWeight:700,color:"#475569",marginBottom:8}}>Step 2. 데이터 붙여넣기</div><textarea style={Object.assign({},inp,{height:110,resize:"none",fontFamily:"monospace",fontSize:11})} value={st2[0]} onChange={function(e){st2[1](e.target.value);st3[1]([]);}} placeholder={"이름\t주민번호앞7자리\t입사일\t연락처\t이메일\t지원금ID"}/>{st4[0]&&<p style={{fontSize:12,color:"#DC2626",marginTop:4}}>{st4[0]}</p>}<button style={Object.assign({},btnP,{marginTop:8})} onClick={parseData}>데이터 확인</button></div>{st3[0].length>0&&(<div style={{padding:14,background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}><div style={{fontSize:14,fontWeight:700,color:"#475569",marginBottom:8}}>Step 3. 확인 및 등록 ({st3[0].length}명)</div><div style={{maxHeight:150,overflow:"auto",marginBottom:8}}>{st3[0].map(function(row,i){return(<div key={i} style={{fontSize:11,padding:"4px 0",borderBottom:"1px solid #F1F5F9"}}>{row.name} · {row.birthDate} · {row.startDate} · {row.phone}</div>);})}</div><button style={Object.assign({},btnP,{width:"100%"})} onClick={doUpload}>✅ {st3[0].length}명 등록하기</button></div>)}</div></Modal></React.Fragment>); }
@@ -1469,6 +1469,7 @@ function EmpCard(props){
           </div>
           <div style={{fontSize:11,color:"#64748B",display:"flex",gap:8,flexWrap:"wrap"}}>
             {emp.startDate&&<span>입사 {fD(emp.startDate)}</span>}
+            {emp.status==="resigned"&&emp.resignDate&&<span style={{color:"#94A3B8"}}>🚪 퇴사 {fD(emp.resignDate)}</span>}
             {ageD&&<span>만{ageD.years}세</span>}
             {paidRounds>0&&<span style={{color:"#059669"}}>✅{paidRounds}/{totalRounds}회차</span>}
             {totalPaid>0&&<span style={{color:"#059669"}}>{fMan(totalPaid)}</span>}
@@ -1581,11 +1582,13 @@ function EmpModal(props){
     replaceHireDate:useState(init.replaceHireDate||""),
     replaceTargetName:useState(init.replaceTargetName||""),
     replaceStartDate:useState(init.replaceStartDate||""),
-    replaceEndDate:useState(init.replaceEndDate||"")
+    replaceEndDate:useState(init.replaceEndDate||""),
+    resignDate:useState(init.resignDate||"")
   };
   function save(){
     if(!st.name[0].trim()){toast("이름을 입력하세요","warn");return;}
     if(!st.programId[0]){toast("지원금을 선택하세요","warn");return;}
+    if(!isValidEmail(st.email[0])){toast("이메일 형식을 확인하세요","warn");return;}
     var p=programs[st.programId[0]];
     var rounds=init.rounds||(p?JSON.parse(JSON.stringify(p.rounds||[])).map(function(r){return Object.assign({},r,{isPaid:false,received:0});}):[]);
     var certDocs=init.certDocs||(p?(CERT_TYPES[st.programId[0]]||[]).map(function(ct){return{id:uid(),label:ct,done:false,files:[]};}):[]);
@@ -1607,6 +1610,7 @@ function EmpModal(props){
       memo:st.memo[0],
       eligConds:st.ec[0],
       exclConds:st.xc[0],
+      resignDate:st.status[0]==="resigned"?st.resignDate[0]:"",
       replaceReason:st.replaceReason[0],
       replaceHireDate:st.replaceHireDate[0],
       replaceTargetName:st.replaceTargetName[0],
@@ -1630,6 +1634,14 @@ function EmpModal(props){
             </select>
           </div>
         </div>
+        {st.status[0]==="resigned"&&(
+          <div style={{padding:"10px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,alignItems:"end"}}>
+              <div><Label>퇴사일</Label><input type="date" style={inp} value={st.resignDate[0]} onChange={function(e){st.resignDate[1](e.target.value);}}/></div>
+              <div style={{fontSize:11,color:"#B45309",lineHeight:1.5,paddingBottom:6}}>⚠️ 퇴사일에 따라 지원금 지급 가능 회차가 달라질 수 있습니다.</div>
+            </div>
+          </div>
+        )}
         {st.programId[0]==="youth_jump"&&(
           <>
             <JuminInput onParsed={function(parsed){st.bd[1](parsed.birthDate);st.gen[1](parsed.gender);st.birthDate[1](parsed.birthDate);st.gender[1](parsed.gender);}}/>
@@ -1642,16 +1654,41 @@ function EmpModal(props){
               </div>
               {(st.gen[0]||st.gender[0])==="male"&&<div><Label>군복무(월)</Label><input type="number" style={inp} value={st.mil[0]||st.milSvc[0]||""} onChange={function(e){st.mil[1](Number(e.target.value));st.milSvc[1](Number(e.target.value));}} placeholder="18"/></div>}
             </div>
+            {(function(){
+              var quota=Number(company.youthQuota||0);
+              var curYouth=(props.employees||[]).filter(function(e){return e.programId==="youth_jump"&&e.status!=="resigned"&&e.id!==init.id;}).length;
+              var willCount=curYouth+1;
+              var over=quota>0&&willCount>quota;
+              var applyD=company.youthApplyDate||"";
+              var inWindow=null;
+              if(applyD&&st.startDate[0]){var lo=addMo(applyD,-3),hi=addMo(applyD,3);inWindow=st.startDate[0]>=lo&&st.startDate[0]<=hi;}
+              if(!quota&&!applyD&&!company.agreementDate)return null;
+              return(
+                <div style={{padding:"10px 14px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,display:"grid",gap:6}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#1D4ED8"}}>⭐ 청년도약 업체 기준 확인</div>
+                  {quota>0&&<div style={{fontSize:12,color:over?"#DC2626":"#475569",fontWeight:over?700:500}}>{over?"🚨 ":"✅ "}청년도약 대상자 {willCount}명 / 기업 지원한도 {quota}명{over?" — 지원한도 초과! 운영기관 확인이 필요합니다.":""}</div>}
+                  {applyD&&st.startDate[0]&&inWindow!==null&&<div style={{fontSize:12,color:inWindow?"#059669":"#DC2626",fontWeight:inWindow?500:700}}>{inWindow?"✅ 참여신청일("+fD(applyD)+") 기준 전후 3개월 이내 채용자입니다.":"⚠️ 참여신청일("+fD(applyD)+") 기준 전후 3개월 기간을 벗어났습니다. 운영기관 확인이 필요합니다."}</div>}
+                  {!company.agreementDate&&<div style={{fontSize:11,color:"#B45309"}}>⚠️ 협약 체결 전에는 실제 신청 진행이 제한될 수 있습니다. (업체 정보에서 협약일 입력)</div>}
+                </div>
+              );
+            })()}
           </>
         )}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <div><Label>입사일 *</Label><input type="date" style={inp} value={st.startDate[0]} onChange={function(e){st.startDate[1](e.target.value);st.hd[1](e.target.value);}}/></div>
-          <div><Label>연락처</Label><input style={inp} value={st.phone[0]} onChange={function(e){st.phone[1](e.target.value);}} placeholder="010-"/></div>
+          <div><Label>연락처</Label><input style={inp} value={st.phone[0]} onChange={function(e){st.phone[1](fmtPhone(e.target.value));}} inputMode="numeric" placeholder="010-0000-0000"/></div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <div><Label>이메일</Label><input style={inp} value={st.email[0]} onChange={function(e){st.email[1](e.target.value);}}/></div>
+          <div><Label>이메일</Label><input type="email" style={inp} value={st.email[0]} onChange={function(e){st.email[1](e.target.value);}} placeholder="name@email.com"/></div>
           <div><Label>월급여(원)</Label><input type="number" style={inp} value={st.salary[0]} onChange={function(e){st.salary[1](e.target.value);}} placeholder="2200000"/></div>
         </div>
+        {(function(){var wc=checkWage(clampMoney(st.salary[0]),st.weeklyHours[0]);if(!wc||!st.salary[0])return null;if(wc.isAboveMin)return null;return(
+          <div style={{padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#DC2626",marginBottom:4}}>⚠️ 최저임금 미달 가능성</div>
+            <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>{st.programId[0]==="youth_jump"?"최저임금 미달 가능성이 있어 청년일자리도약장려금 진행이 어려울 수 있습니다. ":"최저임금 미달 가능성이 있습니다. "}월 환산 최저 {wc.minMonthly.toLocaleString()}원 이상이 필요합니다.</div>
+            {props.onOpenWage&&<button style={Object.assign({},btnSm,{marginTop:6,fontSize:12,background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE"})} onClick={function(){props.onClose&&props.onClose();props.onOpenWage();}}>🧮 급여 계산기로 확인하기</button>}
+          </div>
+        );})()}
         <div>
           <Label>지원금 *</Label>
           {(function(){
@@ -2112,6 +2149,25 @@ function CompDet(props){
               </div>
             );})}
           </Card>
+          {(function(){
+            var seen={};var rows=[];
+            compEmps.forEach(function(e){if(e.status==="resigned")return;var p=programs[e.programId];if(!p||seen[p.id])return;seen[p.id]=true;rows.push(p);});
+            if(rows.length===0)return null;
+            return(
+              <Card style={{padding:22,marginBottom:16}}>
+                <h3 style={{margin:"0 0 12px",fontSize:20,fontWeight:700}}>🏛️ 관할·운영기관</h3>
+                <div style={{fontSize:13,color:"#94A3B8",marginBottom:10}}>이 업체가 진행 중인 지원금의 관할기관입니다.</div>
+                <div style={{display:"grid",gap:8}}>
+                  {rows.map(function(p){var gp=GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"];return(
+                    <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,background:gp.badge,border:"1px solid "+gp.light,flexWrap:"wrap"}}>
+                      <span style={{fontSize:15,fontWeight:700,color:gp.dark}}>{gp.icon} {p.name}</span>
+                      <span style={{fontSize:14,color:"#2563EB",fontWeight:600}}>📍 {p.applyUrl||"공고문 확인"}</span>
+                    </div>
+                  );})}
+                </div>
+              </Card>
+            );
+          })()}
           <Card style={{padding:22,marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <h3 style={{margin:0,fontSize:20,fontWeight:700}}>📁 업체 서류 진행률</h3>
@@ -2299,11 +2355,13 @@ function CompDet(props){
       {/* Modals */}
       {(st1[0]||st2[0])&&(
         <EmpModal open={true} onClose={function(){st1[1](false);st2[1](null);}}
-          emp={st2[0]} company={company} programs={programs} onSave={handleSaveEmp}/>
+          emp={st2[0]} company={company} programs={programs} employees={compEmps} onSave={handleSaveEmp} onOpenWage={props.onOpenWage}/>
       )}
       <RoundModal open={!!st3[0]&&st4[0]!==null} onClose={function(){st3[1](null);st4[1](null);}}
         emp={st3[0]} roundIndex={st4[0]} programs={programs} onSave={handleRoundSave}/>
-      {st6[0]&&<CompanyEditModal open={true} onClose={function(){st6[1](false);}} company={company} onSave={function(data){props.onPatchCompany(company.id,data);st6[1](false);toast("업체 정보가 저장되었습니다.","success");}}/>}
+      {st6[0]&&<CompanyEditModal open={true} onClose={function(){st6[1](false);}} company={company}
+        onSave={function(data){props.onPatchCompany(company.id,data);st6[1](false);toast("업체 정보가 저장되었습니다.","success");}}
+        onDelete={props.onDeleteCompany?function(id){props.onDeleteCompany(id);st6[1](false);if(props.goBack)props.goBack();}:null}/>}
     </div>
   );
 }
@@ -2320,6 +2378,10 @@ function CompanyEditModal(props){
     addr:useState(c.addr||""),
     phone:useState(c.phone||""),
     email:useState(c.email||""),
+    managerName:useState(c.managerName||""),
+    managerTitle:useState(c.managerTitle||""),
+    managerEmail:useState(c.managerEmail||""),
+    payday:useState(c.payday||""),
     empCount:useState(c.empCount||""),
     bizType:useState(c.bizType||""),
     corpType:useState(c.corpType||"개인"),
@@ -2327,12 +2389,20 @@ function CompanyEditModal(props){
     sector:useState(c.sector||""),
     region:useState(c.region||"비수도권"),
     insuranceDate:useState(c.insuranceDate||""),
+    youthQuota:useState(c.youthQuota||""),
+    youthApplyDate:useState(c.youthApplyDate||""),
+    agreementDate:useState(c.agreementDate||""),
+    bizStatus:useState(c.bizStatus||"정상"),
+    customStatus:useState(c.customStatus||""),
+    statusMemo:useState(c.statusMemo||""),
     memo:useState(c.memo||""),
     tags:useState(c.tags||[])
   };
+  var needsStatusMemo=["보류","중단","진행불가"].indexOf(st.bizStatus[0])>=0;
   function save(){
     if(!st.name[0].trim()){toast("업체명을 입력하세요","warn");return;}
     if(!isValidEmail(st.email[0])){toast("이메일 형식을 확인하세요","warn");return;}
+    if(!isValidEmail(st.managerEmail[0])){toast("담당자 이메일 형식을 확인하세요","warn");return;}
     var data={};
     Object.keys(st).forEach(function(k){data[k]=st[k][0];});
     data.name=data.name.trim();
@@ -2366,10 +2436,19 @@ function CompanyEditModal(props){
             );})}
           </div>
         </div>}
-        <div><Label>주소</Label><input style={inp} value={st.addr[0]} onChange={function(e){st.addr[1](e.target.value);}}/></div>
+        <div>
+          <Label>주소</Label>
+          <input style={inp} value={st.addr[0]} onChange={function(e){st.addr[1](e.target.value);}} placeholder="협약서·서류 원본 우편 발송에 사용됩니다"/>
+          <div style={{fontSize:11,color:"#94A3B8",marginTop:4}}>📮 협약서 체결·서류 원본 보관·우편 발송에 필요하므로 정확히 입력해 주세요.</div>
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <div><Label>전화</Label><input style={inp} value={st.phone[0]} onChange={function(e){st.phone[1](fmtPhone(e.target.value));}} inputMode="numeric" placeholder="02-000-0000"/></div>
-          <div><Label>이메일</Label><input type="email" style={inp} value={st.email[0]} onChange={function(e){st.email[1](e.target.value);}} placeholder="name@company.com"/></div>
+          <div><Label>대표 이메일</Label><input type="email" style={inp} value={st.email[0]} onChange={function(e){st.email[1](e.target.value);}} placeholder="name@company.com"/></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+          <div><Label>담당자명</Label><input style={inp} value={st.managerName[0]} onChange={function(e){st.managerName[1](e.target.value);}} placeholder="실무 담당자"/></div>
+          <div><Label>담당자 직함</Label><input style={inp} value={st.managerTitle[0]} onChange={function(e){st.managerTitle[1](e.target.value);}} placeholder="과장·팀장 등"/></div>
+          <div><Label>담당자 이메일</Label><input type="email" style={inp} value={st.managerEmail[0]} onChange={function(e){st.managerEmail[1](e.target.value);}} placeholder="manager@company.com"/></div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           <div><Label>상시근로자 수</Label><input type="number" style={inp} value={st.empCount[0]} onChange={function(e){st.empCount[1](e.target.value);}}/></div>
@@ -2399,6 +2478,28 @@ function CompanyEditModal(props){
             </div>
           )}
         </div>
+        {/* 청년일자리도약장려금 진행 정보 */}
+        <div style={{padding:"12px 14px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#1D4ED8",marginBottom:10}}>⭐ 청년일자리도약장려금 진행 정보</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div><Label>기업 지원한도 인원수</Label><input type="number" min="0" style={inp} value={st.youthQuota[0]} onChange={function(e){st.youthQuota[1](e.target.value);}} placeholder="예: 5"/></div>
+            <div><Label>급여일 (매월)</Label><input type="number" min="1" max="31" style={inp} value={st.payday[0]} onChange={function(e){st.payday[1](e.target.value);}} placeholder="예: 25"/></div>
+            <div><Label>참여신청일</Label><input type="date" style={inp} value={st.youthApplyDate[0]} onChange={function(e){st.youthApplyDate[1](e.target.value);}}/></div>
+            <div><Label>협약일</Label><input type="date" style={inp} value={st.agreementDate[0]} onChange={function(e){st.agreementDate[1](e.target.value);}}/></div>
+          </div>
+          {!st.agreementDate[0]&&<div style={{fontSize:11,color:"#B45309",marginTop:8,padding:"6px 10px",background:"#FFFBEB",borderRadius:6,border:"1px solid #FDE68A"}}>⚠️ 협약 체결 전에는 실제 신청 진행이 제한될 수 있습니다.</div>}
+        </div>
+        {/* 업체 진행 상태 */}
+        <div>
+          <Label>업체 진행 상태</Label>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            {["정상","보류","중단","확인 필요","진행 불가","기타"].map(function(s){var on=st.bizStatus[0]===s;var danger=["보류","중단","진행 불가"].indexOf(s)>=0;return(
+              <button key={s} onClick={function(){st.bizStatus[1](s);}} style={Object.assign({},btnSm,{fontSize:13,background:on?(danger?"#FEE2E2":s==="확인 필요"?"#FEF3C7":"#DBEAFE"):"#fff",color:on?(danger?"#DC2626":s==="확인 필요"?"#B45309":"#2563EB"):"#64748B",border:on?"2px solid "+(danger?"#FECACA":s==="확인 필요"?"#FDE68A":"#93C5FD"):"1px solid #E2E8F0"})}>{s}</button>
+            );})}
+          </div>
+          {st.bizStatus[0]==="기타"&&<input style={Object.assign({},inp,{marginTop:6})} value={st.customStatus[0]} onChange={function(e){st.customStatus[1](e.target.value);}} placeholder="상태 직접 입력"/>}
+          {needsStatusMemo&&<textarea style={Object.assign({},inp,{height:50,resize:"none",marginTop:6})} value={st.statusMemo[0]} onChange={function(e){st.statusMemo[1](e.target.value);}} placeholder="보류·중단·진행불가 사유를 입력하세요"/>}
+        </div>
         <div>
           <Label>태그</Label>
           <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}}>
@@ -2411,9 +2512,16 @@ function CompanyEditModal(props){
           </div>
         </div>
         <div><Label>메모</Label><textarea style={Object.assign({},inp,{height:60,resize:"none"})} value={st.memo[0]} onChange={function(e){st.memo[1](e.target.value);}}/></div>
-        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-          <button style={btnS} onClick={props.onClose}>취소</button>
-          <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>업체 저장</button>
+        <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center",flexWrap:"wrap"}}>
+          <div>
+            {props.onDelete&&props.company&&props.company.id&&(
+              <button style={Object.assign({},btnS,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){if(window.confirm("'"+(props.company.name||"")+"' 업체를 삭제하시겠습니까?\n해당 업체의 직원·서류·정산 내역이 기본 목록에서 함께 보이지 않게 됩니다."))props.onDelete(props.company.id);}}>🗑️ 업체 삭제</button>
+            )}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button style={btnS} onClick={props.onClose}>취소</button>
+            <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>업체 저장</button>
+          </div>
         </div>
       </div>
     </Modal>
@@ -2428,14 +2536,15 @@ function ProgramsList(props){
   var st={
     name:useState(""),
     group:useState("커스텀"),
+    year:useState(2026),
     totalAmount:useState(""),
     desc:useState(""),
     note:useState(""),
     applyUrl:useState(""),
     rounds:useState([])  // [{month,label,amount}]
   };
-  function openNew(){st2[1](null);st.name[1]("");st.group[1]("커스텀");st.totalAmount[1]("");st.desc[1]("");st.note[1]("");st.applyUrl[1]("");st.rounds[1]([{month:6,label:"1회차",amount:0}]);st1[1](true);}
-  function openEdit(p){st2[1](p);st.name[1](p.name||"");st.group[1](p.group||"커스텀");st.totalAmount[1](p.totalAmount||"");st.desc[1](p.desc||"");st.note[1](p.note||"");st.applyUrl[1](p.applyUrl||"");st.rounds[1]((p.rounds||[]).map(function(r){return{month:r.month,label:r.label||"",amount:r.expectedAmount||r.amount||0};}));st1[1](true);}
+  function openNew(){st2[1](null);st.name[1]("");st.group[1]("커스텀");st.year[1](2026);st.totalAmount[1]("");st.desc[1]("");st.note[1]("");st.applyUrl[1]("");st.rounds[1]([{month:6,label:"1회차",amount:0}]);st1[1](true);}
+  function openEdit(p){st2[1](p);st.name[1](p.name||"");st.group[1](p.group||"커스텀");st.year[1](p.year||2026);st.totalAmount[1](p.totalAmount||"");st.desc[1](p.desc||"");st.note[1](p.note||"");st.applyUrl[1](p.applyUrl||"");st.rounds[1]((p.rounds||[]).map(function(r){return{month:r.month,label:r.label||"",amount:r.expectedAmount||r.amount||0};}));st1[1](true);}
   function setRound(i,field,val){var rs=st.rounds[0].slice();rs[i]=Object.assign({},rs[i],{[field]:val});st.rounds[1](rs);}
   function addRound(){st.rounds[1](st.rounds[0].concat([{month:12,label:(st.rounds[0].length+1)+"회차",amount:0}]));}
   function delRound(i){st.rounds[1](st.rounds[0].filter(function(_,idx){return idx!==i;}));}
@@ -2449,6 +2558,7 @@ function ProgramsList(props){
       id:existing.id||("custom_"+uid()),
       name:st.name[0].trim(),
       group:existing.group||"커스텀",
+      year:Number(st.year[0])||2026,
       totalAmount:total,
       desc:st.desc[0],
       note:st.note[0],
@@ -2516,6 +2626,7 @@ function ProgramsList(props){
                       <div style={{flex:1,minWidth:180}}>
                         <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6,flexWrap:"wrap"}}>
                           <span style={{fontSize:FS_CARD_TITLE,fontWeight:700,wordBreak:"keep-all"}}>{p.name}</span>
+                          {p.year&&<Badge color="#475569" bg="#F1F5F9">{p.year}년</Badge>}
                           {isYouth&&<Badge color="#D97706" bg="#FEF3C7">⭐ 추천</Badge>}
                           {isCustom&&<Badge color={gp.text} bg={gp.badge}>커스텀</Badge>}
                           <Badge color={gp.dark} bg={gp.light}>{fMan(p.totalAmount||0)}</Badge>
@@ -2545,7 +2656,10 @@ function ProgramsList(props){
       })}
       <Modal open={st1[0]} onClose={function(){st1[1](false);st2[1](null);}} title={(st2[0]?"지원금 편집":"커스텀 지원금 추가")} width={560}>
         <div style={{display:"grid",gap:16}}>
-          <div><Label>지원금명 *</Label><input style={inp} value={st.name[0]} onChange={function(e){st.name[1](e.target.value);}}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12}}>
+            <div><Label>지원금명 *</Label><input style={inp} value={st.name[0]} onChange={function(e){st.name[1](e.target.value);}}/></div>
+            <div><Label>적용연도</Label><input type="number" min="2020" max="2030" style={inp} value={st.year[0]} onChange={function(e){st.year[1](e.target.value);}} placeholder="2026"/></div>
+          </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div><Label>총 지원금액(원)</Label><input type="number" style={inp} value={st.totalAmount[0]} onChange={function(e){st.totalAmount[1](e.target.value);}} placeholder="7200000"/></div>
             <div><Label>신청처/URL</Label><input style={inp} value={st.applyUrl[0]} onChange={function(e){st.applyUrl[1](e.target.value);}} placeholder="고용24(work24.go.kr)"/></div>
@@ -3426,7 +3540,7 @@ export default function SubsidyApp(props){
           <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"11px 48px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
             <span style={{...neutralBadge(),flexShrink:0}}>샘플</span>
             <div style={{flex:1,minWidth:200}}>
-              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 체험 중입니다. 실제 고객사 정보가 아닌 가상 데이터(5개 고객사·18명)이며, 언제든 삭제할 수 있습니다.</span>
+              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(5개 고객사·18명)이며, 언제든 삭제할 수 있습니다.</span>
             </div>
             <button onClick={deleteSampleData} style={{background:"#fff",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>샘플 데이터 삭제</button>
           </div>
@@ -3481,8 +3595,10 @@ export default function SubsidyApp(props){
               onPatchEmployee={onPatchEmployee}
               onDeleteEmployee={onDeleteEmployee}
               onPatchCompany={onPatchCompany}
+              onDeleteCompany={onDeleteCompany}
               onLog={logToCompany}
               onOpenBilling={props.onOpenBilling}
+              onOpenWage={function(){stView[1]("wage");stCompany[1](null);}}
             />
           )}
 
