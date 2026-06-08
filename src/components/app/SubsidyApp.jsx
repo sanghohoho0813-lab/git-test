@@ -1328,26 +1328,26 @@ function Dashboard(props){
       var hasOverdue=metrics.overdueCount>0;
       var hasTrial=props.isTrial&&props.companies.length>0;
       var overdueBlock=hasOverdue?(
-        <div style={{borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
-          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
+        <div style={{borderRadius:12,overflow:"hidden",background:"#DC2626",border:"none",boxShadow:"0 4px 16px rgba(220,38,38,0.22)"}}>
+          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid rgba(255,255,255,0.18)"}}>
             <span style={{fontSize:16}}>🚨</span>
-            <span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>즉시 확인 필요 — 기한 경과 {metrics.overdueCount}건</span>
-            <span style={{...dangerBadge(),marginLeft:"auto"}}>예상 {fMan(metrics.overdueAmount)} 위험</span>
+            <span style={{fontSize:16,fontWeight:800,color:"#fff"}}>즉시 확인 필요 — 기한 경과 {metrics.overdueCount}건</span>
+            <span style={{marginLeft:"auto",fontSize:"var(--fs-badge)",fontWeight:800,color:"#DC2626",background:"#fff",borderRadius:999,padding:"3px 11px"}}>예상 {fMan(metrics.overdueAmount)} 위험</span>
           </div>
           <div style={{padding:"3px 6px"}}>
             {metrics.overdueList.slice(0,4).map(function(o,i){return(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid #F8FAFC":"none"}}>
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid rgba(255,255,255,0.15)":"none"}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
-                    <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A"}}>{o.empName}</span>
-                    <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{o.companyName}</span>
+                    <span style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#fff"}}>{o.empName}</span>
+                    <span style={{fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.82)"}}>{o.companyName}</span>
                   </div>
-                  <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:1}}>{o.programName} {o.roundLabel} · <strong style={{color:"#DC2626"}}>{Math.abs(o.dd)}일 지연</strong> · {fMan(o.amount)}</div>
+                  <div style={{fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.9)",marginTop:1}}>{o.programName} {o.roundLabel} · <strong style={{color:"#fff"}}>{Math.abs(o.dd)}일 지연</strong> · <strong style={{color:"#fff"}}>{fMan(o.amount)}</strong></div>
                 </div>
-                <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"7px 13px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리 →</button>
+                <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#fff",color:"#DC2626",border:"none",borderRadius:8,padding:"7px 13px",fontSize:"var(--fs-btn)",fontWeight:800,cursor:"pointer",fontFamily:FF}}>처리 →</button>
               </div>
             );})}
-            {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"7px 0",fontSize:"var(--fs-meta)",color:"#94A3B8"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
+            {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"7px 0",fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.85)"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
           </div>
         </div>
       ):null;
@@ -1356,20 +1356,20 @@ function Dashboard(props){
         var sched=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)sched++;});});
         var items=[["예상 지원금",fMan(stats.tE)],["관리 업체",props.companies.length+"개"],["대상자",active.length+"명"],["신청 일정",sched+"건"]];
         return(
-          <div style={{borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #2563EB"}}>
-            <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
-              <span style={{...primaryBadge()}}>무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일":""}</span>
-              <span style={{fontSize:"var(--fs-sub)",fontWeight:700,color:"#0F172A"}}>이만큼 관리 중이에요</span>
+          <div style={{borderRadius:12,overflow:"hidden",background:"#14B8A6",border:"none",boxShadow:"0 4px 16px rgba(20,184,166,0.22)"}}>
+            <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid rgba(255,255,255,0.22)"}}>
+              <span style={{fontSize:"var(--fs-badge)",fontWeight:800,color:"#0F766E",background:"rgba(255,255,255,0.92)",borderRadius:999,padding:"3px 11px"}}>무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일":""}</span>
+              <span style={{fontSize:"var(--fs-sub)",fontWeight:800,color:"#fff"}}>이만큼 관리 중이에요</span>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
               {items.map(function(it,i){return(
-                <div key={i} style={{padding:"11px 16px",borderRight:i%2===0?"1px solid #F1F5F9":"none",borderBottom:i<2?"1px solid #F1F5F9":"none"}}>
-                  <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",fontWeight:600,marginBottom:3}}>{it[0]}</div>
-                  <div style={{fontSize:19,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>{it[1]}</div>
+                <div key={i} style={{padding:"11px 16px",borderRight:i%2===0?"1px solid rgba(255,255,255,0.22)":"none",borderBottom:i<2?"1px solid rgba(255,255,255,0.22)":"none"}}>
+                  <div style={{fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.85)",fontWeight:600,marginBottom:3}}>{it[0]}</div>
+                  <div style={{fontSize:19,fontWeight:800,color:"#fff",letterSpacing:"-0.5px"}}>{it[1]}</div>
                 </div>
               );})}
             </div>
-            <button onClick={props.onOpenBilling||function(){}} style={{width:"100%",background:"#2563EB",color:"#fff",border:"none",padding:"11px 0",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>지금 구독하고 계속 관리하기 →</button>
+            <button onClick={props.onOpenBilling||function(){}} style={{width:"100%",background:"#0F766E",color:"#fff",border:"none",padding:"12px 0",fontSize:"var(--fs-btn)",fontWeight:800,cursor:"pointer",fontFamily:FF}}>지금 구독하고 계속 관리하기 →</button>
           </div>
         );
       })():null;
