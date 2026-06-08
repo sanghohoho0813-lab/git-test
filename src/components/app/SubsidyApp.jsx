@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { TeamSettings } from "../TeamSettings";
 import { validateUploadFile, ALLOWED_FILE_EXT, MAX_FILE_MB } from "../../hooks/useData";
 
@@ -3301,10 +3302,12 @@ function ProductTour(props){
   function next(){if(isLast)props.onClose();else setStep(function(s){return s+1;});}
   function prev(){setStep(function(s){return s-1;});}
 
+  // 1단계(index 0)·마지막 단계는 무조건 중앙 모달 — anchor/rect 계산을 절대 타지 않는다
+  var centered=!cur.target;
   var tStyle={position:"fixed",width:TW,background:"#fff",borderRadius:20,padding:"28px 30px",boxShadow:"0 24px 64px rgba(15,23,42,0.35), 0 0 0 1px rgba(0,0,0,0.06)",zIndex:4010,fontFamily:FF,boxSizing:"border-box"};
-  if(!rect){
-    // 1단계·7단계: 특정 요소에 붙이지 않고 화면 정중앙 모달로 표시 (모바일에서도 잘리지 않게 반응형 폭)
-    Object.assign(tStyle,{top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"min(420px, calc(100vw - 32px))",maxHeight:"calc(100dvh - 40px)",overflowY:"auto",padding:"clamp(22px,5vw,28px)"});
+  if(centered||!rect){
+    // 화면 정중앙 고정 모달 (transform 기반 중앙 정렬 — fade-in(불투명도만) 사용해 translate 덮어쓰기 방지)
+    Object.assign(tStyle,{top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"min(360px, calc(100vw - 40px))",maxWidth:"calc(100vw - 40px)",maxHeight:"calc(100dvh - 80px)",overflowY:"auto",padding:"clamp(22px,5vw,28px)"});
   } else {
     var side=cur.side||"right"; var gap=18;
     if(side==="right"){
@@ -3317,11 +3320,11 @@ function ProductTour(props){
     }
   }
 
-  return(
+  return createPortal(
     <div style={{position:"fixed",inset:0,zIndex:4000}} onClick={function(e){e.stopPropagation();}}>
-      {!rect&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.72)",zIndex:4000}}/>}
-      {rect&&<div style={{position:"fixed",top:rect.top-PAD,left:rect.left-PAD,width:rect.width+PAD*2,height:rect.height+PAD*2,borderRadius:16,boxShadow:"0 0 0 9999px rgba(15,23,42,0.68)",border:"2px solid rgba(99,102,241,0.7)",zIndex:4005,pointerEvents:"none",transition:"all 0.25s ease"}}/>}
-      <div style={tStyle} className="fade-in-up">
+      {(centered||!rect)&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.72)",zIndex:4000}}/>}
+      {!centered&&rect&&<div style={{position:"fixed",top:rect.top-PAD,left:rect.left-PAD,width:rect.width+PAD*2,height:rect.height+PAD*2,borderRadius:16,boxShadow:"0 0 0 9999px rgba(15,23,42,0.68)",border:"2px solid rgba(99,102,241,0.7)",zIndex:4005,pointerEvents:"none",transition:"all 0.25s ease"}}/>}
+      <div style={tStyle} className={(centered||!rect)?"fade-in":"fade-in-up"}>
         <div style={{display:"flex",gap:5,marginBottom:22,alignItems:"center"}}>
           {STEPS.map(function(_,i){return(
             <div key={i} style={{height:6,width:i===step?20:6,borderRadius:3,background:i===step?"#2563EB":i<step?"#93C5FD":"#E2E8F0",transition:"all 0.3s ease"}}/>
@@ -3340,7 +3343,8 @@ function ProductTour(props){
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -3470,10 +3474,10 @@ export default function SubsidyApp(props){
 
   function NavItem(p){
     return(
-      <div data-tour={p.tourId} style={SB.item(p.active)} onClick={p.onClick}
+      <div data-tour={p.tourId} className="sb-item" style={SB.item(p.active)} onClick={p.onClick}
         onMouseEnter={function(e){if(!p.active)e.currentTarget.style.background="rgba(255,255,255,0.08)";}}
         onMouseLeave={function(e){if(!p.active)e.currentTarget.style.background="transparent";}}>
-        <span style={SB.icon}>{p.icon}</span>
+        <span style={SB.icon} className="sb-icon">{p.icon}</span>
         <span>{p.label}</span>
         {p.active&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:3,background:"#60A5FA",flexShrink:0,boxShadow:"0 0 8px #60A5FA"}}/>}
       </div>
@@ -3491,12 +3495,12 @@ export default function SubsidyApp(props){
       {/* ── 사이드바 ── */}
       <div className={"app-sidebar"+(stMobileNav[0]?" open":"")} style={SB.wrap} data-tour="sidebar">
         {/* 브랜드 */}
-        <div style={SB.brand}>
-          <div style={SB.brandTitle}>🏛 고용지원금 Pro</div>
-          <div style={{fontSize:13,color:"#64748B",marginTop:6,lineHeight:1.45,fontWeight:500}}>컨설턴트를 위한 고용지원금 운영관리 시스템</div>
-          {orgName&&<div style={{fontSize:14,color:"#93C5FD",marginTop:8,fontWeight:600}}>{orgName}</div>}
+        <div style={SB.brand} className="sb-brand">
+          <div style={SB.brandTitle} className="sb-brand-title">🏛 고용지원금 Pro</div>
+          <div className="sb-brand-sub" style={{fontSize:13,color:"#64748B",marginTop:6,lineHeight:1.45,fontWeight:500}}>컨설턴트를 위한 고용지원금 운영관리 시스템</div>
+          {orgName&&<div className="sb-org" style={{fontSize:14,color:"#93C5FD",marginTop:8,fontWeight:600}}>{orgName}</div>}
           {trialDays!==null&&trialDays!==undefined&&(
-            <div style={{marginTop:10,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.3)"}}>
+            <div className="sb-trial" style={{marginTop:10,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.3)"}}>
               <span style={{fontSize:16}}>⏳</span>
               <span style={{fontSize:17,color:"#93C5FD",fontWeight:600}}>무료체험 {trialDays}일 남음</span>
             </div>
@@ -3529,7 +3533,7 @@ export default function SubsidyApp(props){
             var doneCount=steps.filter(function(s){return s.done;}).length;
             if(doneCount===steps.length)return null; // 모두 완료 시 숨김
             return(
-              <div style={{margin:"14px 16px 0",padding:"12px 14px",background:"rgba(255,255,255,0.06)",borderRadius:12,border:"1px solid rgba(255,255,255,0.10)"}}>
+              <div className="sb-onboard" style={{margin:"14px 16px 0",padding:"12px 14px",background:"rgba(255,255,255,0.06)",borderRadius:12,border:"1px solid rgba(255,255,255,0.10)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <span style={{fontSize:13,fontWeight:700,color:"#E2E8F0"}}>🚀 시작하기</span>
                   <span style={{fontSize:12,color:"#64748B"}}>{doneCount}/{steps.length}</span>
@@ -3550,23 +3554,23 @@ export default function SubsidyApp(props){
         </div>
 
         {/* 하단: 유저 정보 + 버튼 */}
-        <div style={SB.bottom}>
-          <div style={SB.user} onClick={function(){stProfileOpen[1](true);}} title="프로필 설정">
-            <div style={SB.avatar}>{(profile.display_name||"?").charAt(0)}</div>
+        <div style={SB.bottom} className="sb-bottom">
+          <div style={SB.user} className="sb-user" onClick={function(){stProfileOpen[1](true);}} title="프로필 설정">
+            <div style={SB.avatar} className="sb-avatar">{(profile.display_name||"?").charAt(0)}</div>
             <div style={{minWidth:0}}>
-              <div style={SB.userName}>{profile.display_name||"사용자"}</div>
-              <div style={SB.userRole}>{profile.title||"담당자"}</div>
+              <div style={SB.userName} className="sb-username">{profile.display_name||"사용자"}</div>
+              <div style={SB.userRole} className="sb-userrole">{profile.title||"담당자"}</div>
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
+          <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
             <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
             {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
           </div>
-          <button style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
-          <div style={SB.actions}>
-            <button style={SB.actionBtn()} onClick={function(){stProfileOpen[1](true);}}>설정</button>
-            <button style={SB.actionBtn("#93C5FD")} onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
-            <button style={SB.actionBtn("#FCA5A5")} onClick={onSignOut}>로그아웃</button>
+          <button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
+          <div style={SB.actions} className="sb-actions">
+            <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
+            <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
+            <button style={SB.actionBtn("#FCA5A5")} className="sb-actionbtn" onClick={onSignOut}>로그아웃</button>
           </div>
         </div>
       </div>
