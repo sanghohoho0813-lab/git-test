@@ -726,7 +726,7 @@ function PDFReport(props){ var company=props.company,employees=props.employees,p
 function CommissionReport(props){
   var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile;
   var st1=useState(false);
-  var stRate=useState(String((company.commission&&company.commission.rate)!=null?company.commission.rate:10));
+  var stRate=useState(String((company.commission&&company.commission.rate)!=null?company.commission.rate:20));
   var activeEmps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";});
   var totalReceived=activeEmps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);
   var fee=Math.round(totalReceived*(Number(stRate[0])||0)/100);
@@ -1054,20 +1054,20 @@ function DdayAlerts(props){
   if(alerts.length===0)return null;
   var overdueCount=alerts.filter(function(a){return a.dday<0;}).length;
   return(
-    <Card style={{marginBottom:18,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
-      <div style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+    <Card style={{marginBottom:16,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <span style={{fontSize:18}}>🔔</span>
         <span style={{fontSize:17,fontWeight:700,color:"#0F172A"}}>오늘 바로 해야 할 일</span>
         {overdueCount>0&&<span style={{...dangerBadge()}}>기한 초과 {overdueCount}건</span>}
         <span style={{...neutralBadge(),marginLeft:overdueCount>0?0:"auto"}}>총 {alerts.length}건</span>
       </div>
-      <div style={{padding:"6px 12px",maxHeight:200,overflow:"auto"}}>
+      <div className="dday-grid" style={{padding:"6px 8px",maxHeight:230,overflow:"auto"}}>
         {alerts.map(function(a){
           var isOverdue=a.dday<0;
           return(
-            <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginBottom:2,borderRadius:8,cursor:"pointer",background:isOverdue?"#FFF5F5":"transparent"}}
+            <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",background:isOverdue?"#FFF5F5":"transparent"}}
               onClick={function(){props.goCompany(a.companyId);}}>
-              <div>
+              <div style={{minWidth:0,overflow:"hidden"}}>
                 <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:isOverdue?"#DC2626":"#0F172A"}}>{a.empName}</span>
                 <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginLeft:6}}>{a.companyName}</span>
                 {a.roundLabel&&<span style={{fontSize:"var(--fs-meta)",color:"#CBD5E1",marginLeft:4}}>· {a.roundLabel}</span>}
@@ -1236,7 +1236,7 @@ function Dashboard(props){
     var thisMonthFee=0,unbilled=0,unpaid=0,collected=0;
     var now=new Date(),cy=now.getFullYear(),cm=now.getMonth();
     (st1[0]==="all"?props.companies:props.companies.filter(function(c){return c.id===st1[0];})).forEach(function(c){
-      var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0; var useS=cc.successFee!==false;
+      var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:20; var ret=cc.retainer||0; var useS=cc.successFee!==false;
       var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
       var rcv=0,monthExp=0;
       emps.forEach(function(e){(e.rounds||[]).forEach(function(r){
@@ -1277,8 +1277,8 @@ function Dashboard(props){
         {icon:"✅",label:"이번 달 수령",val:fManS(metrics.thisMonthReceived),unit:"원",sub:metrics.trend!=null?(metrics.trend>=0?"▲":"▼")+" "+Math.abs(metrics.trend)+"% 전월 대비":"전월 비교 없음",bg:"#059669",spark:true}
       ];
       return(
-        <div style={{marginBottom:22}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div style={{marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
             <div style={{display:"flex",alignItems:"baseline",gap:10}}>
               <span style={{fontSize:24,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>이번 달 업무 현황</span>
               <span style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{dstr} 기준</span>
@@ -1286,20 +1286,20 @@ function Dashboard(props){
           </div>
           <div className="brief-grid">
             {brief.map(function(b,i){
-              var btnCta={marginTop:16,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"9px 18px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
-              var btnGhost={marginTop:16,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.35)",borderRadius:8,padding:"8px 16px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
+              var btnCta={marginTop:12,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"8px 16px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
+              var btnGhost={marginTop:12,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.35)",borderRadius:8,padding:"7px 14px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
               return(
-              <div key={i} className="hover-card brief-card" style={{background:b.bg,border:"none",borderRadius:16,padding:"24px 26px",display:"flex",flexDirection:"column",minHeight:168,boxShadow:"0 4px 16px rgba(15,23,42,0.14)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
-                  <span className="brief-icon" style={{fontSize:18,flexShrink:0,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
+              <div key={i} className="hover-card brief-card" style={{background:b.bg,border:"none",borderRadius:16,padding:"20px 22px",display:"flex",flexDirection:"column",minHeight:148,boxShadow:"0 4px 16px rgba(15,23,42,0.14)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
+                  <span className="brief-icon" style={{fontSize:18,flexShrink:0,width:34,height:34,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
                   <span className="brief-label" style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.88)",flex:1}}>{b.label}</span>
                   {b.badge&&<span style={{fontSize:11,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
                 </div>
-                <div className="brief-num" style={{fontSize:50,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.04}}>
+                <div className="brief-num" style={{fontSize:46,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.04}}>
                   {b.val}{b.unit&&<span className="brief-num-unit" style={{fontSize:22,opacity:0.80,marginLeft:4}}>{b.unit}</span>}
                 </div>
-                <div className="brief-sub" style={{fontSize:14,color:"rgba(255,255,255,0.78)",marginTop:8,fontWeight:500,flex:1,lineHeight:1.4}}>{b.sub}</div>
-                {b.spark&&<div className="brief-spark" style={{marginTop:10}}><Sparkline data={metrics.spark} width={120} height={22} color="rgba(255,255,255,0.75)"/></div>}
+                <div className="brief-sub" style={{fontSize:14,color:"rgba(255,255,255,0.78)",marginTop:6,fontWeight:500,flex:1,lineHeight:1.4}}>{b.sub}</div>
+                {b.spark&&<div className="brief-spark" style={{marginTop:8}}><Sparkline data={metrics.spark} width={120} height={22} color="rgba(255,255,255,0.75)"/></div>}
                 {b.btn&&<button onClick={b.on} className="brief-btn" style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
               </div>
             );})}
@@ -1308,54 +1308,60 @@ function Dashboard(props){
       );
     })()}
 
-    {/* ── 지연 신청 강력 경고 배너 (stats) ── */}
-    {props.mode!=="list"&&metrics.overdueCount>0&&(
-      <div style={{marginBottom:18,borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
-        <div style={{padding:"13px 18px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
-          <span style={{fontSize:16}}>🚨</span>
-          <span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>즉시 확인 필요 — 신청 기한이 지난 건이 {metrics.overdueCount}건 있습니다</span>
-          <span style={{...dangerBadge(),marginLeft:"auto"}}>예상 {fMan(metrics.overdueAmount)} 위험</span>
-        </div>
-        <div style={{padding:"4px 8px"}}>
-          {metrics.overdueList.slice(0,4).map(function(o,i){return(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 12px",borderRadius:8,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid #F8FAFC":"none"}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                  <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A"}}>{o.empName}</span>
-                  <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{o.companyName}</span>
-                </div>
-                <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:2}}>{o.programName} {o.roundLabel} · 신청 기한 <strong style={{color:"#DC2626"}}>{Math.abs(o.dd)}일 지연</strong></div>
-              </div>
-              <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A",flexShrink:0}}>{fMan(o.amount)}</span>
-              <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리하기 →</button>
-            </div>
-          );})}
-          {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"8px 0",fontSize:"var(--fs-meta)",color:"#94A3B8"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
-        </div>
-      </div>
-    )}
-
-    {/* ── 무료체험 가치 지표 (stats, 체험 중) ── */}
-    {props.mode!=="list"&&props.isTrial&&props.companies.length>0&&(function(){
-      var emps=props.employees; var active=emps.filter(function(e){return e.status!=="resigned";});
-      var sched=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)sched++;});});
-      var items=[["관리 중인 예상 지원금",fMan(stats.tE)],["등록한 업체",props.companies.length+"개"],["등록한 대상자",active.length+"명"],["생성된 신청 일정",sched+"건"],["확인한 지연 건",metrics.overdueCount+"건"]];
-      return(
-        <div style={{marginBottom:18,borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #2563EB"}}>
-          <div style={{padding:"15px 20px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
-            <span style={{...primaryBadge()}}>무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일 남음":""}</span>
-            <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A"}}>무료체험 동안 이만큼 관리하고 계세요</span>
-            <button onClick={props.onOpenBilling||function(){}} style={{marginLeft:"auto",background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>지금 구독하기 →</button>
+    {/* ── 동급 요약 블록 병렬 배치: [좌] 즉시 확인 필요 · [우] 무료체험 요약 ── */}
+    {props.mode!=="list"&&(metrics.overdueCount>0||(props.isTrial&&props.companies.length>0))&&(function(){
+      var hasOverdue=metrics.overdueCount>0;
+      var hasTrial=props.isTrial&&props.companies.length>0;
+      var overdueBlock=hasOverdue?(
+        <div style={{borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
+          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
+            <span style={{fontSize:16}}>🚨</span>
+            <span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>즉시 확인 필요 — 기한 경과 {metrics.overdueCount}건</span>
+            <span style={{...dangerBadge(),marginLeft:"auto"}}>예상 {fMan(metrics.overdueAmount)} 위험</span>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))"}}>
-            {items.map(function(it,i){return(
-              <div key={i} style={{padding:"14px 18px",borderRight:i<items.length-1?"1px solid #F1F5F9":"none"}}>
-                <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",fontWeight:600,marginBottom:5}}>{it[0]}</div>
-                <div style={{fontSize:20,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>{it[1]}</div>
+          <div style={{padding:"3px 6px"}}>
+            {metrics.overdueList.slice(0,4).map(function(o,i){return(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid #F8FAFC":"none"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                    <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#0F172A"}}>{o.empName}</span>
+                    <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{o.companyName}</span>
+                  </div>
+                  <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:1}}>{o.programName} {o.roundLabel} · <strong style={{color:"#DC2626"}}>{Math.abs(o.dd)}일 지연</strong> · {fMan(o.amount)}</div>
+                </div>
+                <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"7px 13px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리 →</button>
               </div>
             );})}
+            {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"7px 0",fontSize:"var(--fs-meta)",color:"#94A3B8"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
           </div>
-          <div style={{padding:"11px 20px",fontSize:"var(--fs-sub)",color:"#94A3B8",background:"#F8FAFC",borderTop:"1px solid #F1F5F9"}}>지금 구독하면 등록한 업체와 신청 일정을 계속 관리할 수 있습니다. 무료체험 종료 후에는 알림·보고서·수수료 정산 기능이 제한됩니다.</div>
+        </div>
+      ):null;
+      var trialBlock=hasTrial?(function(){
+        var emps=props.employees; var active=emps.filter(function(e){return e.status!=="resigned";});
+        var sched=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)sched++;});});
+        var items=[["예상 지원금",fMan(stats.tE)],["관리 업체",props.companies.length+"개"],["대상자",active.length+"명"],["신청 일정",sched+"건"]];
+        return(
+          <div style={{borderRadius:12,overflow:"hidden",background:"#fff",border:"1px solid #E2E8F0",borderLeft:"3px solid #2563EB"}}>
+            <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid #F1F5F9"}}>
+              <span style={{...primaryBadge()}}>무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일":""}</span>
+              <span style={{fontSize:"var(--fs-sub)",fontWeight:700,color:"#0F172A"}}>이만큼 관리 중이에요</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+              {items.map(function(it,i){return(
+                <div key={i} style={{padding:"11px 16px",borderRight:i%2===0?"1px solid #F1F5F9":"none",borderBottom:i<2?"1px solid #F1F5F9":"none"}}>
+                  <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",fontWeight:600,marginBottom:3}}>{it[0]}</div>
+                  <div style={{fontSize:19,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>{it[1]}</div>
+                </div>
+              );})}
+            </div>
+            <button onClick={props.onOpenBilling||function(){}} style={{width:"100%",background:"#2563EB",color:"#fff",border:"none",padding:"11px 0",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>지금 구독하고 계속 관리하기 →</button>
+          </div>
+        );
+      })():null;
+      return(
+        <div className={"dash-parallel"+(hasOverdue&&hasTrial?" two":"")} style={{marginBottom:18}}>
+          {overdueBlock}
+          {trialBlock}
         </div>
       );
     })()}
@@ -1999,7 +2005,7 @@ function CompDet(props){
 
   // 수수료 정산 상태 (company.commission JSONB)
   var comm=company.commission||{};
-  var commRate=comm.rate!=null?comm.rate:10;
+  var commRate=comm.rate!=null?comm.rate:20;
   var commRetainer=comm.retainer||0;
   var commUseSuccess=comm.successFee!==false; // 성공보수 적용 여부
   var commSuccessFee=commUseSuccess?totalPaid*commRate/100:0;
@@ -2134,60 +2140,48 @@ function CompDet(props){
 
   return(
     <div className="fade-in">
-      {/* 헤더 */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <h2 style={{margin:0,fontSize:28,fontWeight:800,color:"#1E293B"}}>{company.name}</h2>
-            {(company.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
-          </div>
-          <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
-          {(company.managerName||company.managerTitle||company.managerEmail)&&(
-            <div style={{fontSize:"var(--fs-sub)",color:"#64748B",marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
-              {(company.managerName||company.managerTitle)&&<span>👤 담당자 {company.managerName||""}{company.managerTitle?" "+company.managerTitle:""}</span>}
-              {company.managerEmail&&<span style={{color:"#2563EB"}}>✉️ {company.managerEmail}</span>}
-            </div>
-          )}
-        </div>
-        <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
-        <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
-        <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
-        <button style={Object.assign({},btnSm,{fontSize:16})} className="hover-lift" onClick={function(){st6[1](true);}}>⚙️ 업체 정보 수정</button>
-      </div>
-
-      {/* 위험도 카드 (지연/임박/서류) */}
-      {(risk.overdue>0||risk.next7>0||risk.docMiss>0)&&(
-        <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:16,borderRadius:12,background:"#fff",border:"1px solid #E2E8F0",borderLeft:risk.overdue>0?"3px solid #DC2626":risk.next7>0?"3px solid #2563EB":"3px solid #CBD5E1"}}>
-          <span style={{fontSize:22,flexShrink:0}}>{risk.overdue>0?"🚨":risk.next7>0?"⏰":"📁"}</span>
+      {/* ── 업체 핵심 정보 카드 (업체정보 + 액션 + KPI 통합) ── */}
+      <Card style={{padding:"20px 22px",marginBottom:16,border:"1px solid #E2E8F0"}}>
+        {/* 상단: 업체 정보 + 액션 버튼 */}
+        <div style={{display:"flex",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:16,paddingBottom:16,borderBottom:"1px solid #F1F5F9"}}>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:16,fontWeight:800,color:risk.overdue>0?"#DC2626":"#0F172A"}}>
-              {risk.overdue>0?"지연 신청 "+risk.overdue+"건 — 예상 "+fMan(risk.overdueAmt)+"이 걸려 있습니다":risk.next7>0?"신청 임박 "+risk.next7+"건 — 곧 신청 가능합니다":"미제출 서류 "+risk.docMiss+"건 — 보완이 필요합니다"}
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <h2 style={{margin:0,fontSize:28,fontWeight:800,color:"#1E293B"}}>{company.name}</h2>
+              {(company.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
             </div>
-            <div style={{fontSize:14,color:"#64748B",marginTop:3}}>
-              {[risk.overdue>0&&risk.next7>0?"7일 내 신청 "+risk.next7+"건":null,risk.docMiss>0?"미제출 서류 "+risk.docMiss+"건":null,"즉시 서류 확인 및 신청 여부를 점검하세요"].filter(Boolean).join(" · ")}
-            </div>
+            <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
+            {(company.managerName||company.managerTitle||company.managerEmail)&&(
+              <div style={{fontSize:"var(--fs-sub)",color:"#64748B",marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
+                {(company.managerName||company.managerTitle)&&<span>👤 담당자 {company.managerName||""}{company.managerTitle?" "+company.managerTitle:""}</span>}
+                {company.managerEmail&&<span style={{color:"#2563EB"}}>✉️ {company.managerEmail}</span>}
+              </div>
+            )}
           </div>
-          <button onClick={function(){stTab[1](risk.docMiss>0&&risk.overdue===0&&risk.next7===0?"docs":"employees");}} style={{flexShrink:0,background:risk.overdue>0?"#DC2626":"#2563EB",color:"#fff",border:"none",borderRadius:9,padding:"9px 18px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF}}>확인하기 →</button>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
+            <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
+            <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
+            <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
+            <button style={Object.assign({},btnSm,{fontSize:16})} className="hover-lift" onClick={function(){st6[1](true);}}>⚙️ 업체 정보 수정</button>
+          </div>
         </div>
-      )}
-
-      {/* 요약 카드 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:18}}>
-        {[
-          {l:"지원 대상자",v:activeCount+"명",c:"#0F172A",accent:null},
-          {l:"누적 수령액",v:fMan(totalPaid),c:"#059669",accent:null},
-          {l:"예상 잔여액",v:fMan(totalExp-totalPaid),c:"#1D4ED8",accent:null},
-          {l:"예상 수수료 ("+commRate+"%)",v:fMan(commExpected),c:"#1D4ED8",accent:null},
-          {l:"서류 완료율",v:docPct+"%",c:docPct===100?"#059669":"#0F172A",accent:null,sub:risk.docMiss>0?"미제출 "+risk.docMiss+"건":"모두 완료"},
-          {l:"지연 신청 건",v:risk.overdue+"건",c:risk.overdue>0?"#DC2626":"#0F172A",accent:risk.overdue>0?"#DC2626":null,sub:risk.overdue>0?fMan(risk.overdueAmt)+" 위험":"지연 없음"}
-        ].map(function(c,i){return(
-          <Card key={i} className="kpi-card" style={{padding:"18px 20px",border:"1px solid #E2E8F0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E2E8F0"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:15,color:"#64748B",fontWeight:600}}>{c.l}</span></div>
-            <div style={{fontSize:24,fontWeight:800,color:c.c}}>{c.v}</div>
-            {c.sub&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:4,fontWeight:500}}>{c.sub}</div>}
-          </Card>
-        );})}
-      </div>
+        {/* 중단: 핵심 KPI */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
+          {[
+            {l:"지원 대상자",v:activeCount+"명",c:"#0F172A",accent:null},
+            {l:"누적 수령액",v:fMan(totalPaid),c:"#059669",accent:null},
+            {l:"예상 잔여액",v:fMan(totalExp-totalPaid),c:"#1D4ED8",accent:null},
+            {l:"예상 수수료 ("+commRate+"%)",v:fMan(commExpected),c:"#1D4ED8",accent:null},
+            {l:"서류 완료율",v:docPct+"%",c:docPct===100?"#059669":"#0F172A",accent:null,sub:risk.docMiss>0?"미제출 "+risk.docMiss+"건":"모두 완료"},
+            {l:"지연 신청 건",v:risk.overdue+"건",c:risk.overdue>0?"#DC2626":"#0F172A",accent:risk.overdue>0?"#DC2626":null,sub:risk.overdue>0?fMan(risk.overdueAmt)+" 위험":"지연 없음"}
+          ].map(function(c,i){return(
+            <div key={i} style={{padding:"13px 15px",borderRadius:12,background:"#F8FAFC",border:"1px solid #EEF1F5",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #EEF1F5"}}>
+              <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
+              <div style={{fontSize:23,fontWeight:800,color:c.c}}>{c.v}</div>
+              {c.sub&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:3,fontWeight:500}}>{c.sub}</div>}
+            </div>
+          );})}
+        </div>
+      </Card>
 
       {/* 탭 바 */}
       <div style={{display:"flex",gap:4,borderBottom:"2px solid #E2E8F0",marginBottom:20,overflowX:"auto"}}>
@@ -2201,6 +2195,21 @@ function CompDet(props){
       {/* 탭 콘텐츠 */}
       {stTab[0]==="overview"&&(
         <div className="fade-in">
+          {/* 위험도 요약 박스 (지연/임박/서류) — 개요 본문 상단으로 이동 */}
+          {(risk.overdue>0||risk.next7>0||risk.docMiss>0)&&(
+            <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:16,borderRadius:12,background:"#fff",border:"1px solid #E2E8F0",borderLeft:risk.overdue>0?"3px solid #DC2626":risk.next7>0?"3px solid #2563EB":"3px solid #CBD5E1"}}>
+              <span style={{fontSize:22,flexShrink:0}}>{risk.overdue>0?"🚨":risk.next7>0?"⏰":"📁"}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:16,fontWeight:800,color:risk.overdue>0?"#DC2626":"#0F172A"}}>
+                  {risk.overdue>0?"지연 신청 "+risk.overdue+"건 — 예상 "+fMan(risk.overdueAmt)+"이 걸려 있습니다":risk.next7>0?"신청 임박 "+risk.next7+"건 — 곧 신청 가능합니다":"미제출 서류 "+risk.docMiss+"건 — 보완이 필요합니다"}
+                </div>
+                <div style={{fontSize:14,color:"#64748B",marginTop:3}}>
+                  {[risk.overdue>0&&risk.next7>0?"7일 내 신청 "+risk.next7+"건":null,risk.docMiss>0?"미제출 서류 "+risk.docMiss+"건":null,"즉시 서류 확인 및 신청 여부를 점검하세요"].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+              <button onClick={function(){stTab[1](risk.docMiss>0&&risk.overdue===0&&risk.next7===0?"docs":"employees");}} style={{flexShrink:0,background:risk.overdue>0?"#DC2626":"#2563EB",color:"#fff",border:"none",borderRadius:9,padding:"9px 18px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF}}>확인하기 →</button>
+            </div>
+          )}
           {/* 스마트 액션 카드: 즉각 조치 필요한 항목만 */}
           {(function(){
             var actions=[];
@@ -2909,7 +2918,7 @@ function NotifBell(props){
       var docMiss=0; emps.forEach(function(e){(e.employeeDocs||[]).forEach(function(d){if(!docIsDone(d))docMiss++;});}); (c.companyDocs||[]).forEach(function(d){if(!docIsDone(d))docMiss++;});
       if(docMiss>0)list.push({id:c.id+"-docs-"+docMiss,type:"서류 미제출",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"미제출 서류 "+docMiss+"건 — 요청 필요",amount:0,dd:null});
       if(feat.commission){
-        var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:10; var ret=cc.retainer||0;
+        var cc=c.commission||{}; var rate=cc.rate!=null?cc.rate:20; var ret=cc.retainer||0;
         var rcv=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(r.isPaid)rcv+=r.received||0;});});
         var billable=Math.round(ret+rcv*rate/100);
         if(billable>0&&!cc.billed)list.push({id:c.id+"-ub-"+billable,type:"수수료 미청구",prio:2,companyId:c.id,companyName:c.name,empName:"",progName:"",text:"청구 가능 수수료 "+fMan(billable)+" 미청구",amount:billable,dd:null});

@@ -130,6 +130,18 @@ body.no-scroll { overflow: hidden; }
 /* ── 핵심 브리핑 그리드 (데스크톱 기본) ── */
 .brief-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 14px; }
 
+/* ── 대시보드 병렬 2단 (즉시확인 / 무료체험 등 동급 요약 블록) ── */
+.dash-parallel { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 861px) {
+  .dash-parallel.two { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; }
+}
+
+/* ── '오늘 바로 해야 할 일' 항목 그리드 (데스크톱 2열로 세로 길이 압축) ── */
+.dday-grid { display: grid; grid-template-columns: 1fr; gap: 1px; }
+@media (min-width: 861px) {
+  .dday-grid { grid-template-columns: 1fr 1fr; gap: 1px 12px; }
+}
+
 /* ── 시뮬레이터 / 급여계산기 입력 그리드 (좁아지면 1열) ── */
 @media (max-width: 760px) {
   .sim-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
