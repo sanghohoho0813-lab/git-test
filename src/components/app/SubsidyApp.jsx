@@ -1880,6 +1880,18 @@ function EmpModal(props){
             hd={st.startDate[0]} setBd={function(v){st.bd[1](v);}} setGen={function(v){st.gen[1](v);}} setMil={function(v){st.mil[1](v);}} setEc={st.ec[1]} setXc={st.xc[1]}/>
         )}
         <div><Label>메모</Label><textarea style={Object.assign({},inp,{height:60,resize:"none"})} value={st.memo[0]} onChange={function(e){st.memo[1](e.target.value);}}/></div>
+        {/* 진행 상태 — 항상 보이는 단계 선택 (지원금명 클릭 없이 변경 가능) */}
+        <div style={{padding:"13px 15px",background:"#F8FAFC",border:"1.5px solid #E2E8F0",borderRadius:12}}>
+          <Label>진행 상태 <span style={{fontWeight:500,color:"#94A3B8"}}>· 현재 단계를 선택하세요</span></Label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {STS.map(function(s){var on=st.status[0]===s.key;return(
+              <button key={s.key} type="button" onClick={function(){st.status[1](s.key);}}
+                style={{padding:"9px 14px",borderRadius:9,cursor:"pointer",fontFamily:FF,fontSize:"var(--fs-btn)",fontWeight:on?700:500,background:on?s.bg:"#fff",color:on?s.color:"#64748B",border:on?"2px solid "+s.color:"1px solid #E2E8F0"}}>
+                {s.icon} {s.label}{on?" ✓":""}
+              </button>
+            );})}
+          </div>
+        </div>
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
           <button style={btnS} onClick={props.onClose}>취소</button>
           <button style={Object.assign({},btnP,{padding:"10px 28px"})} onClick={save}>직원 저장</button>
@@ -3563,6 +3575,102 @@ function ProductTour(props){
   );
 }
 
+// ── 베타 피드백 설문 ──────────────────────────────────────
+var FB_KEYS={sub:"hrSubsidyPro_feedback_lastSubmittedAt",dis:"hrSubsidyPro_feedback_lastDismissedAt",res:"hrSubsidyPro_feedback_responses"};
+var FB_INTERVAL_MS=7*24*60*60*1000; // 7일
+function fbLastInteraction(){try{var a=localStorage.getItem(FB_KEYS.sub);var b=localStorage.getItem(FB_KEYS.dis);var ta=a?new Date(a).getTime():0;var tb=b?new Date(b).getTime():0;return Math.max(ta||0,tb||0);}catch(e){return 0;}}
+function fbIsDue(){var last=fbLastInteraction();if(!last)return true;return(Date.now()-last)>=FB_INTERVAL_MS;}
+function fbSaveResponse(resp){try{var raw=localStorage.getItem(FB_KEYS.res);var arr=raw?JSON.parse(raw):[];if(!Array.isArray(arr))arr=[];arr.push(resp);localStorage.setItem(FB_KEYS.res,JSON.stringify(arr));localStorage.setItem(FB_KEYS.sub,resp.submittedAt);}catch(e){console.error("[피드백] 저장 실패",e);}}
+function fbDismiss(){try{localStorage.setItem(FB_KEYS.dis,new Date().toISOString());}catch(e){}}
+
+var FEEDBACK_QUESTIONS=[
+  {id:"q1",type:"single",q:"전체적으로 이 프로그램을 써본 첫인상은 어떠셨나요?",options:["매우 좋다","괜찮다","보통이다","아직은 복잡하다","실제로 쓰기 어렵다"]},
+  {id:"q2",type:"single",q:"엑셀로 관리하던 방식과 비교했을 때 어떤가요?",options:["엑셀보다 훨씬 편하다","엑셀보다 조금 편하다","비슷하다","아직은 엑셀이 더 편하다","판단하기 어렵다"]},
+  {id:"q3",type:"multi",q:"가장 유용하다고 느낀 기능은 무엇인가요? (복수 선택)",options:["대시보드 요약","업체 관리","직원 관리","지원금별 진행보드","청년일자리도약장려금 체크리스트","서류 요청 문구 복사","고객 보고서","수수료 정산","수령액 시뮬레이터","급여 계산기","온보딩/사용법 안내","아직 잘 모르겠다"]},
+  {id:"q4",type:"multi",q:"가장 불편하거나 헷갈렸던 부분은 무엇인가요? (복수 선택)",options:["처음 사용 방법을 모르겠다","업체 등록이 어렵다","직원 추가/수정이 어렵다","지원금 선택이 헷갈린다","지원연도 선택이 헷갈린다","진행상태 변경이 어렵다","서류 관리가 어렵다","고객 보고서가 아쉽다","화면 글자가 작거나 복잡하다","모바일 사용이 불편하다","속도가 느리다","특별히 불편한 점은 없었다"]},
+  {id:"q5",type:"multi",q:"실제 업무에서 가장 자주 쓸 것 같은 기능은 무엇인가요? (복수 선택)",options:["신규 업체 등록","직원별 지원금 가능성 검토","청년일자리도약장려금 관리","서류 요청/미제출 관리","진행상태 관리","수령액/수수료 계산","고객 보고서 출력/공유","업무일지 기록","대시보드 확인","아직 모르겠다"]},
+  {id:"q6",type:"single",q:"고객사 미팅이나 영업자료로 활용할 수 있을 것 같나요?",options:["바로 활용 가능할 것 같다","조금만 다듬으면 활용 가능하다","아직은 내부 관리용에 가깝다","영업자료로 쓰기엔 부족하다","잘 모르겠다"]},
+  {id:"q7",type:"multi",q:"고객 보고서에서 더 보강되면 좋을 내용은 무엇인가요? (복수 선택)",options:["받을 수 있는 지원금 요약","놓치면 손해 보는 금액","미제출 서류 목록","신청기한 임박 건","향후 30일 액션 플랜","대표님께 요청할 사항","예상 수령액","컨설턴트 코멘트 입력란","PDF 저장/출력","카톡/문자 공유용 요약 문구","현재로도 충분하다"]},
+  {id:"q8",type:"single",q:"실제로 계속 사용한다면 적정 월 이용료는 어느 정도라고 느끼시나요?",options:["무료가 아니면 어렵다","월 3만 원대","월 5만 원대","월 7만 원대","월 10만 원대","월 15만 원 이상도 가능","아직 판단하기 어렵다"]},
+  {id:"q9",type:"multi",q:"돈을 내고 사용한다면 가장 중요한 기준은 무엇인가요? (복수 선택)",options:["엑셀보다 확실히 편해야 한다","고객 보고서가 좋아야 한다","데이터가 절대 사라지면 안 된다","직원/업체 등록이 쉬워야 한다","지원금 요건이 정확해야 한다","모바일에서도 잘 돼야 한다","수수료 정산이 정확해야 한다","고객사에 보여줘도 전문적으로 보여야 한다","업데이트가 계속되어야 한다","문의/지원이 빨라야 한다"]},
+  {id:"q10",type:"single",q:"현재 프로그램의 완성도를 10점 만점으로 평가하면?",options:["10점","9점","8점","7점","6점","5점 이하"]},
+  {id:"q11",type:"multi",q:"개선이 가장 시급한 부분은 무엇인가요? (복수 선택)",options:["화면 디자인/가독성","사용 방법 안내","업체/직원 등록 흐름","지원금 요건 체크","서류 요청/관리","고객 보고서","진행보드","수수료 정산","모바일 화면","속도/버그","결제/요금제","기타"]}
+];
+
+function FeedbackModal(props){
+  var stA=useState({});   // {qid: string | string[]}
+  var stTxt=useState(""); // 자유 의견
+  var stDone=useState(false);
+  var answers=stA[0];
+  function pickSingle(qid,opt){var m=Object.assign({},answers);m[qid]=opt;stA[1](m);}
+  function toggleMulti(qid,opt){var m=Object.assign({},answers);var arr=(m[qid]||[]).slice();var i=arr.indexOf(opt);if(i>=0)arr.splice(i,1);else arr.push(opt);m[qid]=arr;stA[1](m);}
+  function reset(){stA[1]({});stTxt[1]("");stDone[1](false);}
+  function submit(){
+    var resp={submittedAt:new Date().toISOString(),userEmail:props.userEmail||"",orgName:props.orgName||"",answers:answers,freeText:stTxt[0]};
+    fbSaveResponse(resp);
+    console.log("[피드백 응답 저장됨]",resp);
+    stDone[1](true);
+    props.onSubmitted&&props.onSubmitted();
+  }
+  function close(){
+    if(!stDone[0]){fbDismiss();props.onDismiss&&props.onDismiss();}
+    reset();
+    props.onClose&&props.onClose();
+  }
+  var answeredCount=FEEDBACK_QUESTIONS.filter(function(q){var v=answers[q.id];return q.type==="multi"?(v&&v.length>0):!!v;}).length;
+  return(
+    <Modal open={props.open} onClose={close} title="💬 베타 사용 피드백" width={620}>
+      {stDone[0]?(
+        <div style={{textAlign:"center",padding:"24px 8px"}}>
+          <div style={{fontSize:52,marginBottom:14}}>🙏</div>
+          <h3 style={{margin:"0 0 10px",fontSize:20,fontWeight:800,color:"#1E293B"}}>소중한 의견 감사합니다.</h3>
+          <p style={{margin:"0 0 24px",fontSize:15,color:"#64748B",lineHeight:1.7}}>남겨주신 피드백은 다음 업데이트에 반영하겠습니다.</p>
+          <button style={Object.assign({},btnP,{padding:"12px 40px",fontSize:15})} onClick={close}>닫기</button>
+        </div>
+      ):(
+        <div>
+          <p style={{margin:"0 0 18px",fontSize:14,color:"#475569",lineHeight:1.7,padding:"12px 14px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:10}}>실제 컨설턴트 업무에 더 잘 맞는 프로그램으로 만들기 위해 의견을 받고 있습니다. 편하게 선택해 주세요. <span style={{color:"#94A3B8"}}>(약 3분 · 모두 선택사항)</span></p>
+          <div style={{display:"grid",gap:18}}>
+            {FEEDBACK_QUESTIONS.map(function(q,qi){
+              var v=answers[q.id];
+              return(
+                <div key={q.id}>
+                  <div style={{fontSize:15,fontWeight:700,color:"#1E293B",marginBottom:9,lineHeight:1.5}}>
+                    <span style={{color:"#2563EB"}}>Q{qi+1}.</span> {q.q}
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                    {q.options.map(function(opt){
+                      var on=q.type==="multi"?((v||[]).indexOf(opt)>=0):(v===opt);
+                      return(
+                        <button key={opt} type="button" onClick={function(){q.type==="multi"?toggleMulti(q.id,opt):pickSingle(q.id,opt);}}
+                          style={{padding:"9px 14px",borderRadius:9,cursor:"pointer",fontFamily:FF,fontSize:14,fontWeight:on?700:500,textAlign:"left",background:on?"#2563EB":"#fff",color:on?"#fff":"#475569",border:on?"2px solid #2563EB":"1.5px solid #E2E8F0",transition:"all 0.12s"}}>
+                          {q.type==="multi"?(on?"☑ ":"☐ "):(on?"● ":"○ ")}{opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            <div>
+              <div style={{fontSize:15,fontWeight:700,color:"#1E293B",marginBottom:9,lineHeight:1.5}}><span style={{color:"#2563EB"}}>Q12.</span> 자유 의견</div>
+              <textarea style={Object.assign({},inp,{height:110,resize:"vertical",lineHeight:1.6})} value={stTxt[0]} onChange={function(e){stTxt[1](e.target.value);}} placeholder="쓰면서 불편했던 점, 좋았던 점, 실제 업무에 쓰기 위해 꼭 필요한 기능을 편하게 적어주세요."/>
+            </div>
+          </div>
+          {/* 하단 sticky 제출 영역 */}
+          <div style={{position:"sticky",bottom:"-1px",marginTop:18,paddingTop:14,background:"linear-gradient(to bottom,rgba(255,255,255,0),#fff 22%)",display:"flex",gap:8,justifyContent:"space-between",alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:13,color:"#94A3B8"}}>{answeredCount}/{FEEDBACK_QUESTIONS.length}개 문항 응답</span>
+            <div style={{display:"flex",gap:8}}>
+              <button style={btnS} onClick={close}>나중에</button>
+              <button style={Object.assign({},btnP,{padding:"11px 30px"})} onClick={submit}>제출하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export default function SubsidyApp(props){
   var companies=props.companies||[];
   var employees=props.employees||[];
@@ -3591,6 +3699,9 @@ export default function SubsidyApp(props){
   var stAddComp=useState(false);
   var stProfileOpen=useState(false);
   var stMobileNav=useState(false);
+  var stFbOpen=useState(false); // 피드백 설문 모달
+  var stFbGlow=useState(function(){return fbIsDue();}); // 7일 주기 반짝임
+  function openFeedback(){stFbOpen[1](true);stFbGlow[1](false);}
   var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
@@ -3783,6 +3894,10 @@ export default function SubsidyApp(props){
             <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
             {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
           </div>
+          <button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
+            <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
+            <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
+          </button>
           <button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
           <div style={SB.actions} className="sb-actions">
             <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
@@ -3975,6 +4090,15 @@ export default function SubsidyApp(props){
           </div>
         </div>
       </Modal>
+      {/* 베타 피드백 설문 */}
+      <FeedbackModal
+        open={stFbOpen[0]}
+        userEmail={props.userEmail||(profile&&profile.email)||""}
+        orgName={orgName}
+        onClose={function(){stFbOpen[1](false);}}
+        onSubmitted={function(){stFbGlow[1](false);}}
+        onDismiss={function(){stFbGlow[1](false);}}
+      />
       <ProductTour open={stTour[0]} onClose={endTour}/>
       <ToastHost/>
     </div>

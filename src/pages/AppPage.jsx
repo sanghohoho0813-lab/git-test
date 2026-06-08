@@ -150,6 +150,7 @@ export default function AppPage() {
       onUpdateProfile={updateProfile}
       orgName={org?.name}
       orgRole={orgRole}
+      userEmail={session?.user?.email || ""}
       onSignOut={signOut}
       onSaveCompany={data.addCompany}
       onPatchCompany={data.patchCompany}
