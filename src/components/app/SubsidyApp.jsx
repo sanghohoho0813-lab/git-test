@@ -990,6 +990,11 @@ function EmptyState(props){
 // ── Dashboard ─────────────────────────────────────────────
 function Dashboard(props){
   var st1=useState("all"),st2=useState(false); var selectedCompanyId=st1[0];
+  // 보기 밀도 (컴팩트/기본/넓게) — localStorage 유지, 기본값 "normal"
+  var stDensity=useState(function(){try{return localStorage.getItem("dash_density")||"normal";}catch(e){return "normal";}});
+  function setDensity(v){stDensity[1](v);try{localStorage.setItem("dash_density",v);}catch(e){}}
+  var DENS={compact:{zoom:0.9},normal:{zoom:1},wide:{zoom:1.1}};
+  var densZoom=(DENS[stDensity[0]]||DENS.normal).zoom;
   var fE=useMemo(function(){return st1[0]==="all"?props.employees:props.employees.filter(function(e){return e.companyId===st1[0];});},[props.employees,st1[0]]);
   var stats=useMemo(function(){var tE=0,tR=0,dT=0,dD=0,sc={};STS.forEach(function(s){sc[s.key]=0;});fE.forEach(function(e){if(sc[e.status]!==undefined)sc[e.status]++;var p=props.programs[e.programId];if(p)tE+=p.totalAmount||0;(e.rounds||[]).forEach(function(r){if(r.isPaid)tR+=r.received||0;});(e.employeeDocs||[]).forEach(function(d){dT++;if(d.done)dD++;});});(st1[0]==="all"?props.companies:props.companies.filter(function(c){return c.id===st1[0];})).forEach(function(c){(c.companyDocs||[]).forEach(function(d){dT++;if(d.done)dD++;});});return{tE:tE,tR:tR,pct:dT>0?Math.round(dD/dT*100):0,sc:sc};},[props.companies,fE,props.programs,st1[0]]);
   // 추세/요약 메트릭 + 업무 브리핑(지연·임박·서류·위험금액)
@@ -1052,7 +1057,18 @@ function Dashboard(props){
   var starredCompanies=props.companies.filter(function(c){return(c.tags||[]).includes("star");});
   function handleExcelCopy(){var data=makeExcelData(props.companies,props.employees,props.programs);navigator.clipboard.writeText(data).then(function(){st2[1](true);setTimeout(function(){st2[1](false);},2000);toast("엑셀용 데이터가 복사되었습니다.","success");});}
 
-  return(<div className="fade-in">
+  return(<div className="fade-in" style={{zoom:densZoom}}>
+    {/* 보기 밀도 조절 — 컴팩트 / 기본 / 넓게 */}
+    {props.mode!=="list"&&(
+      <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,marginBottom:10}}>
+        <span style={{fontSize:13,color:"#64748B",fontWeight:600}}>보기</span>
+        <div style={{display:"inline-flex",background:"#F1F5F9",borderRadius:10,padding:3,gap:2}}>
+          {[["compact","컴팩트"],["normal","기본"],["wide","넓게"]].map(function(o){var on=stDensity[0]===o[0];return(
+            <button key={o[0]} onClick={function(){setDensity(o[0]);}} style={{border:"none",borderRadius:8,padding:"6px 14px",fontSize:13,fontWeight:on?700:600,color:on?"#1D4ED8":"#64748B",background:on?"#fff":"transparent",cursor:"pointer",fontFamily:FF,boxShadow:on?"0 1px 4px rgba(0,0,0,0.08)":"none"}}>{o[1]}</button>
+          );})}
+        </div>
+      </div>
+    )}
     {props.mode!=="stats"&&<GlobalSearch employees={props.employees} companies={props.companies} goCompany={props.goCompany}/>}
 
     {/* ── 오늘의 업무 브리핑 (stats) ── */}
@@ -1070,24 +1086,24 @@ function Dashboard(props){
       ];
       return(
         <div style={{marginBottom:18}}>
-          <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-            <span style={{fontSize:20,fontWeight:800,color:"#0F172A"}}>오늘의 고용지원금 브리핑</span>
-            <span style={{fontSize:13,color:"#64748B",fontWeight:500}}>{dstr} 기준 · 놓치면 안 되는 업무를 먼저 정리했어요</span>
+          <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+            <span style={{fontSize:22,fontWeight:800,color:"#0F172A"}}>오늘의 고용지원금 브리핑</span>
+            <span style={{fontSize:14,color:"#64748B",fontWeight:500}}>{dstr} 기준 · 놓치면 안 되는 업무를 먼저 정리했어요</span>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
             {brief.map(function(b,i){
               // 진한 카드 위 버튼 — CTA는 흰 배경/카드색 글자, ghost는 흰색 반투명
-              var btnCta={marginTop:12,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:FF};
-              var btnGhost={marginTop:12,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.40)",borderRadius:8,padding:"6px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF};
+              var btnCta={marginTop:14,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"8px 17px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
+              var btnGhost={marginTop:14,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.40)",borderRadius:8,padding:"7px 15px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
               return(
-              <div key={i} className="hover-card" style={{background:b.bg,border:"none",borderRadius:14,padding:"18px 20px",display:"flex",flexDirection:"column",minHeight:128,boxShadow:"0 2px 10px rgba(15,23,42,0.10)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                  <span style={{fontSize:16,flexShrink:0,width:30,height:30,borderRadius:9,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
-                  <span style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>{b.label}</span>
+              <div key={i} className="hover-card" style={{background:b.bg,border:"none",borderRadius:14,padding:"22px 24px",display:"flex",flexDirection:"column",minHeight:148,boxShadow:"0 2px 12px rgba(15,23,42,0.12)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
+                  <span style={{fontSize:17,flexShrink:0,width:34,height:34,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
+                  <span style={{fontSize:15,fontWeight:600,color:"rgba(255,255,255,0.88)"}}>{b.label}</span>
                   {b.badge&&<span style={{marginLeft:"auto",fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
                 </div>
-                <div style={{fontSize:34,fontWeight:800,color:"#fff",letterSpacing:"-0.5px",lineHeight:1.1}}>{b.val}</div>
-                <div style={{fontSize:13,color:"rgba(255,255,255,0.78)",marginTop:6,fontWeight:500,flex:1}}>{b.sub}</div>
+                <div style={{fontSize:42,fontWeight:800,color:"#fff",letterSpacing:"-0.5px",lineHeight:1.08}}>{b.val}</div>
+                <div style={{fontSize:14,color:"rgba(255,255,255,0.80)",marginTop:7,fontWeight:500,flex:1}}>{b.sub}</div>
                 {b.btn&&<button onClick={b.on} style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
               </div>
             );})}
@@ -1151,25 +1167,25 @@ function Dashboard(props){
     {/* ── 지원금 현황 요약 히어로 위젯 (stats) — 진한 배경 + 흰색 글자 ── */}
     {props.mode!=="list"&&(function(){
       var overdueRed=metrics.overdueCount>0;
-      var heroCard={borderRadius:14,border:"none",color:"#fff",boxShadow:"0 2px 10px rgba(15,23,42,0.10)"};
-      var heroTitle={fontSize:16,color:"rgba(255,255,255,0.85)",fontWeight:600};
-      var heroSub={fontSize:14,color:"rgba(255,255,255,0.75)"};
+      var heroCard={borderRadius:16,border:"none",color:"#fff",boxShadow:"0 3px 14px rgba(15,23,42,0.12)"};
+      var heroTitle={fontSize:16,color:"rgba(255,255,255,0.88)",fontWeight:600};
+      var heroSub={fontSize:15,color:"rgba(255,255,255,0.80)"};
       return(
-      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr",gap:14,marginBottom:18}} className="grid-2-mobile">
-        <div style={Object.assign({},heroCard,{background:"#2563EB",padding:"24px 26px",position:"relative",overflow:"hidden"})}>
-          <div style={Object.assign({},heroTitle,{marginBottom:6})}>이번 달 신청 가능 지원금</div>
-          <div style={{fontSize:50,fontWeight:800,lineHeight:1.1,letterSpacing:"-1px",color:"#fff"}}>{fMan(metrics.thisMonthExpected)}</div>
-          <div style={Object.assign({},heroSub,{marginTop:8})}>향후 30일 내 {fMan(metrics.next30)} · {metrics.next30Count}건 신청 가능</div>
+      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr",gap:16,marginBottom:22}} className="grid-2-mobile">
+        <div style={Object.assign({},heroCard,{background:"#2563EB",padding:"28px 30px",position:"relative",overflow:"hidden"})}>
+          <div style={Object.assign({},heroTitle,{marginBottom:8})}>이번 달 신청 가능 지원금</div>
+          <div style={{fontSize:58,fontWeight:800,lineHeight:1.05,letterSpacing:"-1.5px",color:"#fff"}}>{fMan(metrics.thisMonthExpected)}</div>
+          <div style={Object.assign({},heroSub,{marginTop:10})}>향후 30일 내 {fMan(metrics.next30)} · {metrics.next30Count}건 신청 가능</div>
         </div>
-        <div style={Object.assign({},heroCard,{background:overdueRed?"#DC2626":"#334155",padding:"24px"})}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={heroTitle}>지연 신청 건</span>{overdueRed&&<span style={{fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>지연</span>}</div>
-          <div style={{fontSize:40,fontWeight:800,color:"#fff"}}>{metrics.overdueCount}<span style={{fontSize:18,color:"rgba(255,255,255,0.75)",marginLeft:3}}>건</span></div>
-          <div style={Object.assign({},heroSub,{marginTop:6})}>{metrics.overdueCount>0?"신청기한 지남 — "+fMan(metrics.overdueAmount):"지연 건 없음"}</div>
+        <div style={Object.assign({},heroCard,{background:overdueRed?"#DC2626":"#334155",padding:"28px"})}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><span style={heroTitle}>지연 신청 건</span>{overdueRed&&<span style={{fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>지연</span>}</div>
+          <div style={{fontSize:46,fontWeight:800,color:"#fff",lineHeight:1.05}}>{metrics.overdueCount}<span style={{fontSize:20,color:"rgba(255,255,255,0.78)",marginLeft:4}}>건</span></div>
+          <div style={Object.assign({},heroSub,{marginTop:8})}>{metrics.overdueCount>0?"신청기한 지남 — "+fMan(metrics.overdueAmount):"지연 건 없음"}</div>
         </div>
-        <div style={Object.assign({},heroCard,{background:"#059669",padding:"24px"})}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={heroTitle}>이번 달 수령</span><TrendChip pct={metrics.trend} onDark/></div>
-          <div style={{fontSize:40,fontWeight:800,color:"#fff"}}>{fManS(metrics.thisMonthReceived)}<span style={{fontSize:18,color:"rgba(255,255,255,0.75)",marginLeft:3}}>원</span></div>
-          <div style={{marginTop:8}}><Sparkline data={metrics.spark} width={150} height={30} color="rgba(255,255,255,0.9)"/></div>
+        <div style={Object.assign({},heroCard,{background:"#059669",padding:"28px"})}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><span style={heroTitle}>이번 달 수령</span><TrendChip pct={metrics.trend} onDark/></div>
+          <div style={{fontSize:46,fontWeight:800,color:"#fff",lineHeight:1.05}}>{fManS(metrics.thisMonthReceived)}<span style={{fontSize:20,color:"rgba(255,255,255,0.78)",marginLeft:4}}>원</span></div>
+          <div style={{marginTop:10}}><Sparkline data={metrics.spark} width={150} height={30} color="rgba(255,255,255,0.9)"/></div>
         </div>
       </div>
       );
@@ -1182,11 +1198,11 @@ function Dashboard(props){
     {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}><select style={Object.assign({},inp,{width:"auto",minWidth:180,fontSize:19,fontWeight:600})} value={st1[0]} onChange={function(e){st1[1](e.target.value);}}><option value="all">📊 전체 업체</option>{props.companies.map(function(c){return <option key={c.id} value={c.id}>🏢 {c.name}</option>;})}</select><button onClick={handleExcelCopy} className="hover-lift" style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"})}>📋 엑셀용 데이터 복사</button>{st2[0]&&<span style={{fontSize:17,color:"#059669"}}>✅ 복사됨</span>}</div>}
 
     {/* KPI 카드 */}
-    {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:20}}>{cards.map(function(c,i){return(
-      <Card key={i} className="kpi-card" style={{padding:"20px 22px",border:"1px solid #E2E8F0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><span style={{fontSize:16,color:"#64748B",fontWeight:600}}>{c.l}</span><span style={{fontSize:20,width:38,height:38,borderRadius:10,background:"#F1F5F9",display:"flex",alignItems:"center",justifyContent:"center",opacity:0.9}}>{c.i}</span></div>
+    {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:16,marginBottom:22}}>{cards.map(function(c,i){return(
+      <Card key={i} className="kpi-card" style={{padding:"22px 24px",border:"1px solid #E2E8F0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><span style={{fontSize:16,color:"#475569",fontWeight:600}}>{c.l}</span><span style={{fontSize:20,width:38,height:38,borderRadius:10,background:"#F1F5F9",display:"flex",alignItems:"center",justifyContent:"center",opacity:0.9}}>{c.i}</span></div>
         <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
-          <div><span style={{fontSize:32,fontWeight:800,color:c.c}}>{c.v}</span><span style={{fontSize:16,color:"#94A3B8",marginLeft:4}}>{c.u}</span></div>
+          <div><span style={{fontSize:36,fontWeight:800,color:c.c}}>{c.v}</span><span style={{fontSize:16,color:"#64748B",marginLeft:4}}>{c.u}</span></div>
           {c.extra==="spark"&&<Sparkline data={metrics.spark} width={70} height={26} color="#059669"/>}
         </div>
         {c.extra==="bar"&&<div style={{height:7,background:"#F1F5F9",borderRadius:4,overflow:"hidden",marginTop:12}}><div style={{height:"100%",width:c.v+"%",background:c.bar||"#2563EB",borderRadius:4,transition:"width 0.5s ease"}}/></div>}
