@@ -373,9 +373,12 @@ function DocSection(props){
   // 요청 메시지 — 미요청/요청완료 상태만 포함, 제출/확인완료 제외, 보완필요는 별도
   var reqDocs=docs.filter(function(d){var s=docEffStatus(d);return s==="none"||s==="requested";});
   var reviseDocs=docs.filter(function(d){return docEffStatus(d)==="revise";});
+  // 급여일 연계 — 요청 목록에 급여 관련 서류(급여이체증·임금/급여대장)가 있으면 발급 시점 안내
+  var hasPayDoc=reqDocs.some(function(d){var n=normDoc(d.label);return n.indexOf("급여이체")>=0||n.indexOf("이체증")>=0||n.indexOf("급여대장")>=0||n.indexOf("임금대장")>=0||n.indexOf("급여명세")>=0;});
+  var greet=props.contactName?props.contactName+" 담당자님":"대표님";
   function buildRequestMsg(){
     var lines=reqDocs.length>0?reqDocs.map(function(d){return "- "+d.label;}).join("\n"):"- (요청할 서류가 없습니다)";
-    var msg="안녕하세요 대표님.\n고용지원금 신청을 위해 필요한 서류 안내드립니다.\n\n필요한 서류는 아래와 같습니다.\n\n"+lines+"\n\n준비되시는 대로 사진 또는 PDF 파일로 전달 부탁드립니다.\n감사합니다.";
+    var msg="안녕하세요 "+greet+".\n고용지원금 신청을 위해 필요한 서류 안내드립니다.\n\n필요한 서류는 아래와 같습니다.\n\n"+lines+"\n\n준비되시는 대로 사진 또는 PDF 파일로 전달 부탁드립니다.\n감사합니다.";
     if(reviseDocs.length>0){ msg+="\n\n[보완 필요 서류]\n"+reviseDocs.map(function(d){return "- "+d.label;}).join("\n"); }
     return msg;
   }
@@ -431,6 +434,7 @@ function DocSection(props){
             <span style={{fontSize:14,fontWeight:700,color:"#0284C7"}}>📨 서류 요청 메시지 {reqDocs.length>0&&<span style={{fontSize:12,color:"#64748B",fontWeight:500}}>· {reqDocs.length}건</span>}</span>
             <button style={Object.assign({},btnSm,{padding:"7px 14px",fontSize:13,background:"#0284C7",color:"#fff",border:"none"})} onClick={copyRequestMsg}>📋 복사하기</button>
           </div>
+          {hasPayDoc&&<div style={{fontSize:12,color:"#B45309",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,padding:"8px 12px",marginBottom:8,lineHeight:1.5}}>💸 급여 관련 서류(급여이체증·임금대장 등)가 포함되어 있습니다. {props.payday?"이 업체 급여일은 매월 "+props.payday+"일이므로, 급여일 이후 발급이 가능합니다.":"급여 지급 이후 발급 가능한 서류이므로 급여일을 확인해 요청하세요."}</div>}
           <div style={{whiteSpace:"pre-line",fontSize:13,color:"#334155",lineHeight:1.7,background:"#fff",borderRadius:8,padding:"12px 14px",border:"1px solid #E0F2FE",maxHeight:240,overflow:"auto"}}>{buildRequestMsg()}</div>
         </div>
       )}
@@ -1720,13 +1724,12 @@ function EmpModal(props){
               var applyD=company.youthApplyDate||"";
               var inWindow=null;
               if(applyD&&st.startDate[0]){var lo=addMo(applyD,-3),hi=addMo(applyD,3);inWindow=st.startDate[0]>=lo&&st.startDate[0]<=hi;}
-              if(!quota&&!applyD&&!company.agreementDate)return null;
               return(
                 <div style={{padding:"10px 14px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,display:"grid",gap:6}}>
                   <div style={{fontSize:12,fontWeight:700,color:"#1D4ED8"}}>⭐ 청년도약 업체 기준 확인</div>
                   {quota>0&&<div style={{fontSize:12,color:over?"#DC2626":"#475569",fontWeight:over?700:500}}>{over?"🚨 ":"✅ "}청년도약 대상자 {willCount}명 / 기업 지원한도 {quota}명{over?" — 지원한도 초과! 운영기관 확인이 필요합니다.":""}</div>}
                   {applyD&&st.startDate[0]&&inWindow!==null&&<div style={{fontSize:12,color:inWindow?"#059669":"#DC2626",fontWeight:inWindow?500:700}}>{inWindow?"✅ 참여신청일("+fD(applyD)+") 기준 전후 3개월 이내 채용자입니다.":"⚠️ 참여신청일("+fD(applyD)+") 기준 전후 3개월 기간을 벗어났습니다. 운영기관 확인이 필요합니다."}</div>}
-                  {!company.agreementDate&&<div style={{fontSize:11,color:"#B45309"}}>⚠️ 협약 체결 전에는 실제 신청 진행이 제한될 수 있습니다. (업체 정보에서 협약일 입력)</div>}
+                  {company.agreementDate?<div style={{fontSize:12,color:"#059669"}}>✅ 협약 체결 완료 ({fD(company.agreementDate)})</div>:<div style={{fontSize:11,color:"#B45309",fontWeight:600}}>⚠️ 협약 체결 전에는 실제 신청 진행이 제한될 수 있습니다. (업체 정보에서 협약일 입력)</div>}
                 </div>
               );
             })()}
@@ -1765,7 +1768,7 @@ function EmpModal(props){
                     {grouped[g].map(function(p){var on=st.programId[0]===p.id;return(
                       <button key={p.id} onClick={function(){st.programId[1](p.id);}}
                         style={{padding:"10px 12px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
-                        <div style={{fontWeight:on?700:500,fontSize:14,lineHeight:1.35}}>{p.name}</div>
+                        <div style={{fontWeight:on?700:500,fontSize:14,lineHeight:1.35}}>{p.year&&<span style={{fontSize:11,fontWeight:700,color:on?gp.dark:"#94A3B8",marginRight:4}}>{p.year}</span>}{p.name}</div>
                         <div style={{fontSize:12,color:on?gp.dark:"#94A3B8",marginTop:2}}>{fProgramAmt(p)}</div>
                       </button>
                     );})}
@@ -2113,6 +2116,12 @@ function CompDet(props){
             {(company.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
           </div>
           <div style={{fontSize:16,color:"#94A3B8",marginTop:4}}>{company.bizNo&&company.bizNo+" · "}{company.ceoName&&"대표 "+company.ceoName}</div>
+          {(company.managerName||company.managerTitle||company.managerEmail)&&(
+            <div style={{fontSize:14,color:"#64748B",marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
+              {(company.managerName||company.managerTitle)&&<span>👤 담당자 {company.managerName||""}{company.managerTitle?" "+company.managerTitle:""}</span>}
+              {company.managerEmail&&<span style={{color:"#2563EB"}}>✉️ {company.managerEmail}</span>}
+            </div>
+          )}
         </div>
         <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
         <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
@@ -2265,7 +2274,7 @@ function CompDet(props){
       {stTab[0]==="docs"&&(
         <div className="fade-in">
           <DocSection title="업체 서류" docs={company.companyDocs||[]} disabled={false}
-            quickDocs={COMPANY_QUICK_DOCS} defaultDocs={COMPANY_DOC_DEFAULTS}
+            quickDocs={COMPANY_QUICK_DOCS} defaultDocs={COMPANY_DOC_DEFAULTS} payday={company.payday} contactName={company.managerName}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onChange={function(ds){props.onPatchCompany(company.id,{companyDocs:ds});}}
             onLog={function(txt,type){props.onLog(company.id,txt,type);}}
