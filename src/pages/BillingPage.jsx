@@ -15,14 +15,13 @@ const PLAN_CONFIG = [
     planKey: "starter",
     icon: "🚀",
     label: "컨설턴트 스타터",
-    target: "고객사 1~5개 관리하는 초기 1인 컨설턴트",
+    desc: "시작하는 1인 컨설턴트",
     color: "#0891B2",
     colorBg: "#ECFEFF",
     colorBorder: "#A5F3FC",
     badge: null,
     highlight: false,
     isConsult: false,
-    tagline: null,
     monthlyPrice: 39000,
     annualPrice: 390000,
     monthly: { planId: "" },
@@ -30,37 +29,25 @@ const PLAN_CONFIG = [
     ctaText: "스타터로 시작하기",
     limits: { companies: "고객사 5개", employees: "대상자 50명", team: "1인 사용" },
     addOns: null,
-    valueProps: [
-      "신청기한 누락 방지 — D-Day 자동 알림",
-      "대상자·회차 진행 현황 한눈에 파악",
-      "서류 체크리스트로 서류 누락 방지",
+    coreFeatures: [
+      "D-Day 알림",
+      "서류 체크리스트",
       "급여 계산기 · 수령액 시뮬레이터",
-    ],
-    features: [
-      { text: "기본 대시보드", status: "yes" },
-      { text: "D-Day 알림 · 진행 보드", status: "yes" },
-      { text: "서류 체크리스트", status: "yes" },
-      { text: "급여 계산기 · 수령액 시뮬레이터", status: "yes" },
-      { text: "기본 업무일지", status: "yes" },
-      { text: "표준 엑셀 양식 가져오기", status: "yes" },
-      { text: "고객 보고서", status: "limited", note: "제한" },
-      { text: "수수료 정산", status: "limited", note: "제한" },
-      { text: "엑셀 컬럼 매핑", status: "no" },
-      { text: "팀원 초대", status: "no" },
+      "기본 업무일지",
+      "표준 엑셀 양식 가져오기",
     ],
   },
   {
     planKey: "pro",
     icon: "⭐",
     label: "컨설턴트 프로",
-    target: "여러 고객사를 담당하는 전문 컨설턴트",
+    desc: "여러 고객사를 관리하는 전문 컨설턴트",
     color: "#7C3AED",
     colorBg: "#F5F3FF",
     colorBorder: "#7C3AED",
     badge: "가장 많이 선택",
     highlight: true,
     isConsult: false,
-    tagline: "월 7.9만 원으로 엑셀 관리와 신청기한 누락을 줄이세요.",
     monthlyPrice: 79000,
     annualPrice: 790000,
     monthly: { planId: "" },
@@ -68,37 +55,26 @@ const PLAN_CONFIG = [
     ctaText: "프로 시작하기",
     limits: { companies: "고객사 20개", employees: "대상자 250명", team: "1인 사용" },
     addOns: null,
-    valueProps: [
-      "수수료 정산 · 미수금 관리 자동화",
-      "고객 보고서 자동 생성으로 시간 절감",
+    coreFeatures: [
+      "고객 보고서 자동화",
+      "수수료 정산 · 미수금 관리",
       "서류 요청 문구 자동 생성",
-      "월별 수령·청구 리포트 제공",
-    ],
-    features: [
-      { text: "스타터 기능 전체 포함", status: "yes" },
-      { text: "고급 대시보드", status: "yes" },
-      { text: "고객 보고서 자동화", status: "yes" },
-      { text: "수수료 정산 · 미수금 관리", status: "yes" },
-      { text: "서류 요청 문구 자동 생성", status: "yes" },
-      { text: "고급 알림센터", status: "yes" },
-      { text: "엑셀 컬럼 매핑 가져오기", status: "yes" },
-      { text: "업무일지 · 활동 로그", status: "yes" },
-      { text: "월별 수령·청구 리포트", status: "yes" },
-      { text: "우선 지원", status: "yes" },
+      "활동 로그",
+      "월별 수령 · 청구 리포트",
+      "엑셀 컬럼 매핑 가져오기",
     ],
   },
   {
     planKey: "team",
     icon: "🏛️",
     label: "팀 / 사무소",
-    target: "노무사 사무실·컨설팅팀 등 여러 담당자 조직",
+    desc: "여러 담당자가 함께 쓰는 노무사·컨설팅팀",
     color: "#059669",
     colorBg: "#ECFDF5",
     colorBorder: "#6EE7B7",
     badge: "팀 협업",
     highlight: false,
     isConsult: false,
-    tagline: null,
     monthlyPrice: 129000,
     annualPrice: 1290000,
     monthly: { planId: "" },
@@ -109,100 +85,70 @@ const PLAN_CONFIG = [
       "추가 고객사 20개당 월 29,000원",
       "추가 팀원 1명당 월 19,000원",
     ],
-    valueProps: [
-      "담당자 배정으로 고객사별 책임 관리",
+    coreFeatures: [
+      "담당자 배정",
+      "팀별 활동 로그",
       "고객사별 보고서 일괄 생성",
-      "고급 수수료 정산 · 미수금 통합",
-      "팀별 활동 로그로 업무 투명화",
-    ],
-    features: [
-      { text: "프로 기능 전체 포함", status: "yes" },
-      { text: "팀원 3명 + 역할·권한 관리", status: "yes" },
-      { text: "담당자 배정", status: "yes" },
-      { text: "팀별 활동 로그", status: "yes" },
-      { text: "고급 엑셀 마이그레이션", status: "yes" },
-      { text: "여러 시트 가져오기", status: "yes" },
-      { text: "고객사별 보고서 일괄 생성", status: "yes" },
-      { text: "고급 수수료 정산", status: "yes" },
-      { text: "우선 기능 요청", status: "yes" },
+      "고급 수수료 정산",
+      "엑셀 컬럼 매핑 고급",
+      "우선 기능 요청",
     ],
   },
   {
     planKey: "vip",
     icon: "👑",
     label: "VIP 온보딩 파트너스",
-    target: "엑셀·수기 자료가 많고 직접 세팅할 시간이 없는 컨설턴트·노무법인",
+    desc: "Done-for-you 세팅 서비스 — 전담 구축",
     color: "#92400E",
     colorBg: "#FFFBEB",
     colorBorder: "#FDE68A",
     badge: "전담 구축",
     highlight: false,
     isConsult: true,
-    tagline: "엑셀 이관부터 내부 운영 세팅까지 전담으로 구축해드립니다.",
     monthlyPrice: null,
     annualPrice: null,
     monthly: { planId: "" },
     annual: { planId: "" },
-    priceDisplay: "초기 세팅비 100만원~\n+ 월 50만원~",
+    priceDisplay: "초기 세팅비 100만 원~\n+ 월 50만 원~",
     ctaText: "도입 상담 문의",
     limits: { companies: "팀/사무소 플랜 포함", employees: "규모 협의", team: "담당 매니저 배정" },
     addOns: null,
-    valueProps: [
-      "기존 엑셀 데이터 이관 대행으로 즉시 가동",
-      "고객사·대상자 데이터 정리 완료 상태 납품",
-      "1:1 초기 온보딩 교육 · 내부 운영 맞춤 세팅",
-      "도입 후 30일 이내 사용성 점검 및 보완 지원",
-    ],
-    features: [
-      { text: "팀/사무소 플랜 전체 포함", status: "yes" },
-      { text: "기존 엑셀 데이터 이관 대행", status: "yes" },
-      { text: "고객사·대상자 데이터 정리", status: "yes" },
-      { text: "1:1 초기 온보딩 교육", status: "yes" },
-      { text: "내부 운영 방식 맞춤 세팅", status: "yes" },
-      { text: "월 1회 운영 점검 세션", status: "yes" },
-      { text: "VIP 전용 다이렉트 문의 채널", status: "yes" },
-      { text: "제품 로드맵 우선 반영", status: "yes" },
-      { text: "고용지원금 영업·운영 스크립트 코칭", status: "yes" },
-      { text: "도입 30일 이내 사용성 보완 지원", status: "yes" },
+    coreFeatures: [
+      "기존 엑셀 데이터 이관 대행",
+      "고객사 · 대상자 데이터 정리",
+      "1:1 온보딩 교육",
+      "내부 운영 방식 맞춤 세팅",
+      "월 1회 운영 점검",
+      "VIP 전용 문의 채널",
     ],
   },
 ];
 
 const ANNUAL_SAVE_PCT = 17;
 
-// 비교표 — [기능명, starter, pro, team, vip]
+// 비교표 — 차이점 확인용. 모든 플랜 공통 포함 기능은 표에서 제외하고 차이 나는 항목만 표시.
+// [기능명, starter, pro, team, vip]
 const COMPARE_ROWS = [
-  ["고객사 수",                "5개",    "20개",  "60개",    "협의"],
-  ["대상자 수",                "50명",   "250명", "800명",   "협의"],
-  ["팀원",                     "1인",    "1인",   "3명+",    "협의"],
-  ["D-Day 알림 · 진행 보드",   true,     true,    true,      true],
-  ["서류 체크리스트",           true,     true,    true,      true],
-  ["급여 계산기 · 시뮬레이터",  true,     true,    true,      true],
-  ["기본 업무일지",             true,     true,    true,      true],
-  ["고객 보고서",               "기본",   "고급",  "일괄",    "일괄"],
-  ["수수료 정산",               "일부",   true,    "고급",    "고급"],
-  ["미수금 관리",               false,    true,    true,      true],
-  ["서류 요청 문구 자동 생성",   false,    true,    true,      true],
-  ["엑셀 컬럼 매핑",            false,    true,    "고급",    "고급"],
-  ["활동 로그",                 false,    true,    "팀별",    "팀별"],
-  ["월별 수령·청구 리포트",      false,    true,    true,      true],
-  ["담당자 배정",               false,    false,   true,      true],
-  ["보고서 일괄 생성",          false,    false,   true,      true],
-  ["엑셀 이관 대행",            false,    false,   false,     true],
-  ["1:1 온보딩 · 세팅 지원",    false,    false,   false,     true],
-  ["월 운영 점검 세션",          false,    false,   false,     true],
+  ["고객사 수",              "5개",   "20개",  "60개",   "협의"],
+  ["대상자 수",              "50명",  "250명", "800명",  "협의"],
+  ["팀원",                   "1인",   "1인",   "3명+",   "협의"],
+  ["고객 보고서",            "기본",  "고급",  "일괄",   "일괄"],
+  ["수수료 정산",            "일부",  true,    "고급",   "고급"],
+  ["미수금 관리",            false,   true,    true,     true],
+  ["서류 문구 자동 생성",     false,   true,    true,     true],
+  ["엑셀 컬럼 매핑",         false,   true,    "고급",   "고급"],
+  ["활동 로그",              false,   true,    "팀별",   "팀별"],
+  ["월별 수령·청구 리포트",   false,   true,    true,     true],
+  ["담당자 배정",            false,   false,   true,     true],
+  ["보고서 일괄 생성",       false,   false,   true,     true],
+  ["엑셀 이관 대행",         false,   false,   false,    true],
+  ["1:1 온보딩 · 세팅",      false,   false,   false,    true],
 ];
 
 function CellVal({ v }) {
   if (v === true)  return <span style={{ color: "#059669", fontSize: 16 }}>✅</span>;
   if (v === false) return <span style={{ color: "#CBD5E1", fontSize: 15 }}>—</span>;
   return <span style={{ fontWeight: 700, color: "#475569", fontSize: 13 }}>{v}</span>;
-}
-
-function FeatDot({ status }) {
-  if (status === "yes")     return <span style={{ color: "#059669", fontSize: 13, flexShrink: 0 }}>✓</span>;
-  if (status === "limited") return <span style={{ color: "#D97706", fontSize: 13, flexShrink: 0 }}>◐</span>;
-  return <span style={{ color: "#CBD5E1", fontSize: 13, flexShrink: 0 }}>—</span>;
 }
 
 function useLocalToast() {
@@ -260,7 +206,7 @@ export default function BillingPage({ onBack }) {
       <div style={{ maxWidth: 1160, margin: "0 auto" }}>
 
         {/* 상단 내비 */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
           {onBack
             ? <button onClick={onBack} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", gap: 4, padding: 0, fontFamily: FF }}>← 앱으로 돌아가기</button>
             : <span />}
@@ -268,18 +214,15 @@ export default function BillingPage({ onBack }) {
         </div>
 
         {/* 히어로 */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#7C3AED", letterSpacing: "0.08em", background: "#F5F3FF", padding: "5px 14px", borderRadius: 20, marginBottom: 14 }}>
-            컨설턴트용 고용지원금 운영 시스템
-          </div>
-          <h1 style={{ margin: "0 0 14px", fontSize: 30, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.8px", lineHeight: 1.28 }}>
-            엑셀로 관리하던 고용지원금 업무를<br />하나의 시스템으로 바꾸세요.
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <h1 style={{ margin: "0 0 18px", fontSize: 32, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.8px", lineHeight: 1.32 }}>
+            불필요한 시간은 줄이고,<br />누락되는 지원금은 없도록.<br />영업에만 집중하세요.
           </h1>
-          <p style={{ margin: "0 auto", color: "#64748B", fontSize: 15, maxWidth: 540, lineHeight: 1.7 }}>
-            신청기한, 서류, 대상자, 수수료, 고객 보고서까지 한 번에 관리하는<br />컨설턴트용 고용지원금 운영 시스템입니다.
+          <p style={{ margin: "0 auto", color: "#64748B", fontSize: 15, maxWidth: 520, lineHeight: 1.7 }}>
+            신청기한, 서류, 대상자, 수수료, 고객 보고서까지<br />컨설턴트용 고용지원금 운영 시스템 하나로 관리하세요.
           </p>
           {profile?.display_name && (
-            <div style={{ marginTop: 10, fontSize: 13, color: "#94A3B8" }}>{profile.display_name} · {org?.name}</div>
+            <div style={{ marginTop: 12, fontSize: 13, color: "#94A3B8" }}>{profile.display_name} · {org?.name}</div>
           )}
         </div>
 
@@ -309,7 +252,7 @@ export default function BillingPage({ onBack }) {
         )}
 
         {/* 월간/연간 토글 */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 32 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 34 }}>
           <div style={{ display: "inline-flex", background: "#F1F5F9", borderRadius: 12, padding: 4, gap: 4 }}>
             {[["monthly", "월간 결제"], ["annual", "연간 결제"]].map(([k, l]) => {
               const on = period === k;
@@ -330,36 +273,34 @@ export default function BillingPage({ onBack }) {
           </div>
         </div>
 
-        {/* ── 플랜 카드 4개 ── */}
+        {/* ── 플랜 카드 4개 (구조·높이 통일) ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18, marginBottom: 44, alignItems: "stretch" }} className="plan-grid">
           {PLAN_CONFIG.map((plan) => {
             const price = period === "annual" ? plan.annualPrice : plan.monthlyPrice;
-            const monthlyEquiv = plan.annualPrice ? Math.round(plan.annualPrice / 12) : null;
             const hl = plan.highlight;
             const isVip = plan.isConsult;
 
             return (
               <div key={plan.planKey}
                 style={{
-                  background: isVip ? "linear-gradient(160deg,#FFFBEB,#FEF3C7)" : "#fff",
-                  borderRadius: 20,
+                  background: isVip ? "linear-gradient(165deg,#FFFCF2,#FEF7E3)" : "#fff",
+                  borderRadius: 18,
                   border: hl ? `2.5px solid ${plan.color}` : `1.5px solid ${isVip ? plan.colorBorder : "#E2E8F0"}`,
-                  padding: hl ? "32px 22px 26px" : "26px 22px 24px",
+                  padding: "26px 22px 24px",
                   position: "relative",
                   display: "flex",
                   flexDirection: "column",
                   boxShadow: hl
-                    ? `0 18px 52px ${plan.color}28`
+                    ? `0 16px 44px ${plan.color}26`
                     : isVip
-                    ? `0 6px 24px ${plan.color}20`
+                    ? `0 6px 22px ${plan.color}1c`
                     : "0 2px 10px rgba(15,23,42,0.05)",
-                  transform: hl ? "translateY(-10px)" : "none",
                 }}>
 
-                {/* 배지 */}
+                {/* 배지 (절대 위치 — 카드 흐름에 영향 없음) */}
                 {plan.badge && (
                   <div style={{
-                    position: "absolute", top: hl ? -15 : -12, left: "50%", transform: "translateX(-50%)",
+                    position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)",
                     background: hl ? plan.color : isVip ? "#92400E" : "#334155",
                     color: "#fff", fontSize: 11, fontWeight: 700, padding: "4px 16px", borderRadius: 20,
                     whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(15,23,42,0.2)",
@@ -368,86 +309,57 @@ export default function BillingPage({ onBack }) {
                   </div>
                 )}
 
-                {/* 헤더 */}
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>{plan.icon}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: plan.color, marginBottom: 5 }}>{plan.label}</div>
-                  <div style={{ fontSize: 12.5, color: "#64748B", lineHeight: 1.55, minHeight: 36 }}>{plan.target}</div>
+                {/* 1) 플랜명 + 한 줄 설명 (고정 높이로 가격 시작선 통일) */}
+                <div style={{ height: 78, marginBottom: 4 }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>{plan.icon}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: plan.color, marginBottom: 4 }}>{plan.label}</div>
+                  <div style={{ fontSize: 12.5, color: "#64748B", lineHeight: 1.4 }}>{plan.desc}</div>
                 </div>
 
-                {/* tagline */}
-                {plan.tagline && (
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: plan.color, background: plan.colorBg, padding: "9px 13px", borderRadius: 9, marginBottom: 14, lineHeight: 1.5, border: `1px solid ${plan.colorBorder}` }}>
-                    {plan.tagline}
-                  </div>
-                )}
-
-                {/* 가격 */}
-                <div style={{ marginBottom: 14, paddingBottom: 16, borderBottom: "1px solid #F1F5F9" }}>
+                {/* 2) 가격 영역 (모든 카드 동일 높이·시작선) */}
+                <div style={{ height: 64, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #F1F5F9" }}>
                   {isVip ? (
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", letterSpacing: "-0.3px", lineHeight: 1.6, whiteSpace: "pre-line" }}>{plan.priceDisplay}</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 6 }}>규모·요건에 따라 상담 후 확정</div>
-                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", letterSpacing: "-0.3px", lineHeight: 1.45, whiteSpace: "pre-line" }}>{plan.priceDisplay}</div>
                   ) : (
-                    <div>
+                    <>
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
-                        <span style={{ fontSize: 26, fontWeight: 800, color: "#1E293B", letterSpacing: "-1px", lineHeight: 1 }}>
+                        <span style={{ fontSize: 27, fontWeight: 800, color: "#1E293B", letterSpacing: "-1px", lineHeight: 1 }}>
                           ₩{(price || 0).toLocaleString()}
                         </span>
                         <span style={{ fontSize: 14, color: "#94A3B8", paddingBottom: 2 }}>/{period === "annual" ? "년" : "월"}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: "#64748B", marginTop: 6 }}>
-                        {period === "annual"
-                          ? <>월 환산 <strong style={{ color: plan.color }}>₩{(monthlyEquiv || 0).toLocaleString()}</strong></>
-                          : <>연간 결제 시 <strong style={{ color: "#059669" }}>{ANNUAL_SAVE_PCT}% 할인</strong></>}
-                      </div>
+                      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 6 }}>연간 결제 시 {ANNUAL_SAVE_PCT}% 할인</div>
+                    </>
+                  )}
+                </div>
+
+                {/* 3) 규모 요약 박스 */}
+                <div style={{ background: plan.colorBg, borderRadius: 10, padding: "11px 13px", marginBottom: 16, border: `1px solid ${plan.colorBorder}` }}>
+                  {[plan.limits.companies, plan.limits.employees, plan.limits.team].map((t, i) => (
+                    <div key={i} style={{ fontSize: 12.5, fontWeight: 700, color: plan.color, lineHeight: 1.85 }}>{t}</div>
+                  ))}
+                </div>
+
+                {/* 4) 핵심 기능 리스트 (flex:1 — CTA를 하단에 고정) */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                  {plan.coreFeatures.map((f, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155" }}>
+                      <span style={{ color: "#059669", flexShrink: 0, fontWeight: 700 }}>✓</span>
+                      <span style={{ lineHeight: 1.4 }}>{f}</span>
+                    </div>
+                  ))}
+                  {/* 팀 플랜 확장 옵션 */}
+                  {plan.addOns && (
+                    <div style={{ background: "#F8FAFC", borderRadius: 9, padding: "9px 12px", marginTop: 4, borderLeft: `3px solid ${plan.color}` }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94A3B8", marginBottom: 4, textTransform: "uppercase" }}>확장 옵션</div>
+                      {plan.addOns.map((a, i) => (
+                        <div key={i} style={{ fontSize: 11.5, color: "#475569", lineHeight: 1.6 }}>+ {a}</div>
+                      ))}
                     </div>
                   )}
                 </div>
 
-                {/* 핵심 제한 */}
-                <div style={{ background: plan.colorBg, borderRadius: 10, padding: "10px 13px", marginBottom: 14, border: `1px solid ${plan.colorBorder}` }}>
-                  {[plan.limits.companies, plan.limits.employees, plan.limits.team].map((t, i) => (
-                    <div key={i} style={{ fontSize: 12.5, fontWeight: 700, color: plan.color, lineHeight: 1.8 }}>{t}</div>
-                  ))}
-                </div>
-
-                {/* 결과 중심 가치 문구 */}
-                <div style={{ marginBottom: 14 }}>
-                  {plan.valueProps.map((v, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 7, fontSize: 12.5, color: "#334155", marginBottom: 6, lineHeight: 1.45 }}>
-                      <span style={{ color: plan.color, flexShrink: 0, fontWeight: 700 }}>→</span>
-                      <span>{v}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 기능 목록 */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>포함 기능</div>
-                  {plan.features.map((f, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 7, fontSize: 12.5, color: f.status === "no" ? "#CBD5E1" : "#334155" }}>
-                      <FeatDot status={f.status} />
-                      <span style={{ lineHeight: 1.45 }}>
-                        {f.text}
-                        {f.note && <span style={{ fontSize: 10, background: "#FEF3C7", color: "#92400E", borderRadius: 4, padding: "1px 5px", marginLeft: 4, verticalAlign: "middle", fontWeight: 700 }}>{f.note}</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 팀 플랜 확장 옵션 */}
-                {plan.addOns && (
-                  <div style={{ background: "#F8FAFC", borderRadius: 9, padding: "9px 12px", marginBottom: 16, borderLeft: `3px solid ${plan.color}` }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94A3B8", marginBottom: 4, textTransform: "uppercase" }}>확장 옵션</div>
-                    {plan.addOns.map((a, i) => (
-                      <div key={i} style={{ fontSize: 12, color: "#475569", lineHeight: 1.65 }}>+ {a}</div>
-                    ))}
-                  </div>
-                )}
-
-                {/* CTA */}
+                {/* 5) CTA (하단 정렬) */}
                 <button onClick={() => handleCta(plan)}
                   style={{
                     width: "100%",
@@ -475,18 +387,18 @@ export default function BillingPage({ onBack }) {
           })}
         </div>
 
-        {/* ── 기능 비교표 ── */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E2E8F0", overflow: "auto", marginBottom: 28 }}>
+        {/* ── 기능 비교표 (차이점 확인용) ── */}
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E2E8F0", overflow: "auto", marginBottom: 16 }}>
           <div style={{ padding: "18px 22px", background: "#F8FAFC", borderBottom: "1.5px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#1E293B" }}>📊 플랜 상세 비교</div>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>✅ 포함 &nbsp;·&nbsp; ◐ 일부 &nbsp;·&nbsp; — 미지원</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1E293B" }}>📊 플랜 차이점 비교</div>
+            <div style={{ fontSize: 12, color: "#94A3B8" }}>✅ 포함 &nbsp;·&nbsp; — 미지원</div>
           </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 700 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 680 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #E2E8F0", background: "#FAFBFC" }}>
-                <th style={{ padding: "12px 18px", textAlign: "left", color: "#64748B", fontWeight: 600, fontSize: 13, minWidth: 170 }}>기능</th>
+                <th style={{ padding: "12px 18px", textAlign: "left", color: "#64748B", fontWeight: 600, fontSize: 13, minWidth: 150 }}>기능</th>
                 {PLAN_CONFIG.map((plan) => (
-                  <th key={plan.planKey} style={{ padding: "12px 14px", textAlign: "center", minWidth: 110, background: plan.highlight ? plan.colorBg : "transparent" }}>
+                  <th key={plan.planKey} style={{ padding: "12px 14px", textAlign: "center", minWidth: 100, background: plan.highlight ? plan.colorBg : "transparent" }}>
                     <div style={{ color: plan.color, fontWeight: 800, fontSize: 13 }}>{plan.icon} {plan.label}</div>
                     <div style={{ color: "#94A3B8", fontSize: 11.5, fontWeight: 500, marginTop: 2 }}>
                       {plan.monthlyPrice ? `₩${plan.monthlyPrice.toLocaleString()}/월` : "상담"}
@@ -511,6 +423,11 @@ export default function BillingPage({ onBack }) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* 공통 포함 안내 */}
+        <div style={{ fontSize: 12.5, color: "#94A3B8", textAlign: "center", marginBottom: 28, lineHeight: 1.7 }}>
+          기본 기능(D-Day 알림 · 진행 보드 · 서류 체크리스트 · 급여 계산기 · 업무일지)은 모든 플랜에 공통 포함됩니다.
         </div>
 
         {/* 푸터 */}
