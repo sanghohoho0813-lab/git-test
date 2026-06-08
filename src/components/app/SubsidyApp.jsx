@@ -913,7 +913,53 @@ function AgencyReport(props){
 }
 
 // ── Dashboard 보조 컴포넌트 ───────────────────────────────
-function DdayAlerts(props){ var ddayLimit=(props.settings&&props.settings.ddayAlert)||7; var alerts=useMemo(function(){var list=[];props.employees.forEach(function(emp){if(emp.status==="resigned")return;var company=props.companies.find(function(c){return c.id===emp.companyId;});var program=props.programs[emp.programId];if(!emp.startDate||!program)return;(emp.rounds||[]).forEach(function(r,ri){if(r.isPaid)return;var eligDate=addMo(emp.startDate,r.month);var dday=getDday(eligDate);if(dday!==null&&dday<=ddayLimit){list.push({id:emp.id+"-"+ri,empName:emp.name,companyName:company?company.name:"",companyId:emp.companyId,dday:dday});}});});return list.sort(function(a,b){return a.dday-b.dday;});},[props.employees,props.companies,props.programs,ddayLimit]); if(alerts.length===0)return null; return(<Card style={{marginBottom:16,overflow:"hidden",border:"1px solid #E2E8F0"}}><div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:15}}>🔔</span><span style={{fontSize:14,fontWeight:700,color:"#0F172A"}}>신청 임박</span><span style={{...neutralBadge()}}>{alerts.length}건</span></div></div><div style={{padding:"8px 12px",maxHeight:150,overflow:"auto"}}>{alerts.map(function(a){return(<div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",marginBottom:2,borderRadius:6,cursor:"pointer",fontSize:13}} onClick={function(){props.goCompany(a.companyId);}}><div><span style={{fontWeight:600,color:"#0F172A"}}>{a.empName}</span><span style={{color:"#94A3B8",marginLeft:6}}>{a.companyName}</span></div><DdayBadge dday={a.dday}/></div>);})}</div></Card>); }
+function DdayAlerts(props){
+  var ddayLimit=(props.settings&&props.settings.ddayAlert)||7;
+  var alerts=useMemo(function(){
+    var list=[];
+    props.employees.forEach(function(emp){
+      if(emp.status==="resigned")return;
+      var company=props.companies.find(function(c){return c.id===emp.companyId;});
+      var program=props.programs[emp.programId];
+      if(!emp.startDate||!program)return;
+      (emp.rounds||[]).forEach(function(r,ri){
+        if(r.isPaid)return;
+        var eligDate=addMo(emp.startDate,r.month);
+        var dday=getDday(eligDate);
+        if(dday!==null&&dday<=ddayLimit){list.push({id:emp.id+"-"+ri,empName:emp.name,companyName:company?company.name:"",companyId:emp.companyId,dday:dday,roundLabel:r.label||""});}
+      });
+    });
+    return list.sort(function(a,b){return a.dday-b.dday;});
+  },[props.employees,props.companies,props.programs,ddayLimit]);
+  if(alerts.length===0)return null;
+  var overdueCount=alerts.filter(function(a){return a.dday<0;}).length;
+  return(
+    <Card style={{marginBottom:18,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
+      <div style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <span style={{fontSize:18}}>🔔</span>
+        <span style={{fontSize:17,fontWeight:700,color:"#0F172A"}}>오늘 바로 해야 할 일</span>
+        {overdueCount>0&&<span style={{...dangerBadge()}}>기한 초과 {overdueCount}건</span>}
+        <span style={{...neutralBadge(),marginLeft:overdueCount>0?0:"auto"}}>총 {alerts.length}건</span>
+      </div>
+      <div style={{padding:"6px 12px",maxHeight:200,overflow:"auto"}}>
+        {alerts.map(function(a){
+          var isOverdue=a.dday<0;
+          return(
+            <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginBottom:2,borderRadius:8,cursor:"pointer",background:isOverdue?"#FFF5F5":"transparent"}}
+              onClick={function(){props.goCompany(a.companyId);}}>
+              <div>
+                <span style={{fontSize:14,fontWeight:700,color:isOverdue?"#DC2626":"#0F172A"}}>{a.empName}</span>
+                <span style={{fontSize:13,color:"#94A3B8",marginLeft:6}}>{a.companyName}</span>
+                {a.roundLabel&&<span style={{fontSize:12,color:"#CBD5E1",marginLeft:4}}>· {a.roundLabel}</span>}
+              </div>
+              <DdayBadge dday={a.dday}/>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 function GlobalSearch(props){ var st1=useState(""); var results=useMemo(function(){if(!st1[0].trim())return [];var q=st1[0].toLowerCase();return props.employees.filter(function(e){return e.name.toLowerCase().includes(q)||(e.phone||"").includes(q);}).slice(0,10);},[props.employees,st1[0]]); return(<div style={{marginBottom:14}}><div style={{position:"relative"}}><input style={Object.assign({},inpKo,{paddingLeft:32,fontSize:13})} value={st1[0]} onChange={function(e){st1[1](e.target.value);}} placeholder="직원 검색..."/><span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:12}}>🔍</span></div>{results.length>0&&(<Card style={{marginTop:6,maxHeight:200,overflow:"auto",position:"relative",zIndex:10}}>{results.map(function(emp){var company=props.companies.find(function(c){return c.id===emp.companyId;});var st=STS.find(function(s){return s.key===emp.status;})||STS[0];return(<div key={emp.id} style={{padding:"8px 12px",borderBottom:"1px solid #F1F5F9",cursor:"pointer",fontSize:12}} onClick={function(){props.goCompany(emp.companyId);st1[1]("");}}><div style={{display:"flex",alignItems:"center",gap:4}}><span style={{fontWeight:600}}>{emp.name}</span><Badge color={st.color} bg={st.bg}>{st.label}</Badge></div><div style={{fontSize:11,color:"#64748B"}}>{company?company.name:""}</div></div>);})}</Card>)}</div>); }
 
@@ -1071,39 +1117,42 @@ function Dashboard(props){
     )}
     {props.mode!=="stats"&&<GlobalSearch employees={props.employees} companies={props.companies} goCompany={props.goCompany}/>}
 
-    {/* ── 오늘의 업무 브리핑 (stats) ── */}
+    {/* ── 핵심 KPI 브리핑 (4-Card Executive View) ── */}
     {props.mode!=="list"&&props.companies.length>0&&(function(){
       var now=new Date();
       var dstr=now.getFullYear()+"."+(now.getMonth()+1)+"."+now.getDate();
-      // 흰색 카드 통일 — 숫자에만 의미 색, 버튼은 위험만 채움/나머지는 아웃라인
       var hasOverdue=metrics.overdueCount>0;
-      // 진한 배경 + 흰색 글자 4색 팔레트: Blue #2563EB / Red #DC2626 / Green #059669 / Slate #334155
+      // 순서: 신청가능 → 지연 → 서류미완료 → 수령액 (대표가 5초 안에 파악하는 순서)
       var brief=[
-        {icon:"🚨",label:"즉시 처리 필요",val:metrics.overdueCount+"건",sub:hasOverdue?fMan(metrics.overdueAmount)+" 지연":"지연 건 없음",bg:hasOverdue?"#DC2626":"#334155",badge:hasOverdue?"지연":null,btn:hasOverdue?"처리하기":null,btnKind:"cta",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);}},
-        {icon:"⏰",label:"7일 이내 신청 예정",val:metrics.next7Count+"건",sub:metrics.next7Count>0?fMan(metrics.next7)+" 신청 가능":"임박 건 없음",bg:"#2563EB",btn:"일정 보기",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}},
-        {icon:"📁",label:"서류 미제출",val:metrics.docMissingCount+"건",sub:metrics.docMissingCompanies+"개 업체 보완 필요",bg:"#334155",btn:"서류 보기",btnKind:"ghost",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);else if(props.setView)props.setView("company");}},
-        {icon:"💰",label:"이번 달 신청 가능액",val:fMan(metrics.thisMonthExpected),sub:"30일 내 "+metrics.next30Count+"건 신청 가능",bg:"#2563EB",btn:"일정 보기",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}}
+        {icon:"💰",label:"이번 달 신청 가능",val:fMan(metrics.thisMonthExpected),sub:"30일 내 "+metrics.next30Count+"건 · "+fMan(metrics.next30),bg:"#1D4ED8",btn:"일정 확인",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}},
+        {icon:"🚨",label:"지연 신청",val:metrics.overdueCount+"건",sub:hasOverdue?fMan(metrics.overdueAmount)+" 기한 초과":"기한 내 모두 정상 ✓",bg:"#DC2626",badge:hasOverdue?"지연":null,btn:hasOverdue?"지금 처리":null,btnKind:"cta",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);}},
+        {icon:"📁",label:"서류 미완료",val:metrics.docMissingCount+"건",sub:metrics.docMissingCount>0?metrics.docMissingCompanies+"개 업체 보완 필요":"모든 서류 완료 ✓",bg:"#334155",btn:metrics.docMissingCount>0?"서류 확인":null,btnKind:"ghost",on:function(){if(props.setView)props.setView("company");}},
+        {icon:"✅",label:"이번 달 수령",val:fManS(metrics.thisMonthReceived),unit:"원",sub:metrics.trend!=null?(metrics.trend>=0?"▲":"▼")+" "+Math.abs(metrics.trend)+"% 전월 대비":"전월 비교 없음",bg:"#059669",spark:true}
       ];
       return(
-        <div style={{marginBottom:18}}>
-          <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:14,flexWrap:"wrap"}}>
-            <span style={{fontSize:22,fontWeight:800,color:"#0F172A"}}>오늘의 고용지원금 브리핑</span>
-            <span style={{fontSize:14,color:"#64748B",fontWeight:500}}>{dstr} 기준 · 놓치면 안 되는 업무를 먼저 정리했어요</span>
+        <div style={{marginBottom:22}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:10}}>
+              <span style={{fontSize:24,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>이번 달 업무 현황</span>
+              <span style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{dstr} 기준</span>
+            </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:14}} className="grid-2-mobile">
             {brief.map(function(b,i){
-              // 진한 카드 위 버튼 — CTA는 흰 배경/카드색 글자, ghost는 흰색 반투명
-              var btnCta={marginTop:14,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"8px 17px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
-              var btnGhost={marginTop:14,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.40)",borderRadius:8,padding:"7px 15px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
+              var btnCta={marginTop:16,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"9px 18px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
+              var btnGhost={marginTop:16,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.35)",borderRadius:8,padding:"8px 16px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
               return(
-              <div key={i} className="hover-card" style={{background:b.bg,border:"none",borderRadius:14,padding:"22px 24px",display:"flex",flexDirection:"column",minHeight:148,boxShadow:"0 2px 12px rgba(15,23,42,0.12)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
-                  <span style={{fontSize:17,flexShrink:0,width:34,height:34,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
-                  <span style={{fontSize:15,fontWeight:600,color:"rgba(255,255,255,0.88)"}}>{b.label}</span>
-                  {b.badge&&<span style={{marginLeft:"auto",fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
+              <div key={i} className="hover-card" style={{background:b.bg,border:"none",borderRadius:16,padding:"24px 26px",display:"flex",flexDirection:"column",minHeight:168,boxShadow:"0 4px 16px rgba(15,23,42,0.14)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
+                  <span style={{fontSize:18,flexShrink:0,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
+                  <span style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.88)",flex:1}}>{b.label}</span>
+                  {b.badge&&<span style={{fontSize:11,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
                 </div>
-                <div style={{fontSize:42,fontWeight:800,color:"#fff",letterSpacing:"-0.5px",lineHeight:1.08}}>{b.val}</div>
-                <div style={{fontSize:14,color:"rgba(255,255,255,0.80)",marginTop:7,fontWeight:500,flex:1}}>{b.sub}</div>
+                <div style={{fontSize:50,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.04}}>
+                  {b.val}{b.unit&&<span style={{fontSize:22,opacity:0.80,marginLeft:4}}>{b.unit}</span>}
+                </div>
+                <div style={{fontSize:14,color:"rgba(255,255,255,0.78)",marginTop:8,fontWeight:500,flex:1,lineHeight:1.4}}>{b.sub}</div>
+                {b.spark&&<div style={{marginTop:10}}><Sparkline data={metrics.spark} width={120} height={22} color="rgba(255,255,255,0.75)"/></div>}
                 {b.btn&&<button onClick={b.on} style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
               </div>
             );})}
@@ -1164,49 +1213,32 @@ function Dashboard(props){
       );
     })()}
 
-    {/* ── 지원금 현황 요약 히어로 위젯 (stats) — 진한 배경 + 흰색 글자 ── */}
-    {props.mode!=="list"&&(function(){
-      var overdueRed=metrics.overdueCount>0;
-      var heroCard={borderRadius:16,border:"none",color:"#fff",boxShadow:"0 3px 14px rgba(15,23,42,0.12)"};
-      var heroTitle={fontSize:16,color:"rgba(255,255,255,0.88)",fontWeight:600};
-      var heroSub={fontSize:15,color:"rgba(255,255,255,0.80)"};
-      return(
-      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr",gap:16,marginBottom:22}} className="grid-2-mobile">
-        <div style={Object.assign({},heroCard,{background:"#2563EB",padding:"28px 30px",position:"relative",overflow:"hidden"})}>
-          <div style={Object.assign({},heroTitle,{marginBottom:8})}>이번 달 신청 가능 지원금</div>
-          <div style={{fontSize:58,fontWeight:800,lineHeight:1.05,letterSpacing:"-1.5px",color:"#fff"}}>{fMan(metrics.thisMonthExpected)}</div>
-          <div style={Object.assign({},heroSub,{marginTop:10})}>향후 30일 내 {fMan(metrics.next30)} · {metrics.next30Count}건 신청 가능</div>
-        </div>
-        <div style={Object.assign({},heroCard,{background:overdueRed?"#DC2626":"#334155",padding:"28px"})}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><span style={heroTitle}>지연 신청 건</span>{overdueRed&&<span style={{fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>지연</span>}</div>
-          <div style={{fontSize:46,fontWeight:800,color:"#fff",lineHeight:1.05}}>{metrics.overdueCount}<span style={{fontSize:20,color:"rgba(255,255,255,0.78)",marginLeft:4}}>건</span></div>
-          <div style={Object.assign({},heroSub,{marginTop:8})}>{metrics.overdueCount>0?"신청기한 지남 — "+fMan(metrics.overdueAmount):"지연 건 없음"}</div>
-        </div>
-        <div style={Object.assign({},heroCard,{background:"#059669",padding:"28px"})}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><span style={heroTitle}>이번 달 수령</span><TrendChip pct={metrics.trend} onDark/></div>
-          <div style={{fontSize:46,fontWeight:800,color:"#fff",lineHeight:1.05}}>{fManS(metrics.thisMonthReceived)}<span style={{fontSize:20,color:"rgba(255,255,255,0.78)",marginLeft:4}}>원</span></div>
-          <div style={{marginTop:10}}><Sparkline data={metrics.spark} width={150} height={30} color="rgba(255,255,255,0.9)"/></div>
-        </div>
-      </div>
-      );
-    })()}
-
     {props.mode!=="list"&&<DdayAlerts employees={props.employees} companies={props.companies} programs={props.programs} goCompany={props.goCompany} settings={props.settings}/>}
 
     {props.mode!=="stats"&&starredCompanies.length>0&&(<Card style={{padding:"14px 18px",marginBottom:16}}><div style={{fontSize:18,fontWeight:700,marginBottom:8}}>⭐ 즐겨찾기</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{starredCompanies.map(function(c){return <button key={c.id} className="hover-lift" onClick={function(){props.goCompany(c.id);}} style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0",fontSize:17})}>{c.name}</button>;})}</div></Card>)}
 
     {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}><select style={Object.assign({},inp,{width:"auto",minWidth:180,fontSize:19,fontWeight:600})} value={st1[0]} onChange={function(e){st1[1](e.target.value);}}><option value="all">📊 전체 업체</option>{props.companies.map(function(c){return <option key={c.id} value={c.id}>🏢 {c.name}</option>;})}</select><button onClick={handleExcelCopy} className="hover-lift" style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"})}>📋 엑셀용 데이터 복사</button>{st2[0]&&<span style={{fontSize:17,color:"#059669"}}>✅ 복사됨</span>}</div>}
 
-    {/* KPI 카드 */}
-    {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:16,marginBottom:22}}>{cards.map(function(c,i){return(
-      <Card key={i} className="kpi-card" style={{padding:"22px 24px",border:"1px solid #E2E8F0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><span style={{fontSize:16,color:"#475569",fontWeight:600}}>{c.l}</span><span style={{fontSize:20,width:38,height:38,borderRadius:10,background:"#F1F5F9",display:"flex",alignItems:"center",justifyContent:"center",opacity:0.9}}>{c.i}</span></div>
-        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
-          <div><span style={{fontSize:36,fontWeight:800,color:c.c}}>{c.v}</span><span style={{fontSize:16,color:"#64748B",marginLeft:4}}>{c.u}</span></div>
-          {c.extra==="spark"&&<Sparkline data={metrics.spark} width={70} height={26} color="#059669"/>}
+    {/* KPI 보조 지표 */}
+    {props.mode!=="list"&&props.companies.length>0&&(
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:14,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:10}}>보조 지표</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
+          {cards.map(function(c,i){return(
+          <Card key={i} className="kpi-card" style={{padding:"16px 18px",border:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{fontSize:13,color:"#64748B",fontWeight:600}}>{c.l}</span>
+              <span style={{fontSize:16,width:30,height:30,borderRadius:8,background:"#F8FAFC",display:"flex",alignItems:"center",justifyContent:"center"}}>{c.i}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+              <div><span style={{fontSize:28,fontWeight:800,color:c.c}}>{c.v}</span><span style={{fontSize:14,color:"#94A3B8",marginLeft:3}}>{c.u}</span></div>
+              {c.extra==="spark"&&<Sparkline data={metrics.spark} width={60} height={22} color="#059669"/>}
+            </div>
+            {c.extra==="bar"&&<div style={{height:5,background:"#F1F5F9",borderRadius:3,overflow:"hidden",marginTop:10}}><div style={{height:"100%",width:c.v+"%",background:c.bar||"#2563EB",borderRadius:3,transition:"width 0.5s ease"}}/></div>}
+          </Card>);})}
         </div>
-        {c.extra==="bar"&&<div style={{height:7,background:"#F1F5F9",borderRadius:4,overflow:"hidden",marginTop:12}}><div style={{height:"100%",width:c.v+"%",background:c.bar||"#2563EB",borderRadius:4,transition:"width 0.5s ease"}}/></div>}
-      </Card>);})}</div>}
+      </div>
+    )}
 
     {/* 수수료 요약 (stats, 프로 플랜) */}
     {props.mode!=="list"&&props.companies.length>0&&props.tier&&props.tier.feat.commission&&(
