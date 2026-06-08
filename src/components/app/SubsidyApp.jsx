@@ -1061,32 +1061,34 @@ function Dashboard(props){
       var dstr=now.getFullYear()+"."+(now.getMonth()+1)+"."+now.getDate();
       // 흰색 카드 통일 — 숫자에만 의미 색, 버튼은 위험만 채움/나머지는 아웃라인
       var hasOverdue=metrics.overdueCount>0;
+      // 진한 배경 + 흰색 글자 4색 팔레트: Blue #2563EB / Red #DC2626 / Green #059669 / Slate #334155
       var brief=[
-        {icon:"🚨",label:"즉시 처리 필요",val:metrics.overdueCount+"건",sub:hasOverdue?fMan(metrics.overdueAmount)+" 지연":"지연 건 없음",numColor:hasOverdue?"#DC2626":"#0F172A",accent:hasOverdue?"#DC2626":null,badge:hasOverdue?"지연":null,btn:hasOverdue?"처리하기":null,btnKind:"danger",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);}},
-        {icon:"⏰",label:"7일 이내 신청 예정",val:metrics.next7Count+"건",sub:metrics.next7Count>0?fMan(metrics.next7)+" 신청 가능":"임박 건 없음",numColor:metrics.next7Count>0?"#1D4ED8":"#0F172A",accent:null,btn:"일정 보기",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}},
-        {icon:"📁",label:"서류 미제출",val:metrics.docMissingCount+"건",sub:metrics.docMissingCompanies+"개 업체 보완 필요",numColor:"#0F172A",accent:null,btn:"서류 보기",btnKind:"ghost",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);else if(props.setView)props.setView("company");}},
-        {icon:"💰",label:"이번 달 신청 가능액",val:fMan(metrics.thisMonthExpected),sub:"30일 내 "+metrics.next30Count+"건 신청 가능",numColor:"#1D4ED8",accent:null,btn:"일정 보기",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}}
+        {icon:"🚨",label:"즉시 처리 필요",val:metrics.overdueCount+"건",sub:hasOverdue?fMan(metrics.overdueAmount)+" 지연":"지연 건 없음",bg:hasOverdue?"#DC2626":"#334155",badge:hasOverdue?"지연":null,btn:hasOverdue?"처리하기":null,btnKind:"cta",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);}},
+        {icon:"⏰",label:"7일 이내 신청 예정",val:metrics.next7Count+"건",sub:metrics.next7Count>0?fMan(metrics.next7)+" 신청 가능":"임박 건 없음",bg:"#2563EB",btn:"일정 보기",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}},
+        {icon:"📁",label:"서류 미제출",val:metrics.docMissingCount+"건",sub:metrics.docMissingCompanies+"개 업체 보완 필요",bg:"#334155",btn:"서류 보기",btnKind:"ghost",on:function(){if(metrics.overdueList[0])props.goCompany(metrics.overdueList[0].companyId);else if(props.setView)props.setView("company");}},
+        {icon:"💰",label:"이번 달 신청 가능액",val:fMan(metrics.thisMonthExpected),sub:"30일 내 "+metrics.next30Count+"건 신청 가능",bg:"#2563EB",btn:"일정 보기",btnKind:"ghost",on:function(){props.setView&&props.setView("kanban");}}
       ];
       return(
         <div style={{marginBottom:18}}>
           <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-            <span style={{fontSize:19,fontWeight:800,color:"#0F172A"}}>오늘의 고용지원금 브리핑</span>
-            <span style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{dstr} 기준 · 놓치면 안 되는 업무를 먼저 정리했어요</span>
+            <span style={{fontSize:20,fontWeight:800,color:"#0F172A"}}>오늘의 고용지원금 브리핑</span>
+            <span style={{fontSize:13,color:"#64748B",fontWeight:500}}>{dstr} 기준 · 놓치면 안 되는 업무를 먼저 정리했어요</span>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
             {brief.map(function(b,i){
-              var btnGhost={marginTop:10,alignSelf:"flex-start",background:"#fff",color:"#475569",border:"1px solid #E2E8F0",borderRadius:8,padding:"6px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FF};
-              var btnDanger={marginTop:10,alignSelf:"flex-start",background:"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF};
+              // 진한 카드 위 버튼 — CTA는 흰 배경/카드색 글자, ghost는 흰색 반투명
+              var btnCta={marginTop:12,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:FF};
+              var btnGhost={marginTop:12,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.40)",borderRadius:8,padding:"6px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF};
               return(
-              <div key={i} className="hover-card" style={{background:"#fff",border:"1px solid #E2E8F0",borderLeft:b.accent?("3px solid "+b.accent):"1px solid #E2E8F0",borderRadius:12,padding:"16px 18px",display:"flex",flexDirection:"column",minHeight:124}}>
+              <div key={i} className="hover-card" style={{background:b.bg,border:"none",borderRadius:14,padding:"18px 20px",display:"flex",flexDirection:"column",minHeight:128,boxShadow:"0 2px 10px rgba(15,23,42,0.10)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                  <span style={{fontSize:15,opacity:0.85,flexShrink:0}}>{b.icon}</span>
-                  <span style={{fontSize:14,fontWeight:600,color:"#64748B"}}>{b.label}</span>
-                  {b.badge&&<span style={{...dangerBadge(),marginLeft:"auto"}}>{b.badge}</span>}
+                  <span style={{fontSize:16,flexShrink:0,width:30,height:30,borderRadius:9,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
+                  <span style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>{b.label}</span>
+                  {b.badge&&<span style={{marginLeft:"auto",fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
                 </div>
-                <div style={{fontSize:28,fontWeight:800,color:b.numColor,letterSpacing:"-0.5px",lineHeight:1.1}}>{b.val}</div>
-                <div style={{fontSize:13,color:"#94A3B8",marginTop:5,fontWeight:500,flex:1}}>{b.sub}</div>
-                {b.btn&&<button onClick={b.on} style={b.btnKind==="danger"?btnDanger:btnGhost}>{b.btn} →</button>}
+                <div style={{fontSize:34,fontWeight:800,color:"#fff",letterSpacing:"-0.5px",lineHeight:1.1}}>{b.val}</div>
+                <div style={{fontSize:13,color:"rgba(255,255,255,0.78)",marginTop:6,fontWeight:500,flex:1}}>{b.sub}</div>
+                {b.btn&&<button onClick={b.on} style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
               </div>
             );})}
           </div>
@@ -1146,26 +1148,32 @@ function Dashboard(props){
       );
     })()}
 
-    {/* ── 지원금 현황 요약 히어로 위젯 (stats) ── */}
-    {props.mode!=="list"&&(
+    {/* ── 지원금 현황 요약 히어로 위젯 (stats) — 진한 배경 + 흰색 글자 ── */}
+    {props.mode!=="list"&&(function(){
+      var overdueRed=metrics.overdueCount>0;
+      var heroCard={borderRadius:14,border:"none",color:"#fff",boxShadow:"0 2px 10px rgba(15,23,42,0.10)"};
+      var heroTitle={fontSize:16,color:"rgba(255,255,255,0.85)",fontWeight:600};
+      var heroSub={fontSize:14,color:"rgba(255,255,255,0.75)"};
+      return(
       <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr",gap:14,marginBottom:18}} className="grid-2-mobile">
-        <Card className="kpi-card" style={{padding:"22px 26px",border:"1px solid #E2E8F0",borderLeft:"3px solid #2563EB",position:"relative",overflow:"hidden"}}>
-          <div style={{fontSize:16,color:"#64748B",marginBottom:6,fontWeight:600}}>이번 달 신청 가능 지원금</div>
-          <div style={{fontSize:42,fontWeight:800,lineHeight:1.1,letterSpacing:"-1px",color:"#1D4ED8"}}>{fMan(metrics.thisMonthExpected)}</div>
-          <div style={{fontSize:15,color:"#94A3B8",marginTop:8}}>향후 30일 내 {fMan(metrics.next30)} · {metrics.next30Count}건 신청 가능</div>
-        </Card>
-        <Card className="kpi-card" style={{padding:"22px 24px",border:"1px solid #E2E8F0",borderLeft:metrics.overdueCount>0?"3px solid #DC2626":"1px solid #E2E8F0"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:16,color:"#64748B",fontWeight:600}}>지연 신청 건</span>{metrics.overdueCount>0&&<span style={{...dangerBadge()}}>지연</span>}</div>
-          <div style={{fontSize:34,fontWeight:800,color:metrics.overdueCount>0?"#DC2626":"#0F172A"}}>{metrics.overdueCount}<span style={{fontSize:17,color:"#94A3B8",marginLeft:3}}>건</span></div>
-          <div style={{fontSize:14,color:"#94A3B8",marginTop:6}}>{metrics.overdueCount>0?"신청기한 지남 — "+fMan(metrics.overdueAmount):"지연 건 없음"}</div>
-        </Card>
-        <Card className="kpi-card" style={{padding:"22px 24px",border:"1px solid #E2E8F0"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:16,color:"#64748B",fontWeight:600}}>이번 달 수령</span><TrendChip pct={metrics.trend}/></div>
-          <div style={{fontSize:34,fontWeight:800,color:"#059669"}}>{fManS(metrics.thisMonthReceived)}<span style={{fontSize:17,color:"#94A3B8",marginLeft:3}}>원</span></div>
-          <div style={{marginTop:8}}><Sparkline data={metrics.spark} width={150} height={30} color="#059669"/></div>
-        </Card>
+        <div style={Object.assign({},heroCard,{background:"#2563EB",padding:"24px 26px",position:"relative",overflow:"hidden"})}>
+          <div style={Object.assign({},heroTitle,{marginBottom:6})}>이번 달 신청 가능 지원금</div>
+          <div style={{fontSize:50,fontWeight:800,lineHeight:1.1,letterSpacing:"-1px",color:"#fff"}}>{fMan(metrics.thisMonthExpected)}</div>
+          <div style={Object.assign({},heroSub,{marginTop:8})}>향후 30일 내 {fMan(metrics.next30)} · {metrics.next30Count}건 신청 가능</div>
+        </div>
+        <div style={Object.assign({},heroCard,{background:overdueRed?"#DC2626":"#334155",padding:"24px"})}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={heroTitle}>지연 신청 건</span>{overdueRed&&<span style={{fontSize:12,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>지연</span>}</div>
+          <div style={{fontSize:40,fontWeight:800,color:"#fff"}}>{metrics.overdueCount}<span style={{fontSize:18,color:"rgba(255,255,255,0.75)",marginLeft:3}}>건</span></div>
+          <div style={Object.assign({},heroSub,{marginTop:6})}>{metrics.overdueCount>0?"신청기한 지남 — "+fMan(metrics.overdueAmount):"지연 건 없음"}</div>
+        </div>
+        <div style={Object.assign({},heroCard,{background:"#059669",padding:"24px"})}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={heroTitle}>이번 달 수령</span><TrendChip pct={metrics.trend} onDark/></div>
+          <div style={{fontSize:40,fontWeight:800,color:"#fff"}}>{fManS(metrics.thisMonthReceived)}<span style={{fontSize:18,color:"rgba(255,255,255,0.75)",marginLeft:3}}>원</span></div>
+          <div style={{marginTop:8}}><Sparkline data={metrics.spark} width={150} height={30} color="rgba(255,255,255,0.9)"/></div>
+        </div>
       </div>
-    )}
+      );
+    })()}
 
     {props.mode!=="list"&&<DdayAlerts employees={props.employees} companies={props.companies} programs={props.programs} goCompany={props.goCompany} settings={props.settings}/>}
 
@@ -2341,8 +2349,12 @@ function Sparkline(props){
 function TrendChip(props){
   var pct=props.pct; if(pct===null||pct===undefined||!isFinite(pct))return null;
   var up=pct>0, flat=pct===0;
-  var color=flat?"#94A3B8":(up?"#059669":"#DC2626"); var bg=flat?"#F1F5F9":(up?"#ECFDF5":"#FEF2F2");
   var arrow=flat?"→":(up?"▲":"▼");
+  // 진한 배경 카드 위에서는 흰색 반투명 칩으로 표시
+  if(props.onDark){
+    return <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:14,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.20)",padding:"2px 8px",borderRadius:20}}>{arrow} {Math.abs(pct)}%</span>;
+  }
+  var color=flat?"#94A3B8":(up?"#059669":"#DC2626"); var bg=flat?"#F1F5F9":(up?"#ECFDF5":"#FEF2F2");
   return <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:14,fontWeight:700,color:color,background:bg,padding:"2px 8px",borderRadius:20}}>{arrow} {Math.abs(pct)}%</span>;
 }
 
