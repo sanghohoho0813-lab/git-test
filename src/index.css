@@ -101,11 +101,11 @@ body.no-scroll { overflow: hidden; }
 }
 
 /* 진행 보드 가로 스크롤바를 항상 보이게 — 잘림이 아니라 스크롤임을 인지시킨다 */
-.kanban-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 #EEF2F6; }
-.kanban-scroll::-webkit-scrollbar { height: 10px; }
-.kanban-scroll::-webkit-scrollbar-track { background: #EEF2F6; border-radius: 5px; }
-.kanban-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 5px; }
-.kanban-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+.kanban-grid { scrollbar-width: thin; scrollbar-color: #CBD5E1 #EEF2F6; }
+.kanban-grid::-webkit-scrollbar { height: 10px; }
+.kanban-grid::-webkit-scrollbar-track { background: #EEF2F6; border-radius: 5px; }
+.kanban-grid::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 5px; }
+.kanban-grid::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 /* ── 카드 호버/탭 폴리시 ─────────────────────────
    transform만 전환(컴포지트, 저비용)하고 box-shadow는 즉시 적용.
@@ -140,6 +140,13 @@ body.no-scroll { overflow: hidden; }
 .dday-grid { display: grid; grid-template-columns: 1fr; gap: 1px; }
 @media (min-width: 861px) {
   .dday-grid { grid-template-columns: 1fr 1fr; gap: 1px 12px; }
+}
+
+/* ── 진행 보드: 넓은 화면은 6단계 한 화면 그리드, 좁으면 가로 스크롤 ── */
+.kanban-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; align-items: start; }
+@media (max-width: 1200px) {
+  .kanban-grid { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 12px; align-items: flex-start; }
+  .kanban-grid > .kanban-col { width: 240px; flex-shrink: 0; }
 }
 
 /* ── 시뮬레이터 / 급여계산기 입력 그리드 (좁아지면 1열) ── */

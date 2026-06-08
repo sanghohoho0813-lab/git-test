@@ -21,6 +21,8 @@ function fDFull(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear
 function fMan(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000).toLocaleString()+"만 원":((n||0).toLocaleString())+"원"; }
 function fManS(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000)+"만":String(n||0); }
 function fProgramAmt(p){ var r=p.rounds||[]; if(r.length===1&&(r[0].label||"").indexOf("월")>=0){return"월 최대 "+fMan(r[0].amount);} return"1인당 최대 "+fMan(p.totalAmount||0); }
+// 직원의 지원 연도: 저장된 programYear 우선, 없으면 프로그램 기본 연도, 없으면 올해
+function empProgYear(e,programs){ if(e&&e.programYear)return Number(e.programYear); var p=programs&&programs[e&&e.programId]; if(p&&p.year)return Number(p.year); return new Date().getFullYear(); }
 function addMo(ds,m){ if(!ds) return ""; var d=new Date(ds); d.setMonth(d.getMonth()+m); return d.toISOString().split("T")[0]; }
 function getDday(ds){ if(!ds) return null; var today=new Date(); today.setHours(0,0,0,0); var target=new Date(ds); target.setHours(0,0,0,0); return Math.ceil((target-today)/(1000*60*60*24)); }
 function formatDday(d){ if(d===null) return ""; if(d===0) return "D-Day"; if(d<0) return "D+"+Math.abs(d); return "D-"+d; }
@@ -123,6 +125,17 @@ var STS = [
   {key:"completed",label:"최종지급완료",color:"#059669",bg:"#D1FAE5",icon:"🎉"},
   {key:"resigned",label:"퇴사",color:"#94A3B8",bg:"#F1F5F9",icon:"🚪"}
 ];
+// 진행 보드 단계별 컬러 (단계 구분을 강하게 — 컬럼 헤더 채움 + 카드 톤)
+var KANBAN_COL = {
+  preparing:  {main:"#64748B", soft:"#F8FAFC", border:"#E2E8F0"}, // 준비중 · 회색
+  submitted:  {main:"#2563EB", soft:"#EFF6FF", border:"#DBEAFE"}, // 서류접수 · 파랑
+  reviewing:  {main:"#7C3AED", soft:"#F5F3FF", border:"#E9D5FF"}, // 심사중 · 보라
+  approved:   {main:"#059669", soft:"#ECFDF5", border:"#A7F3D0"}, // 승인 · 초록
+  inprogress: {main:"#0D9488", soft:"#F0FDFA", border:"#99F6E4"}, // 지급중 · 청록
+  completed:  {main:"#15803D", soft:"#F0FDF4", border:"#BBF7D0"}, // 최종지급완료 · 진초록
+  resigned:   {main:"#94A3B8", soft:"#F8FAFC", border:"#E2E8F0"}  // 퇴사 · 연회색
+};
+function kcol(key){ return KANBAN_COL[key]||KANBAN_COL.preparing; }
 var TAGS = [
   {id:"vip",label:"VIP",color:"#1D4ED8",bg:"#EFF6FF"},
   {id:"new",label:"신규",color:"#2563EB",bg:"#DBEAFE"},
@@ -246,6 +259,8 @@ function Modal(props){ if(!props.open) return null; return(<div style={{position
 function Label(props){ return <label style={{fontSize:FS_LABEL,fontWeight:600,color:props.color||"#475569",marginBottom:6,display:"block"}}>{props.children}</label>; }
 function Card(props){ return <div onClick={props.onClick} style={Object.assign({background:"#fff",borderRadius:14,border:"1px solid #F1F5F9",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},props.style||{})}>{props.children}</div>; }
 function Badge(props){ return <span style={{fontSize:FS_BADGE,fontWeight:600,padding:"4px 11px",borderRadius:20,background:props.bg||"#EFF6FF",color:props.color||"#2563EB",whiteSpace:"nowrap",display:"inline-block"}}>{props.children}</span>; }
+// 지원 연도 배지 (지원금명과 시각적으로 구분되는 앰버 톤)
+function YearBadge(props){ if(!props.year)return null; return <span style={{fontSize:"var(--fs-badge)",fontWeight:700,padding:"2px 9px",borderRadius:999,background:"#FEF3C7",color:"#B45309",border:"1px solid #FDE68A",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",lineHeight:1.4}}>{props.year}년</span>; }
 // ── 통일 배지 시스템 (연한 배경 + 의미 텍스트 색만) ────────
 var BADGE_BASE={fontSize:"var(--fs-badge)",fontWeight:700,padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:4,lineHeight:1.4,border:"1px solid transparent"};
 function neutralBadge(){ return Object.assign({},BADGE_BASE,{background:"#F1F5F9",color:"#475569",borderColor:"#E2E8F0"}); }
@@ -1520,6 +1535,7 @@ function EmpCard(props){
               {st.label} ▾
             </span>
             {p&&<span style={{...neutralBadge()}}>{p.name}</span>}
+            <YearBadge year={empProgYear(emp,programs)}/>
           </div>
           <div style={{fontSize:"var(--fs-meta)",color:"#64748B",display:"flex",gap:8,flexWrap:"wrap"}}>
             {emp.startDate&&<span>입사 {fD(emp.startDate)}</span>}
@@ -1757,7 +1773,7 @@ function EmpModal(props){
                     {grouped[g].map(function(p){var on=st.programId[0]===p.id;return(
                       <button key={p.id} onClick={function(){st.programId[1](p.id);}}
                         style={{padding:"10px 12px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
-                        <div style={{fontWeight:on?700:500,fontSize:"var(--fs-name)",lineHeight:1.35}}>{p.year&&<span style={{fontSize:"var(--fs-meta)",fontWeight:700,color:on?gp.dark:"#94A3B8",marginRight:4}}>{p.year}</span>}{p.name}</div>
+                        <div style={{fontWeight:on?700:500,fontSize:"var(--fs-name)",lineHeight:1.35}}>{p.name}</div>
                         <div style={{fontSize:"var(--fs-sub)",color:on?gp.dark:"#94A3B8",marginTop:2}}>{fProgramAmt(p)}</div>
                       </button>
                     );})}
@@ -1788,12 +1804,12 @@ function EmpModal(props){
           var inWin=null;
           if(applyD&&st.startDate[0]){var lo=addMo(applyD,-3),hi=addMo(applyD,3);inWin=st.startDate[0]>=lo&&st.startDate[0]<=hi;}
           return(<React.Fragment>
-            <div><Label>지원 연도</Label>
-              <select style={inp} value={selY} onChange={function(e){st.programYear[1](String(e.target.value));}}>
+            <div><Label>지원 연도 <span style={{fontWeight:500,color:"#94A3B8"}}>· 직원별로 저장되어 목록·카드·보드에 표시됩니다</span></Label>
+              <select style={Object.assign({},inp,{fontWeight:700})} value={selY} onChange={function(e){st.programYear[1](String(e.target.value));}}>
                 {years.map(function(y){return <option key={y} value={y}>{y}년{y===defY?" (기본)":""}</option>;})}
               </select>
             </div>
-            <div style={{padding:"12px 16px",background:qBg,border:"1px solid "+qBorder,borderRadius:10,fontSize:13,lineHeight:1.6}}>
+            <div style={{padding:"12px 16px",background:qBg,border:"1px solid "+qBorder,borderRadius:10,fontSize:"var(--fs-sub)",lineHeight:1.6}}>
               {noInfo?(
                 <span style={{color:qColor}}>ℹ️ 지원한도 미입력 — 업체 정보 편집 &gt; 지원금별 진행 정보에서 입력하세요</span>
               ):(
@@ -1807,7 +1823,7 @@ function EmpModal(props){
                 </React.Fragment>
               )}
             </div>
-            {selY!==defY&&<div style={{padding:"10px 14px",background:"#FEF9C3",border:"1px solid #FDE047",borderRadius:8,fontSize:13,color:"#713F12",lineHeight:1.6}}>⚠️ 선택한 연도의 지원금 기준은 현재 시스템에 입력된 기준과 다를 수 있습니다. 실제 진행 전 반드시 해당 연도 공문과 운영기관 안내를 확인하세요. 미확인으로 발생한 불이익에 대해서는 책임지지 않습니다.</div>}
+            {selY!==defY&&<div style={{padding:"12px 16px",background:"#FEF9C3",border:"1px solid #FDE047",borderRadius:10,fontSize:"var(--fs-sub)",color:"#713F12",lineHeight:1.65}}><strong>⚠️ {selY}년 기준 안내</strong><br/>선택한 연도의 지원금 기준은 현재 시스템에 입력된 기준과 다를 수 있습니다. 실제 진행 전 반드시 해당 연도 공문과 운영기관 안내를 확인하세요. 미확인으로 발생한 불이익에 대해서는 책임지지 않습니다.</div>}
           </React.Fragment>);
         })()}
         {selectedP&&st.programId[0]==="replace_worker"&&(
@@ -2087,7 +2103,7 @@ function CompDet(props){
                           {STS.map(function(ss){return <option key={ss.key} value={ss.key}>{ss.icon+" "+ss.label}</option>;})}
                         </select>
                       </td>
-                      <td style={{padding:"11px 12px",color:"#475569"}}>{p?p.name:"-"}</td>
+                      <td style={{padding:"11px 12px",color:"#475569"}}>{p?p.name:"-"}{p&&<span style={{marginLeft:6,fontSize:"var(--fs-badge)",fontWeight:700,color:"#B45309",background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:999,padding:"1px 7px",whiteSpace:"nowrap"}}>{empProgYear(emp,programs)}년</span>}</td>
                       <td style={{padding:"11px 12px",color:"#64748B",fontSize:"var(--fs-meta)"}}>{emp.startDate?fD(emp.startDate):"-"}</td>
                       <td style={{padding:"11px 12px",color:"#64748B",fontSize:"var(--fs-meta)"}}>{getAge(emp)}</td>
                       <td style={{padding:"11px 12px",fontWeight:700,color:"#059669"}}>{fMan(rcv)}</td>
@@ -2985,10 +3001,10 @@ function NotifBell(props){
 // 실행 시점 기준 실제 날짜로 변환. 항상 "지연 3건·신청 임박 5건"이 살아있는 데모가 됨.
 var SAMPLE_DATA = [
   {
-    company:{isSample:true,name:"한라식품 주식회사",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:18,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:10,billed:true,paid:false,taxInvoice:false,successFee:true},
+    company:{isSample:true,name:"한라식품 주식회사",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:18,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:20,billed:true,paid:false,taxInvoice:false,successFee:true},
       notes:[{id:"sn1",text:"청년채용 사전신청 완료. 이서연 2차(6개월) 신청기한 경과 — 즉시 보완서류 확인 필요.",at:"2026-05-20T09:10:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
-      {isSample:true,name:"박준혁",birthDate:"1999-03-15",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:4,
+      {isSample:true,name:"박준혁",birthDate:"1999-03-15",gender:"male",programId:"youth_jump",programYear:2024,status:"inprogress",totalExpected:7200000,startOff:9,ds:4,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:3,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
         employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]},{label:"최종학력확인서(졸업증명서)",done:true,files:[]}]},
       {isSample:true,name:"이서연",birthDate:"1996-08-22",gender:"female",programId:"regular_convert",status:"inprogress",totalExpected:7200000,startOff:7,ds:-8,
@@ -3036,7 +3052,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀 제조업",empCount:24,phone:"043-905-3300",email:"hr@miraeprecision.com",commission:{rate:10,retainer:300000,billed:false,paid:false,successFee:true},
+    company:{isSample:true,name:"미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀 제조업",empCount:24,phone:"043-905-3300",email:"hr@miraeprecision.com",commission:{rate:20,retainer:300000,billed:false,paid:false,successFee:true},
       notes:[{id:"sn3",text:"강태양 고령자 계속고용 2분기 신청기한 경과. 재고용 취업규칙 사본 추가 확인 필요.",at:"2026-05-12T07:00:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"강태양",birthDate:"1958-04-12",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:7,ds:-12,
@@ -3196,6 +3212,8 @@ function KanbanBoard(props){
   var stDrag=useState(null);   // 드래그 중인 직원 id
   var stOver=useState(null);   // 드래그 오버 중인 컬럼 key
   var stMenu=useState(null);   // 이동 메뉴 열린 직원 id
+  var stExp=useState({});      // 카드 펼침 상태 (id→true)
+  function toggleExp(id){ var m=Object.assign({},stExp[0]); m[id]=!m[id]; stExp[1](m); }
 
   // 메뉴 바깥 클릭 시 닫기
   useEffect(function(){
@@ -3232,52 +3250,63 @@ function KanbanBoard(props){
 
   function card(e){
     var p=programs[e.programId];
-    var gp=p?GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"]:GROUP_COLORS["커스텀"];
     var company=companies.find(function(c){return c.id===e.companyId;});
     var paid=(e.rounds||[]).filter(function(r){return r.isPaid;}).length;
     var total=(e.rounds||[]).length;
     var menuOpen=stMenu[0]===e.id;
     var dragging=stDrag[0]===e.id;
+    var expanded=!!stExp[0][e.id];
+    var kc=kcol(normStatus(e.status));
     var nextRound=null;
     (e.rounds||[]).some(function(r){if(!r.isPaid&&e.startDate){nextRound={label:r.label,amount:r.expectedAmount||r.amount||0,dd:getDday(addMo(e.startDate,r.month))};return true;}return false;});
     var remaining=empRemaining(e);
     var docs=e.employeeDocs||[]; var docDone=docs.filter(function(d){return d.done;}).length; var docTotal=docs.length;
     var ndd=nextRound?nextRound.dd:null;
-    // D-day는 작은 배지로만 — 지연만 red, 나머지는 중립/파랑
     var ddBadge=ndd===null?null:ndd<0?{kind:"danger",t:"D+"+Math.abs(ndd)+" 지연"}:ndd<=7?{kind:"primary",t:ndd===0?"D-Day":"D-"+ndd}:{kind:"neutral",t:"D-"+ndd};
+    var overdue=ndd!==null&&ndd<0;
     return(
       <div key={e.id} draggable
         onDragStart={function(ev){stDrag[1](e.id);ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",e.id);}}
         onDragEnd={function(){stDrag[1](null);stOver[1](null);}}
-        style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",borderLeft:ndd!==null&&ndd<0?"3px solid #DC2626":"1px solid #E2E8F0",padding:"12px 14px",marginBottom:10,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 2px rgba(15,23,42,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":"scale(1)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:32,height:32,borderRadius:16,background:"#F1F5F9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#475569",fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
-          <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={function(){goCompany(e.companyId);}} title="업체 상세 보기">
-            <div style={{fontSize:16,fontWeight:700,color:"#0F172A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
-            <div style={{fontSize:13,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{company?company.name:""}</div>
+        onClick={function(){toggleExp(e.id);}}
+        title={expanded?"클릭하면 접힙니다":"클릭하면 상세가 펼쳐집니다"}
+        style={{background:overdue?"#FFF5F5":kc.soft,borderRadius:12,border:"1px solid "+(overdue?"#FECACA":kc.border),borderLeft:"4px solid "+(overdue?"#DC2626":kc.main),padding:"11px 13px",marginBottom:9,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 2px rgba(15,23,42,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":"scale(1)"}}>
+        {/* 기본 노출: 이름 · 회사 · 지원금/연도 */}
+        <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+          <div style={{width:32,height:32,borderRadius:16,background:"#fff",border:"1px solid "+kc.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:kc.main,fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#0F172A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
+            <div onClick={function(ev){ev.stopPropagation();goCompany(e.companyId);}} title="업체 상세 보기" style={{fontSize:"var(--fs-sub)",color:"#2563EB",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer"}}>🏢 {company?company.name:""}</div>
           </div>
-          <button onClick={function(ev){ev.stopPropagation();stMenu[1](menuOpen?null:e.id);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#CBD5E1",padding:"0 2px",flexShrink:0,lineHeight:1}} title="상태 이동">⋮</button>
+          <button onClick={function(ev){ev.stopPropagation();stMenu[1](menuOpen?null:e.id);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#94A3B8",padding:"0 2px",flexShrink:0,lineHeight:1}} title="상태 이동">⋮</button>
         </div>
-        <div style={{marginTop:8}}>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:8}}>
           {p&&<span style={{...neutralBadge()}}>{p.name}</span>}
+          <YearBadge year={empProgYear(e,programs)}/>
+          {!expanded&&ddBadge&&<span style={ddBadge.kind==="danger"?dangerBadge():ddBadge.kind==="primary"?primaryBadge():neutralBadge()}>{ddBadge.t}</span>}
         </div>
-        {nextRound&&(
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:8,padding:"7px 10px",borderRadius:9,background:"#F8FAFC",border:"1px solid #F1F5F9"}}>
-            <span style={{fontSize:14,fontWeight:700,color:"#0F172A"}}>{nextRound.label} {fMan(nextRound.amount)}</span>
-            {ddBadge&&<span style={ddBadge.kind==="danger"?dangerBadge():ddBadge.kind==="primary"?primaryBadge():neutralBadge()}>{ddBadge.t}</span>}
-          </div>
+        {/* 펼침: 상세 정보 */}
+        {expanded&&(
+          <React.Fragment>
+            {nextRound&&(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:9,padding:"7px 10px",borderRadius:9,background:"#fff",border:"1px solid "+kc.border}}>
+                <span style={{fontSize:"var(--fs-sub)",fontWeight:700,color:"#0F172A"}}>{nextRound.label} {fMan(nextRound.amount)}</span>
+                {ddBadge&&<span style={ddBadge.kind==="danger"?dangerBadge():ddBadge.kind==="primary"?primaryBadge():neutralBadge()}>{ddBadge.t}</span>}
+              </div>
+            )}
+            <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8,fontSize:"var(--fs-sub)",color:"#475569",fontWeight:500,flexWrap:"wrap"}}>
+              <span>잔여 <strong style={{color:"#0F172A"}}>{fMan(remaining)}</strong></span>
+              {docTotal>0&&<span>서류 <strong style={{color:docDone===docTotal?"#059669":"#64748B"}}>{docDone}/{docTotal}</strong></span>}
+              {total>0&&<span style={{marginLeft:"auto",color:paid>0?"#059669":"#94A3B8"}}>{paid}/{total}회차</span>}
+            </div>
+          </React.Fragment>
         )}
-        <div style={{display:"flex",alignItems:"center",gap:10,marginTop:7,fontSize:13,color:"#64748B",fontWeight:500}}>
-          <span>잔여 <strong style={{color:"#0F172A"}}>{fMan(remaining)}</strong></span>
-          {docTotal>0&&<span>서류 <strong style={{color:docDone===docTotal?"#059669":"#64748B"}}>{docDone}/{docTotal}</strong></span>}
-          {total>0&&<span style={{marginLeft:"auto",color:paid>0?"#059669":"#94A3B8"}}>{paid}/{total}회차</span>}
-        </div>
         {menuOpen&&(
           <div style={{position:"absolute",right:8,top:38,zIndex:30,background:"#fff",borderRadius:10,boxShadow:"0 10px 28px rgba(15,23,42,0.20)",border:"1px solid #E2E8F0",padding:6,width:168}} onClick={function(ev){ev.stopPropagation();}}>
-            <div style={{fontSize:12,color:"#94A3B8",padding:"4px 8px"}}>상태 이동</div>
+            <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",padding:"4px 8px"}}>상태 이동</div>
             {STS.map(function(s){ var on=normStatus(e.status)===s.key; return(
-              <div key={s.key} onClick={function(){move(e.id,s.key);}} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 8px",borderRadius:7,cursor:"pointer",fontSize:14,background:on?s.bg:"transparent",color:on?s.color:"#475569",fontWeight:on?700:500}}>
-                <span>{s.icon}</span><span>{s.label}</span>{on&&<span style={{marginLeft:"auto",fontSize:12}}>✓</span>}
+              <div key={s.key} onClick={function(){move(e.id,s.key);}} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 8px",borderRadius:7,cursor:"pointer",fontSize:"var(--fs-sub)",background:on?s.bg:"transparent",color:on?s.color:"#475569",fontWeight:on?700:500}}>
+                <span>{s.icon}</span><span>{s.label}</span>{on&&<span style={{marginLeft:"auto",fontSize:"var(--fs-badge)"}}>✓</span>}
               </div>
             );})}
           </div>
@@ -3291,27 +3320,35 @@ function KanbanBoard(props){
       {/* 파이프라인 요약 + 필터 */}
       <div style={{display:"flex",gap:12,marginBottom:18,flexWrap:"wrap",alignItems:"stretch"}}>
         <Card className="kpi-card" style={{padding:"16px 20px",flex:"1 1 200px",border:"1px solid #E2E8F0",borderLeft:"3px solid #2563EB"}}>
-          <div style={{fontSize:14,color:"#64748B",fontWeight:600,marginBottom:4}}>파이프라인 잔여 가치</div>
+          <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:4}}>파이프라인 잔여 가치</div>
           <div style={{fontSize:28,fontWeight:800,letterSpacing:"-0.5px",color:"#1D4ED8"}}>{fMan(pipelineValue)}</div>
-          <div style={{fontSize:13,color:"#94A3B8",marginTop:4}}>진행 중 미수령 예정액 합계</div>
+          <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:4}}>진행 중 미수령 예정액 합계</div>
         </Card>
         <Card className="kpi-card" style={{padding:"16px 20px",flex:"1 1 140px",border:"1px solid #E2E8F0"}}>
-          <div style={{fontSize:14,color:"#64748B",fontWeight:600,marginBottom:4}}>진행 중 대상자</div>
+          <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:4}}>진행 중 대상자</div>
           <div style={{fontSize:28,fontWeight:800,color:"#0F172A"}}>{activeEmps.length}<span style={{fontSize:15,color:"#94A3B8",marginLeft:3}}>명</span></div>
         </Card>
         <Card className="kpi-card" style={{padding:"16px 20px",flex:"1 1 140px",border:"1px solid #E2E8F0"}}>
-          <div style={{fontSize:14,color:"#64748B",fontWeight:600,marginBottom:4}}>완료 전환율</div>
+          <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:4}}>완료 전환율</div>
           <div style={{fontSize:28,fontWeight:800,color:"#059669"}}>{convRate}<span style={{fontSize:15,color:"#94A3B8",marginLeft:3}}>%</span></div>
           <div style={{height:6,background:"#F1F5F9",borderRadius:3,overflow:"hidden",marginTop:8}}><div style={{height:"100%",width:convRate+"%",background:"#059669",borderRadius:3,transition:"width 0.5s ease"}}/></div>
         </Card>
         <Card className="kpi-card" style={{padding:"16px 20px",flex:"1 1 150px",border:"1px solid #E2E8F0",borderLeft:overdueCount>0?"3px solid #DC2626":"1px solid #E2E8F0"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:14,color:"#64748B",fontWeight:600}}>지연 신청</span>{overdueCount>0&&<span style={{...dangerBadge()}}>지연</span>}</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600}}>지연 신청</span>{overdueCount>0&&<span style={{...dangerBadge()}}>지연</span>}</div>
           <div style={{fontSize:28,fontWeight:800,color:overdueCount>0?"#DC2626":"#0F172A"}}>{overdueCount}<span style={{fontSize:15,color:"#94A3B8",marginLeft:3}}>건</span></div>
-          <div style={{fontSize:13,color:"#94A3B8",marginTop:4}}>{overdueCount>0?fMan(overdueAmt)+" 위험":"지연 없음"}{next7Count>0?" · 임박 "+next7Count:""}</div>
+          <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:4}}>{overdueCount>0?fMan(overdueAmt)+" 위험":"지연 없음"}{next7Count>0?" · 임박 "+next7Count:""}</div>
         </Card>
+      </div>
+
+      {/* 보드 헤더: 안내 문구(확대) + 업체 필터(본문 상단으로 이동·확대) */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:14,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap",minWidth:0}}>
+          <span style={{fontSize:"clamp(18px,4vw,21px)",fontWeight:800,color:"#0F172A",whiteSpace:"nowrap"}}>🗂️ 단계별 진행 보드</span>
+          <span style={{fontSize:"var(--fs-sub)",color:"#64748B",fontWeight:500}}>카드를 클릭하면 상세가 펼쳐집니다 · 드래그로 단계 이동</span>
+        </div>
         {companies.length>0&&(
-          <select style={Object.assign({},inp,{width:"auto",minWidth:170,fontSize:18,fontWeight:600,alignSelf:"center"})} value={stFilter[0]} onChange={function(e){stFilter[1](e.target.value);}}>
-            <option value="all">🗂️ 전체 업체</option>
+          <select style={Object.assign({},inp,{width:"auto",minWidth:200,fontSize:"var(--fs-list)",fontWeight:700,flexShrink:0})} value={stFilter[0]} onChange={function(e){stFilter[1](e.target.value);}}>
+            <option value="all">🗂️ 전체 업체 기준</option>
             {companies.map(function(c){return <option key={c.id} value={c.id}>🏢 {c.name}</option>;})}
           </select>
         )}
@@ -3320,35 +3357,33 @@ function KanbanBoard(props){
       {activeEmps.length===0&&colEmps("resigned").length===0?(
         <EmptyState icon="🗂️" title="보드에 표시할 직원이 없습니다" desc="직원을 등록하면 준비중 → 서류접수 → 심사중 → 승인 → 지급중 → 완료 단계로 카드가 표시됩니다. 카드를 드래그해 진행 상태를 옮길 수 있어요." />
       ):(
-        <div style={{position:"relative"}}>
-          <div style={{fontSize:13,color:"#94A3B8",fontWeight:500,marginBottom:8,textAlign:"right"}}>← 좌우로 스크롤해 전체 진행 단계를 확인하세요 →</div>
-          <div className="kanban-scroll" style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:14,alignItems:"flex-start"}}>
-          {STS.map(function(col){
+        <div>
+          <div className="kanban-grid">
+          {STS.filter(function(s){return s.key!=="resigned";}).map(function(col){
             var es=colEmps(col.key);
             var colExp=es.reduce(function(s,e){return s+empRemaining(e);},0);
             var isOver=stOver[0]===col.key;
+            var kc=kcol(col.key);
             return(
-              <div key={col.key}
+              <div key={col.key} className="kanban-col"
                 onDragOver={function(ev){ev.preventDefault();if(stOver[0]!==col.key)stOver[1](col.key);}}
                 onDragLeave={function(ev){ if(!ev.currentTarget.contains(ev.relatedTarget))stOver[1](null); }}
                 onDrop={function(ev){ev.preventDefault();if(stDrag[0])move(stDrag[0],col.key);stDrag[1](null);stOver[1](null);}}
-                style={{width:290,flexShrink:0,background:isOver?"#EFF6FF":"#F8FAFC",borderRadius:14,border:isOver?"2px dashed #2563EB":"1px solid #E8EEF4",padding:"12px",minHeight:160,transition:"background 0.18s,border-color 0.18s,transform 0.15s",transform:isOver?"scale(1.01)":"scale(1)",boxShadow:isOver?"0 4px 18px rgba(37,99,235,0.10)":"none"}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,padding:"2px 4px"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
-                    <span style={{width:8,height:8,borderRadius:4,background:col.color,display:"inline-block",flexShrink:0}}/>
-                    <span style={{fontSize:15,fontWeight:700,color:"#334155",whiteSpace:"nowrap"}}>{col.label}</span>
-                  </div>
-                  <span style={{fontSize:13,fontWeight:700,color:"#64748B",background:"#F1F5F9",borderRadius:10,padding:"2px 10px",flexShrink:0,minWidth:26,textAlign:"center"}}>{es.length}</span>
+                style={{background:isOver?kc.soft:"#FBFCFE",borderRadius:14,border:isOver?"2px dashed "+kc.main:"1px solid #E8EEF4",padding:"10px",minHeight:150,transition:"background 0.18s,border-color 0.18s,transform 0.15s",transform:isOver?"scale(1.01)":"scale(1)",boxShadow:isOver?"0 4px 18px rgba(15,23,42,0.10)":"none"}}>
+                {/* 단계 헤더: 메인 컬러 채움 + 흰 글자 */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:9,padding:"8px 11px",borderRadius:10,background:kc.main}}>
+                  <span style={{fontSize:"var(--fs-sub)",fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{col.icon} {col.label}</span>
+                  <span style={{fontSize:"var(--fs-badge)",fontWeight:800,color:"#fff",background:"rgba(255,255,255,0.28)",borderRadius:999,padding:"1px 9px",flexShrink:0,minWidth:24,textAlign:"center"}}>{es.length}</span>
                 </div>
-                {colExp>0&&<div style={{fontSize:13,color:"#94A3B8",padding:"2px 4px 10px",fontWeight:500}}>잔여 {fMan(colExp)}</div>}
+                {colExp>0&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",padding:"0 2px 9px",fontWeight:600}}>잔여 {fMan(colExp)}</div>}
                 {es.length===0?(
-                  <div style={{textAlign:"center",padding:"28px 0",fontSize:14,color:isOver?"#2563EB":"#CBD5E1",fontWeight:isOver?700:400,borderRadius:10,border:isOver?"2px dashed #2563EB":"2px dashed transparent",transition:"all 0.15s"}}>{isOver?"⬇ 여기에 놓기":"비어 있음"}</div>
+                  <div style={{textAlign:"center",padding:"24px 0",fontSize:"var(--fs-sub)",color:isOver?kc.main:"#CBD5E1",fontWeight:isOver?700:400,borderRadius:10,border:isOver?"2px dashed "+kc.main:"2px dashed transparent",transition:"all 0.15s"}}>{isOver?"⬇ 여기에 놓기":"비어 있음"}</div>
                 ):es.map(card)}
               </div>
             );
           })}
           </div>
-          <div style={{position:"absolute",top:30,right:0,bottom:14,width:42,background:"linear-gradient(90deg,rgba(241,245,249,0),#F1F5F9 75%)",pointerEvents:"none"}}/>
+          {colEmps("resigned").length>0&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:10}}>🚪 퇴사 {colEmps("resigned").length}명은 보드에서 제외됩니다 (직원 탭에서 확인 가능)</div>}
         </div>
       )}
       <Notice>카드를 드래그하거나 ⋮ 버튼으로 진행 상태를 변경하세요. 변경 즉시 모든 화면·팀원에게 실시간 반영됩니다.</Notice>
