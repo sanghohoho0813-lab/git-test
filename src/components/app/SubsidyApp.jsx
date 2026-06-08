@@ -2925,37 +2925,26 @@ export default function SubsidyApp(props){
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
 
-  async function loadSampleData(){
+  function loadSampleData(){
     // startOff(개월)·ds(일) → 실행 시점 기준 실제 날짜로 변환 (데모 긴박감 항상 유지)
     function rel(monthsAgo,dayShift){var d=new Date();d.setMonth(d.getMonth()-(monthsAgo||0));if(dayShift)d.setDate(d.getDate()+dayShift);return d.toISOString().split("T")[0];}
-    var failed=0;
-    for(var i=0;i<SAMPLE_DATA.length;i++){
-      var item=SAMPLE_DATA[i];
-      try{
-        var cId=ruuid();
-        var comp=Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()});
-        await onSaveCompany(comp);
-        for(var j=0;j<item.employees.length;j++){
-          var emp=item.employees[j];
-          var startDate=rel(emp.startOff,emp.ds);
-          var rounds=(emp.rounds||[]).map(function(r){
-            var nr=Object.assign({},r,{id:uid()});
-            if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
-            delete nr.paidOff;
-            return nr;
-          });
-          var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
-          var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
-          await onSaveEmployee(Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs}));
-        }
-      }catch(err){
-        failed++;
-        if(import.meta&&import.meta.env&&import.meta.env.DEV)console.error("샘플 데이터 저장 실패:",err);
-      }
-    }
-    if(failed>0){
-      toast("샘플 데이터 일부를 저장하지 못했습니다. 계정 권한을 확인하거나 새로고침 후 다시 시도해주세요.","error");
-    }
+    SAMPLE_DATA.forEach(function(item){
+      var cId=ruuid();
+      var comp=Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()});
+      onSaveCompany(comp);
+      item.employees.forEach(function(emp){
+        var startDate=rel(emp.startOff,emp.ds);
+        var rounds=(emp.rounds||[]).map(function(r){
+          var nr=Object.assign({},r,{id:uid()});
+          if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
+          delete nr.paidOff;
+          return nr;
+        });
+        var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
+        var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
+        onSaveEmployee(Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs}));
+      });
+    });
   }
 
   function deleteSampleData(){

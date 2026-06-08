@@ -112,7 +112,6 @@ export function useData(orgId) {
   // ── Companies ─────────────────────────────────────────────
 
   async function addCompany(companyData) {
-    if (!orgId) throw new Error("계정 초기화 중입니다. 새로고침 후 다시 시도해주세요.");
     const id = companyData.id || crypto.randomUUID();
     setCompanies((prev) => [...prev, { ...companyData, id }]);
     const { error } = await supabase.from("companies").insert({ id, org_id: orgId, data: { ...companyData, id } });
@@ -182,7 +181,6 @@ export function useData(orgId) {
   // ── Employees ─────────────────────────────────────────────
 
   async function addEmployee(empData) {
-    if (!orgId) throw new Error("계정 초기화 중입니다. 새로고침 후 다시 시도해주세요.");
     const id = empData.id || crypto.randomUUID();
     const empWithId = { ...empData, id };
     setEmployees((prev) => [...prev, empWithId]);
