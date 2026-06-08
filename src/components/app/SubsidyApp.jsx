@@ -65,9 +65,20 @@ var PROGRAM_ENABLED_DEFAULTS={youth_jump:true};
 // 지원금별 확인 체크리스트
 var PROGRAM_CHECKLISTS={
   youth_jump:["청년 나이 확인 (만 15~34세, 군복무 연장 적용 가능)","수도권 사업장: 취업애로요건 최소 1개 해당 여부 확인","사전신청 완료 여부 (또는 입사 후 3개월 내 사후신청)","보수 월 124만 원 이상 지급 계획 확인","6개월 이상 계속 고용 계획","최근 3개월 내 감원 이력 없음 확인"],
-  senior_intern:["만 60세 이상 연령 확인","한국노인인력개발원 사전 승인 완료 여부","단순노무직 해당 여부 확인 (요양보호사·경비·청소업 등 제외)","고용보험 가입 및 최저임금 이상 지급 확인"],
-  regular_convert:["6개월 이상 기간제·파견 근로자 여부 확인","5인 이상 30인 미만 사업장 확인","사전승인(전환계획서) 제출 완료 여부","정규직 전환 후 근로계약서 신규 작성","취업규칙 또는 단체협약에 전환 규정 명시"],
-  senior_continue:["만 55세 이상 정년 도달 예정자 확인","100인 미만 사업장 확인","취업규칙에 정년 연장/폐지/재고용 제도 명문화","재고용 근로계약서 작성 완료"]
+  replace_worker:["육아휴직·출산전후휴가·근로시간 단축 등 대체인력 발생 사유 확인","대체인력 채용일 확인","대체인력 고용보험 가입 여부 확인","대체 대상 근로자의 휴직·휴가 기간 확인","대체인력 근무기간 요건 확인","임금 지급 및 근로계약서 작성 여부 확인","동일 근로자 중복 지원 여부 확인","신청 기한 확인"],
+  senior_intern:["연령 요건 확인 (만 60세 이상)","참여 가능 직무 여부 확인 (단순노무직 제외)","인턴 약정 기간 확인","고용보험 가입 여부 확인","운영기관(한국노인인력개발원) 사전 승인 여부 확인","기존 근로자 전환 여부 확인","중복 지원 제한 여부 확인"],
+  regular_convert:["전환 전 고용형태 확인 (6개월↑ 기간제·파견)","정규직 전환일 확인","임금 감소 여부 확인","고용유지 기간 확인","전환 대상자 중복 지원 여부 확인","신청 기한 확인","사전 신청 또는 승인(전환계획서) 필요 여부 확인"],
+  senior_continue:["정년제도 운영 여부 확인","계속고용제도(연장·폐지·재고용) 도입 여부 확인","대상 근로자 연령 요건 확인 (만 55세 이상)","고용유지 여부 확인","취업규칙 또는 사내규정 정비 여부 확인","신청 기한 확인","중복 지원 여부 확인"],
+  work_exp:["신청 대상 사업장 여부 확인 (고용보험 10인↑ 등 요건)","대상 근로자 요건 확인 (미취업 청년, 사업자등록 없음)","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관(고용24/1811-8447) 기준 추가 확인 필요"],
+  saeil_women:["신청 대상 사업장 여부 확인 (고용보험 5인↑~1000인미만)","대상 근로자 요건 확인 (경력단절 여성, 새일센터 연계)","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관(여성새로일하기센터) 기준 추가 확인 필요"],
+  emp_promo:["신청 대상 사업장 여부 확인","대상 근로자 요건 확인 (취업지원프로그램 이수 등)","고용보험 가입 및 보수 124만↑ 확인","신청 기한 확인 (12개월 내 첫 신청)","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"],
+  disabled_emp:["신청 대상 사업장 여부 확인","장애 등급 확인 (경증·중증)","고용보험 가입 및 최저임금 이상 지급 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인 (장애인증명서 등)","운영기관(한국장애인고용공단) 기준 추가 확인 필요"],
+  worklife45:["신청 대상 사업장 여부 확인 (20인↑)","노사합의서 및 취업규칙 정비 여부 확인","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관(노사발전재단) 기준 추가 확인 필요"],
+  parental_leave:["신청 대상 사업장 여부 확인 (우선지원대상기업)","대상 근로자 요건 확인 (육아휴직 30일↑ 허용)","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"],
+  parental_reduce:["신청 대상 사업장 여부 확인","대상 근로자 요건 확인 (만 12세↓ 자녀, 최대 3년)","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"],
+  work_share:["신청 대상 사업장 여부 확인 (30인미만)","업무분담수당 지급 계획 확인","고용보험 가입 여부 확인","신청 기한 확인","대체인력과 중복 신청 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"],
+  emp_retention:["경영 위기 사유 확인 (매출 감소 등)","고용유지조치계획서 사전 신청 여부 확인","대상 근로자 요건 확인","신청 기한 확인 (연간 180일 한도)","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"],
+  job_sharing:["신청 대상 사업장 여부 확인","근로시간 단축 유형 확인 (교대제·심야단축·정년연장형 등)","신규 채용 계획 확인","사전 신청(승인) 여부 확인","고용보험 가입 여부 확인","신청 기한 확인","운영기관 또는 공고문 기준 추가 확인 필요"]
 };
 
 // 업체 기본 서류 템플릿 (카테고리별)
@@ -1542,7 +1553,12 @@ function EmpModal(props){
     mil:useState(init.milSvc||0),
     ec:useState(init.eligConds||{}),
     xc:useState(init.exclConds||{}),
-    hd:useState(init.startDate||"")
+    hd:useState(init.startDate||""),
+    replaceReason:useState(init.replaceReason||""),
+    replaceHireDate:useState(init.replaceHireDate||""),
+    replaceTargetName:useState(init.replaceTargetName||""),
+    replaceStartDate:useState(init.replaceStartDate||""),
+    replaceEndDate:useState(init.replaceEndDate||"")
   };
   function save(){
     if(!st.name[0].trim()){toast("이름을 입력하세요","warn");return;}
@@ -1568,6 +1584,11 @@ function EmpModal(props){
       memo:st.memo[0],
       eligConds:st.ec[0],
       exclConds:st.xc[0],
+      replaceReason:st.replaceReason[0],
+      replaceHireDate:st.replaceHireDate[0],
+      replaceTargetName:st.replaceTargetName[0],
+      replaceStartDate:st.replaceStartDate[0],
+      replaceEndDate:st.replaceEndDate[0],
       totalExpected:p?p.totalAmount||0:0,
       rounds:rounds,
       certDocs:certDocs,
@@ -1586,16 +1607,20 @@ function EmpModal(props){
             </select>
           </div>
         </div>
-        <JuminInput onParsed={function(parsed){st.bd[1](parsed.birthDate);st.gen[1](parsed.gender);st.birthDate[1](parsed.birthDate);st.gender[1](parsed.gender);}}/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-          <div><Label>생년월일</Label><input type="date" style={inp} value={st.bd[0]||st.birthDate[0]} onChange={function(e){st.bd[1](e.target.value);st.birthDate[1](e.target.value);}}/></div>
-          <div><Label>성별</Label>
-            <div style={{display:"flex",gap:4}}>
-              {[["male","남"],["female","여"]].map(function(arr){var on=(st.gen[0]||st.gender[0])===arr[0];return(<button key={arr[0]} onClick={function(){st.gen[1](arr[0]);st.gender[1](arr[0]);}} style={Object.assign({},btnSm,{flex:1,background:on?"#DBEAFE":"#fff",color:on?"#2563EB":"#64748B",border:on?"2px solid #93C5FD":"1px solid #E2E8F0"})}>{arr[1]}</button>);})}
+        {st.programId[0]==="youth_jump"&&(
+          <>
+            <JuminInput onParsed={function(parsed){st.bd[1](parsed.birthDate);st.gen[1](parsed.gender);st.birthDate[1](parsed.birthDate);st.gender[1](parsed.gender);}}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+              <div><Label>생년월일</Label><input type="date" style={inp} value={st.bd[0]||st.birthDate[0]} onChange={function(e){st.bd[1](e.target.value);st.birthDate[1](e.target.value);}}/></div>
+              <div><Label>성별</Label>
+                <div style={{display:"flex",gap:4}}>
+                  {[["male","남"],["female","여"]].map(function(arr){var on=(st.gen[0]||st.gender[0])===arr[0];return(<button key={arr[0]} onClick={function(){st.gen[1](arr[0]);st.gender[1](arr[0]);}} style={Object.assign({},btnSm,{flex:1,background:on?"#DBEAFE":"#fff",color:on?"#2563EB":"#64748B",border:on?"2px solid #93C5FD":"1px solid #E2E8F0"})}>{arr[1]}</button>);})}
+                </div>
+              </div>
+              {(st.gen[0]||st.gender[0])==="male"&&<div><Label>군복무(월)</Label><input type="number" style={inp} value={st.mil[0]||st.milSvc[0]||""} onChange={function(e){st.mil[1](Number(e.target.value));st.milSvc[1](Number(e.target.value));}} placeholder="18"/></div>}
             </div>
-          </div>
-          {(st.gen[0]||st.gender[0])==="male"&&<div><Label>군복무(월)</Label><input type="number" style={inp} value={st.mil[0]||st.milSvc[0]||""} onChange={function(e){st.mil[1](Number(e.target.value));st.milSvc[1](Number(e.target.value));}} placeholder="18"/></div>}
-        </div>
+          </>
+        )}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <div><Label>입사일 *</Label><input type="date" style={inp} value={st.startDate[0]} onChange={function(e){st.startDate[1](e.target.value);st.hd[1](e.target.value);}}/></div>
           <div><Label>연락처</Label><input style={inp} value={st.phone[0]} onChange={function(e){st.phone[1](e.target.value);}} placeholder="010-"/></div>
@@ -1622,14 +1647,36 @@ function EmpModal(props){
             </div>
           )}
         </div>
-        {selectedP&&PROGRAM_CHECKLISTS[st.programId[0]]&&(
-          <div style={{padding:"10px 14px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:8}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#0284C7",marginBottom:6}}>📋 {selectedP.name} · 확인 사항</div>
-            <div style={{display:"grid",gap:3}}>{PROGRAM_CHECKLISTS[st.programId[0]].map(function(item,i){return <div key={i} style={{fontSize:11,color:"#475569",padding:"2px 0",display:"flex",gap:5,alignItems:"flex-start"}}><span style={{color:"#0284C7",flexShrink:0}}>☐</span><span>{item}</span></div>;})}</div>
-            <div style={{fontSize:10,color:"#94A3B8",marginTop:5}}>※ 요건은 매년 변경되므로 신청 전 최신 공고를 반드시 확인하세요.</div>
+        {selectedP&&st.programId[0]==="replace_worker"&&(
+          <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#065F46",marginBottom:8}}>📝 대체인력 기본 정보</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><Label>대체 사유</Label>
+                <select style={inp} value={st.replaceReason[0]} onChange={function(e){st.replaceReason[1](e.target.value);}}>
+                  <option value="">선택...</option>
+                  <option value="육아휴직">육아휴직</option>
+                  <option value="출산전후휴가">출산전후휴가</option>
+                  <option value="육아기 근로시간 단축">육아기 근로시간 단축</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+              <div><Label>대체인력 채용일</Label><input type="date" style={inp} value={st.replaceHireDate[0]} onChange={function(e){st.replaceHireDate[1](e.target.value);}}/></div>
+              <div><Label>대체 대상 근로자명</Label><input style={inp} value={st.replaceTargetName[0]} onChange={function(e){st.replaceTargetName[1](e.target.value);}} placeholder="홍길동"/></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                <div><Label>대체 시작일</Label><input type="date" style={inp} value={st.replaceStartDate[0]} onChange={function(e){st.replaceStartDate[1](e.target.value);}}/></div>
+                <div><Label>대체 종료일</Label><input type="date" style={inp} value={st.replaceEndDate[0]} onChange={function(e){st.replaceEndDate[1](e.target.value);}}/></div>
+              </div>
+            </div>
           </div>
         )}
-        {selectedP&&(st.bd[0]||st.birthDate[0])&&(
+        {selectedP&&(
+          <div style={{padding:"10px 14px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:8}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#0284C7",marginBottom:6}}>📋 {selectedP.name} 사전 검토</div>
+            <div style={{display:"grid",gap:3}}>{(PROGRAM_CHECKLISTS[st.programId[0]]||["신청 대상 사업장 여부 확인","대상 근로자 요건 확인","고용보험 가입 여부 확인","신청 기한 확인","중복 지원 제한 여부 확인","필수 서류 준비 여부 확인","운영기관 또는 공고문 기준 추가 확인 필요"]).map(function(item,i){return <div key={i} style={{fontSize:11,color:"#475569",padding:"2px 0",display:"flex",gap:5,alignItems:"flex-start"}}><span style={{color:"#0284C7",flexShrink:0}}>☐</span><span>{item}</span></div>;})}</div>
+            <div style={{fontSize:10,color:"#94A3B8",marginTop:6}}>※ 지원금 세부 요건은 연도별 공고와 운영기관 기준에 따라 달라질 수 있습니다. 본 체크리스트는 사전 검토용입니다.</div>
+          </div>
+        )}
+        {selectedP&&st.programId[0]==="youth_jump"&&(st.bd[0]||st.birthDate[0])&&(
           <EligChk bd={st.bd[0]||st.birthDate[0]} gen={st.gen[0]||st.gender[0]} mil={st.mil[0]||st.milSvc[0]} ec={st.ec[0]} xc={st.xc[0]}
             hd={st.startDate[0]} setBd={function(v){st.bd[1](v);}} setGen={function(v){st.gen[1](v);}} setMil={function(v){st.mil[1](v);}} setEc={st.ec[1]} setXc={st.xc[1]}/>
         )}
