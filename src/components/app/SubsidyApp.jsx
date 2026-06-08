@@ -19,6 +19,7 @@ function fD(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"
 function fDFull(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일"; }
 function fMan(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000).toLocaleString()+"만 원":((n||0).toLocaleString())+"원"; }
 function fManS(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000)+"만":String(n||0); }
+function fProgramAmt(p){ var r=p.rounds||[]; if(r.length===1&&(r[0].label||"").indexOf("월")>=0){return"월 최대 "+fMan(r[0].amount);} return"1인당 최대 "+fMan(p.totalAmount||0); }
 function addMo(ds,m){ if(!ds) return ""; var d=new Date(ds); d.setMonth(d.getMonth()+m); return d.toISOString().split("T")[0]; }
 function getDday(ds){ if(!ds) return null; var today=new Date(); today.setHours(0,0,0,0); var target=new Date(ds); target.setHours(0,0,0,0); return Math.ceil((target-today)/(1000*60*60*24)); }
 function formatDday(d){ if(d===null) return ""; if(d===0) return "D-Day"; if(d<0) return "D+"+Math.abs(d); return "D-"+d; }
@@ -1631,21 +1632,31 @@ function EmpModal(props){
         </div>
         <div>
           <Label>지원금 *</Label>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:6}}>
-            {Object.values(programs).filter(function(p){return p.enabled!==false;}).map(function(p){var on=st.programId[0]===p.id;var gp=GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"];var isYouth=p.id==="youth_jump";return(
-              <button key={p.id} onClick={function(){st.programId[1](p.id);}}
-                style={{padding:"12px 14px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569",position:"relative"}}>
-                {isYouth&&!on&&<span style={{position:"absolute",top:4,right:4,fontSize:10,background:"#FEF3C7",color:"#D97706",borderRadius:4,padding:"1px 4px",fontWeight:700}}>추천</span>}
-                <div style={{fontWeight:on?700:500,fontSize:17,lineHeight:1.35}}>{gp.icon} {p.name}</div>
-                <div style={{fontSize:15,color:on?gp.dark:"#94A3B8",marginTop:3}}>{fMan(p.totalAmount||0)}</div>
-              </button>
-            );})}
-          </div>
-          {Object.values(programs).filter(function(p){return p.enabled!==false;}).length===0&&(
-            <div style={{padding:"12px 14px",background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:8,fontSize:12,color:"#92400E"}}>
-              ⚠️ 활성화된 지원금이 없습니다. <strong>지원금 관리</strong> 메뉴에서 사용할 지원금을 켜주세요.
-            </div>
-          )}
+          {(function(){
+            var enabledProgs=Object.values(programs).filter(function(p){return p.enabled!==false;});
+            if(enabledProgs.length===0){return(<div style={{marginTop:6,padding:"12px 14px",background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:8,fontSize:12,color:"#92400E"}}>⚠️ 활성화된 지원금이 없습니다. <strong>지원금 관리</strong> 메뉴에서 사용할 지원금을 켜주세요.</div>);}
+            var GORD=["신규채용","재직자유지","육아","커스텀"];
+            var GLBL={"신규채용":"신규 채용 지원","재직자유지":"재직자 유지·전환","육아":"육아·출산 관련","커스텀":"사용자 추가"};
+            var grouped={};
+            enabledProgs.forEach(function(p){var g=p.group||"커스텀";if(!grouped[g])grouped[g]=[];grouped[g].push(p);});
+            return GORD.filter(function(g){return grouped[g]&&grouped[g].length>0;}).map(function(g){
+              var gp=GROUP_COLORS[g]||GROUP_COLORS["커스텀"];
+              return(
+                <div key={g} style={{marginTop:10}}>
+                  <div style={{fontSize:11,fontWeight:700,color:gp.dark,background:gp.light,borderRadius:5,padding:"3px 8px",display:"inline-flex",alignItems:"center",gap:4,marginBottom:6}}>{gp.icon} {GLBL[g]||g}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {grouped[g].map(function(p){var on=st.programId[0]===p.id;return(
+                      <button key={p.id} onClick={function(){st.programId[1](p.id);}}
+                        style={{padding:"10px 12px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
+                        <div style={{fontWeight:on?700:500,fontSize:14,lineHeight:1.35}}>{p.name}</div>
+                        <div style={{fontSize:12,color:on?gp.dark:"#94A3B8",marginTop:2}}>{fProgramAmt(p)}</div>
+                      </button>
+                    );})}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
         {selectedP&&st.programId[0]==="replace_worker"&&(
           <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8}}>
