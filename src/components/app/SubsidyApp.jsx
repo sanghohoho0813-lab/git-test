@@ -59,6 +59,29 @@ var DEFAULT_PROGRAMS = {
   job_sharing:{id:"job_sharing",name:"일자리함께하기 지원금",year:2026,group:"재직자유지",color:"#475569",totalAmount:7200000,rounds:[{month:3,amount:1800000,label:"1분기"},{month:6,amount:1800000,label:"2분기"},{month:9,amount:1800000,label:"3분기"},{month:12,amount:1800000,label:"4분기"}],companyDocs:["사업참여신청서","노사합의서(단축협약)","취업규칙","4대보험 피보험자 명부","근태관리 증빙"],employeeDocs:["변경 근로계약서","월별임금대장"],isCustom:false,isBuiltIn:true,note:"재직자 근로시간 단축 후 신규 채용 시 지원. 교대제 도입·심야근로 단축·정년연장형 등 유형별 지원. 우선지원 연최대 720만. 사전승인 필수.",applyUrl:"고용24(work24.go.kr)",match:{cats:["재직"],ageMin:null,ageMax:null,gender:"any",empTypes:["정규직"],preApply:true,companyMin:null,companyMax:null,regionSensitive:false,bosuFloor:false,special:["일자리나누기"]}}
 };
 
+// 기본 활성 지원금 (신규 사용자 기준: 청년일자리도약장려금만 ON)
+var PROGRAM_ENABLED_DEFAULTS={youth_jump:true};
+
+// 지원금별 확인 체크리스트
+var PROGRAM_CHECKLISTS={
+  youth_jump:["청년 나이 확인 (만 15~34세, 군복무 연장 적용 가능)","수도권 사업장: 취업애로요건 최소 1개 해당 여부 확인","사전신청 완료 여부 (또는 입사 후 3개월 내 사후신청)","보수 월 124만 원 이상 지급 계획 확인","6개월 이상 계속 고용 계획","최근 3개월 내 감원 이력 없음 확인"],
+  senior_intern:["만 60세 이상 연령 확인","한국노인인력개발원 사전 승인 완료 여부","단순노무직 해당 여부 확인 (요양보호사·경비·청소업 등 제외)","고용보험 가입 및 최저임금 이상 지급 확인"],
+  regular_convert:["6개월 이상 기간제·파견 근로자 여부 확인","5인 이상 30인 미만 사업장 확인","사전승인(전환계획서) 제출 완료 여부","정규직 전환 후 근로계약서 신규 작성","취업규칙 또는 단체협약에 전환 규정 명시"],
+  senior_continue:["만 55세 이상 정년 도달 예정자 확인","100인 미만 사업장 확인","취업규칙에 정년 연장/폐지/재고용 제도 명문화","재고용 근로계약서 작성 완료"]
+};
+
+// 업체 기본 서류 템플릿 (카테고리별)
+var COMPANY_DEFAULT_DOCS=[
+  {cat:"기본 사업자 서류",docs:["사업자등록증","법인등기사항전부증명서 (법인)","대표자 신분증 사본","기업 통장 사본"]},
+  {cat:"고용보험 관련",docs:["고용보험 성립 신고서","4대보험 가입자 명부","고용보험 피보험자격 취득·상실 이력"]},
+  {cat:"세무·재무",docs:["법인세(소득세) 신고서","재무제표 (손익계산서·대차대조표)","국세 완납 증명서"]},
+  {cat:"근로자 관련",docs:["근로계약서 (전 직원)","임금대장","취업규칙"]},
+  {cat:"지원금별 추가",docs:["협약서","사업참여신청서","개인정보 동의서 (사업주)"]}
+];
+
+// 업종 선택지
+var INDUSTRY_OPTIONS=["제조업","건설업","도소매업","음식·숙박업","운수·창고업","정보통신업","금융·보험업","부동산업","전문·과학·기술업","교육 서비스업","보건·사회복지업","예술·스포츠·여가업","협회·단체","기타 서비스업","기타/직접입력"];
+
 var ELIG = [
   {id:"e1",label:"실업 4개월 이상",desc:"고용보험 피보험자격 상실 후 연속 4개월 이상 실업"},
   {id:"e2",label:"고졸 이하 학력",desc:"대학 미진학, 최종학력 고등학교 졸업 이하"},
@@ -601,7 +624,7 @@ function BulkUpload(props){ var programs=props.programs,onUpload=props.onUpload;
 
 function PDFReport(props){ var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile; var st1=useState(false); var rd=useMemo(function(){ var emps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";}); var totalReceived=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0); var totalExpected=emps.reduce(function(s,e){return s+(e.totalExpected||0);},0); var upcoming=[]; emps.forEach(function(e){var p=programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var ed=addMo(e.startDate,r.month);var dd=getDday(ed);if(dd!==null&&dd>=0&&dd<=90)upcoming.push({empName:e.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:r.expectedAmount});});}); upcoming.sort(function(a,b){return a.dday-b.dday;}); return{empCount:emps.length,totalExpected:totalExpected,totalReceived:totalReceived,remaining:totalExpected-totalReceived,upcomingRounds:upcoming.slice(0,10),employees:emps}; },[company,employees,programs]);
   function generatePDF(){ var cl=company.corpType==="법인"?(company.juPosition==="앞"?"(주)"+company.name:company.name+"(주)"):company.name; var today=new Date(); var rd2=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일"; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+cl+' 고용지원금 현황</title><style>body{font-family:-apple-system,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#1E293B}h1{font-size:24px;border-bottom:3px solid #2563EB;padding-bottom:10px;margin-bottom:20px}h2{font-size:16px;color:#2563EB;margin-top:30px;border-left:4px solid #2563EB;padding-left:10px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px}.sc{background:#F8FAFC;border-radius:8px;padding:15px;text-align:center}.sc .l{font-size:12px;color:#64748B}.sc .v{font-size:24px;font-weight:700;color:#2563EB}table{width:100%;border-collapse:collapse}th,td{border:1px solid #E2E8F0;padding:8px 12px;text-align:left;font-size:13px}th{background:#F8FAFC}@media print{body{padding:20px}}</style></head><body>'; html+='<h1>📋 '+cl+' 고용지원금 현황</h1><p style="color:#64748B;font-size:13px">작성일: '+rd2+' | 작성자: '+(profile.display_name||"")+" "+(profile.title||"")+'</p>'; html+='<div class="summary"><div class="sc"><div class="l">대상자</div><div class="v">'+rd.empCount+'명</div></div><div class="sc"><div class="l">수령완료</div><div class="v">'+fMan(rd.totalReceived)+'</div></div><div class="sc"><div class="l">수령예정</div><div class="v">'+fMan(rd.remaining)+'</div></div></div>'; if(rd.upcomingRounds.length>0){html+='<h2>🔔 향후 90일 내 신청 예정</h2><table><tr><th>직원</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th>예상금액</th></tr>';rd.upcomingRounds.forEach(function(r){html+='<tr><td>'+r.empName+'</td><td>'+r.roundLabel+'</td><td>'+fD(r.eligDate)+'</td><td>D-'+r.dday+'</td><td>'+fMan(r.amount)+'</td></tr>';});html+='</table>';} html+='<h2>👤 직원별 현황</h2><table><tr><th>이름</th><th>지원금</th><th>상태</th><th>입사일</th><th>수령액</th></tr>';rd.employees.forEach(function(e){var p2=programs[e.programId];var s2=STS.find(function(s){return s.key===e.status;});var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);html+='<tr><td>'+e.name+'</td><td>'+(p2?p2.name:"")+'</td><td>'+(s2?s2.label:"")+'</td><td>'+(e.startDate||"-")+'</td><td>'+fMan(rcv)+'</td></tr>';});html+='</table>'; html+='<div style="margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;text-align:center;font-size:12px;color:#64748B">고용지원금 매니저 Pro에서 자동 생성 · 신청 전 최신 공고 확인 필요</div></body></html>'; var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_고용지원금_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false); if(props.onLog)props.onLog(company.id,"내부 관리 보고서 출력","기타"); toast("내부 보고서가 생성되었습니다.","success"); }
-  return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#334155",color:"#fff",border:"none"})} onClick={function(){st1[1](true);}}>📄 내부 보고서</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📄 내부 관리 보고서" width={480}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>📄</div><h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700}}>{company.name}</h3><p style={{color:"#64748B",fontSize:13,marginBottom:24}}>대상자 {rd.empCount}명 | 수령완료 {fMan(rd.totalReceived)}</p><button style={Object.assign({},btnP,{padding:"14px 40px",fontSize:15})} onClick={generatePDF}>📥 HTML 보고서 다운로드</button><p style={{fontSize:11,color:"#94A3B8",marginTop:12}}>브라우저에서 열어 인쇄(Ctrl+P)하면 PDF로 저장됩니다</p></div></Modal></React.Fragment>); }
+  return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#334155",color:"#fff",border:"none"})} onClick={function(){st1[1](true);}}>📄 내부 보고서</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📄 내부 관리 보고서" width={480}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>📄</div><h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700}}>{company.name}</h3><p style={{color:"#64748B",fontSize:13,marginBottom:24}}>대상자 {rd.empCount}명 | 수령완료 {fMan(rd.totalReceived)}</p><button style={Object.assign({},btnP,{padding:"14px 40px",fontSize:15})} onClick={generatePDF}>📥 HTML 보고서 다운로드</button><p style={{fontSize:11,color:"#94A3B8",marginTop:12}}>브라우저에서 열어 인쇄(Ctrl+P)하면 PDF로 저장됩니다</p><div style={{marginTop:10,padding:"8px 12px",background:"#D1FAE5",borderRadius:8,fontSize:12,color:"#065F46",textAlign:"left"}}>💡 <strong>영업 팁:</strong> 보고서를 고객사 담당자에게 정기 공유하면 재계약률·추가 의뢰 확률이 높아집니다!</div></div></Modal></React.Fragment>); }
 
 function CommissionReport(props){
   var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile;
@@ -1503,7 +1526,7 @@ function EmpModal(props){
   var init=props.emp||{};
   var st={
     name:useState(init.name||""),
-    programId:useState(init.programId||Object.keys(programs)[0]||""),
+    programId:useState(init.programId||(programs["youth_jump"]&&programs["youth_jump"].enabled!==false?"youth_jump":Object.keys(programs).find(function(k){return programs[k].enabled!==false;})||Object.keys(programs)[0]||"")),
     startDate:useState(init.startDate||""),
     birthDate:useState(init.birthDate||"2000-01-01"),
     gender:useState(init.gender||"male"),
@@ -1584,15 +1607,28 @@ function EmpModal(props){
         <div>
           <Label>지원금 *</Label>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:6}}>
-            {Object.values(programs).map(function(p){var on=st.programId[0]===p.id;var gp=GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"];return(
+            {Object.values(programs).filter(function(p){return p.enabled!==false;}).map(function(p){var on=st.programId[0]===p.id;var gp=GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"];var isYouth=p.id==="youth_jump";return(
               <button key={p.id} onClick={function(){st.programId[1](p.id);}}
-                style={{padding:"12px 14px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569"}}>
+                style={{padding:"12px 14px",borderRadius:10,cursor:"pointer",textAlign:"left",border:"2px solid "+(on?gp.base:"#E2E8F0"),background:on?gp.badge:"#fff",color:on?gp.text:"#475569",position:"relative"}}>
+                {isYouth&&!on&&<span style={{position:"absolute",top:4,right:4,fontSize:10,background:"#FEF3C7",color:"#D97706",borderRadius:4,padding:"1px 4px",fontWeight:700}}>추천</span>}
                 <div style={{fontWeight:on?700:500,fontSize:17,lineHeight:1.35}}>{gp.icon} {p.name}</div>
                 <div style={{fontSize:15,color:on?gp.dark:"#94A3B8",marginTop:3}}>{fMan(p.totalAmount||0)}</div>
               </button>
             );})}
           </div>
+          {Object.values(programs).filter(function(p){return p.enabled!==false;}).length===0&&(
+            <div style={{padding:"12px 14px",background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:8,fontSize:12,color:"#92400E"}}>
+              ⚠️ 활성화된 지원금이 없습니다. <strong>지원금 관리</strong> 메뉴에서 사용할 지원금을 켜주세요.
+            </div>
+          )}
         </div>
+        {selectedP&&PROGRAM_CHECKLISTS[st.programId[0]]&&(
+          <div style={{padding:"10px 14px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:8}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#0284C7",marginBottom:6}}>📋 {selectedP.name} · 확인 사항</div>
+            <div style={{display:"grid",gap:3}}>{PROGRAM_CHECKLISTS[st.programId[0]].map(function(item,i){return <div key={i} style={{fontSize:11,color:"#475569",padding:"2px 0",display:"flex",gap:5,alignItems:"flex-start"}}><span style={{color:"#0284C7",flexShrink:0}}>☐</span><span>{item}</span></div>;})}</div>
+            <div style={{fontSize:10,color:"#94A3B8",marginTop:5}}>※ 요건은 매년 변경되므로 신청 전 최신 공고를 반드시 확인하세요.</div>
+          </div>
+        )}
         {selectedP&&(st.bd[0]||st.birthDate[0])&&(
           <EligChk bd={st.bd[0]||st.birthDate[0]} gen={st.gen[0]||st.gender[0]} mil={st.mil[0]||st.milSvc[0]} ec={st.ec[0]} xc={st.xc[0]}
             hd={st.startDate[0]} setBd={function(v){st.bd[1](v);}} setGen={function(v){st.gen[1](v);}} setMil={function(v){st.mil[1](v);}} setEc={st.ec[1]} setXc={st.xc[1]}/>
@@ -2195,6 +2231,8 @@ function CompDet(props){
 // ── CompanyEditModal ──────────────────────────────────────
 function CompanyEditModal(props){
   var c=props.company||{};
+  var stAdv=useState(false);
+  var stBizTypeCustom=useState(INDUSTRY_OPTIONS.indexOf(c.bizType||"")>=0?false:(c.bizType?true:false));
   var st={
     name:useState(c.name||""),
     bizNo:useState(c.bizNo||""),
@@ -2255,16 +2293,31 @@ function CompanyEditModal(props){
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           <div><Label>상시근로자 수</Label><input type="number" style={inp} value={st.empCount[0]} onChange={function(e){st.empCount[1](e.target.value);}}/></div>
-          <div><Label>업종</Label><input style={inp} value={st.bizType[0]} onChange={function(e){st.bizType[1](e.target.value);}}/></div>
+          <div>
+            <Label>업종</Label>
+            <select style={inp} value={stBizTypeCustom[0]?"기타/직접입력":(st.bizType[0]||"")} onChange={function(e){var v=e.target.value;if(v==="기타/직접입력"){stBizTypeCustom[1](true);st.bizType[1]("");}else{stBizTypeCustom[1](false);st.bizType[1](v);}}}>
+              <option value="">선택...</option>
+              {INDUSTRY_OPTIONS.map(function(o){return <option key={o} value={o}>{o}</option>;})}
+            </select>
+            {stBizTypeCustom[0]&&<input style={Object.assign({},inp,{marginTop:4,fontSize:12})} value={st.bizType[0]} onChange={function(e){st.bizType[1](e.target.value);}} placeholder="업종 직접 입력"/>}
+          </div>
           <div><Label>지역</Label>
             <select style={inp} value={st.region[0]} onChange={function(e){st.region[1](e.target.value);}}>
-              {["수도권","비수도권"].map(function(r){return <option key={r}>{r}</option>;})}
+              <option value="수도권">수도권 (서울·경기·인천)</option>
+              <option value="비수도권">비수도권</option>
             </select>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div><Label>고용보험 성립일</Label><input type="date" style={inp} value={st.insuranceDate[0]} onChange={function(e){st.insuranceDate[1](e.target.value);}}/></div>
-          <div><Label>분야/유형</Label><input style={inp} value={st.sector[0]} onChange={function(e){st.sector[1](e.target.value);}}/></div>
+        <div>
+          <button type="button" onClick={function(){stAdv[1](!stAdv[0]);}} style={{background:"none",border:"none",color:"#64748B",fontSize:12,cursor:"pointer",padding:"6px 0",display:"flex",alignItems:"center",gap:4}}>
+            <span style={{display:"inline-block",transition:"transform 0.15s",transform:stAdv[0]?"rotate(90deg)":"none"}}>▶</span> 고급 정보 (고용보험 성립일 · 분야/유형)
+          </button>
+          {stAdv[0]&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:6,padding:10,background:"#F8FAFC",borderRadius:8,border:"1px solid #E2E8F0"}}>
+              <div><Label>고용보험 성립일</Label><input type="date" style={inp} value={st.insuranceDate[0]} onChange={function(e){st.insuranceDate[1](e.target.value);}}/></div>
+              <div><Label>분야/유형</Label><input style={inp} value={st.sector[0]} onChange={function(e){st.sector[1](e.target.value);}}/></div>
+            </div>
+          )}
         </div>
         <div>
           <Label>태그</Label>
@@ -2337,21 +2390,34 @@ function ProgramsList(props){
     onUpdate(updated);
   }
   function resetBuiltins(){
-    if(!window.confirm("기본 15개 지원금을 처음 상태로 되돌립니다. (직접 추가한 커스텀은 유지) 진행할까요?"))return;
+    if(!window.confirm("기본 지원금을 처음 상태로 되돌립니다. (직접 추가한 커스텀은 유지) 진행할까요?"))return;
     var updated=Object.assign({},programs);
     Object.keys(DEFAULT_PROGRAMS).forEach(function(id){updated[id]=DEFAULT_PROGRAMS[id];});
     onUpdate(updated);
   }
+  function toggleEnabled(pid){
+    var updated=Object.assign({},programs);
+    var p=updated[pid];
+    updated[pid]=Object.assign({},p,{enabled:p.enabled===false?true:false});
+    onUpdate(updated);
+  }
+  var enabledCount=Object.values(programs).filter(function(p){return p.enabled!==false;}).length;
   return(
     <div className="fade-in">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
-        <h2 style={{margin:0,fontSize:24,fontWeight:800}}>⚙️ 지원금 관리</h2>
+        <div>
+          <h2 style={{margin:"0 0 4px",fontSize:24,fontWeight:800}}>⚙️ 지원금 관리</h2>
+          <p style={{margin:0,fontSize:13,color:"#64748B"}}>활성화된 지원금 <strong style={{color:"#2563EB"}}>{enabledCount}개</strong>만 직원 추가 화면에 표시됩니다. ON/OFF로 노출을 제어하세요.</p>
+        </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <button style={Object.assign({},btnS,{fontSize:17})} onClick={resetBuiltins}>↺ 기본값 복원</button>
           <button style={btnP} className="hover-lift" onClick={openNew}>+ 커스텀 지원금 추가</button>
         </div>
       </div>
-      <Notice>금액·회차·신청처는 매년 공고에 따라 바뀝니다. 카드의 <b>편집</b>으로 직접 수정하면 내 계정에 저장됩니다. 기본 15종도 모두 수정 가능합니다.</Notice>
+      <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,marginBottom:14,fontSize:12,color:"#92400E"}}>
+        ⭐ <strong>청년일자리도약장려금</strong>이 기본 추천 지원금입니다. 2026년에도 예산이 유지되며 청년 채용 기업의 신청 실적이 가장 높습니다.
+      </div>
+      <Notice>금액·회차·신청처는 매년 공고에 따라 바뀝니다. 카드의 <b>편집</b>으로 직접 수정하면 내 계정에 저장됩니다. 기본 지원금도 모두 수정 가능합니다.</Notice>
       {["신규채용","재직자유지","육아","커스텀"].map(function(grp){
         var items=Object.values(programs).filter(function(p){return p.group===grp;});
         if(!items.length)return null;
@@ -2362,14 +2428,18 @@ function ProgramsList(props){
             <div style={{display:"grid",gap:10}}>
               {items.map(function(p){
                 var isCustom=!DEFAULT_PROGRAMS[p.id];
+                var isEnabled=p.enabled!==false;
+                var isYouth=p.id==="youth_jump";
                 return(
-                  <Card key={p.id} className="hover-card" style={{padding:"18px 20px",border:"1.5px solid "+gp.light}}>
+                  <Card key={p.id} className="hover-card" style={{padding:"18px 20px",border:"1.5px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.65}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
                           <span style={{fontSize:19,fontWeight:700}}>{p.name}</span>
+                          {isYouth&&<Badge color="#D97706" bg="#FEF3C7">⭐ 추천</Badge>}
                           {isCustom&&<Badge color={gp.text} bg={gp.badge}>커스텀</Badge>}
                           <Badge color={gp.dark} bg={gp.light}>{fMan(p.totalAmount||0)}</Badge>
+                          {!isEnabled&&<Badge color="#94A3B8" bg="#F1F5F9">비활성</Badge>}
                         </div>
                         {p.desc&&<div style={{fontSize:16,color:"#64748B",marginBottom:8,lineHeight:1.5}}>{p.desc}</div>}
                         <div style={{display:"flex",gap:12,fontSize:16,color:"#475569",flexWrap:"wrap"}}>
@@ -2378,7 +2448,10 @@ function ProgramsList(props){
                           {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                         </div>
                       </div>
-                      <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:12}}>
+                      <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:12,alignItems:"center"}}>
+                        <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"5px 14px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
+                          {isEnabled?"ON":"OFF"}
+                        </button>
                         <button style={Object.assign({},btnSm,{fontSize:16})} onClick={function(){openEdit(p);}}>편집</button>
                         {isCustom&&<button style={Object.assign({},btnSm,{fontSize:16,color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
                       </div>
@@ -3011,7 +3084,8 @@ function ProductTour(props){
 export default function SubsidyApp(props){
   var companies=props.companies||[];
   var employees=props.employees||[];
-  var programs=props.programs||DEFAULT_PROGRAMS;
+  var rawProgs=props.programs;
+  var programs=useMemo(function(){var raw=rawProgs||DEFAULT_PROGRAMS;var out={};Object.keys(raw).forEach(function(k){var p=raw[k];out[k]=p.enabled!==undefined?p:Object.assign({},p,{enabled:!!PROGRAM_ENABLED_DEFAULTS[k]});});return out;},[rawProgs]);
   var calendarMemos=props.calendarMemos||{};
   var profile=props.profile||{};
   var orgName=props.orgName||"";
@@ -3373,7 +3447,8 @@ export default function SubsidyApp(props){
         <CompanyEditModal open={true} onClose={function(){stAddComp[1](false);}} company={null}
           onSave={function(data){
             var prog=Object.values(DEFAULT_PROGRAMS)[0];
-            var newComp=Object.assign({id:ruuid(),createdAt:new Date().toISOString(),companyDocs:(prog?prog.companyDocs||[]:[]).map(function(d){return{id:uid(),label:typeof d==="string"?d:d.label||"",done:false,files:[]};})},data);
+            var defaultDocs=COMPANY_DEFAULT_DOCS.reduce(function(acc,cat){return acc.concat(cat.docs.map(function(d){return{id:uid(),label:d,done:false,files:[]};}));},[]);
+            var newComp=Object.assign({id:ruuid(),createdAt:new Date().toISOString(),companyDocs:defaultDocs},data);
             onSaveCompany(newComp);
             stAddComp[1](false);
             goCompany(newComp.id);
