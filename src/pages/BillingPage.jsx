@@ -411,10 +411,10 @@ export default function BillingPage({ onBack }) {
 
         {/* 히어로 */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <h1 style={{ margin: "0 0 18px", fontSize: 33, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.8px", lineHeight: 1.32 }}>
+          <h1 style={{ margin: "0 0 18px", fontSize: "clamp(23px,5.5vw,33px)", fontWeight: 800, color: "#0F172A", letterSpacing: "-0.8px", lineHeight: 1.32, wordBreak: "keep-all" }}>
             불필요한 시간은 줄이고,<br />누락되는 지원금은 없도록.<br />영업에만 집중하세요.
           </h1>
-          <p style={{ margin: "0 auto", color: "#64748B", fontSize: 16, maxWidth: 540, lineHeight: 1.7 }}>
+          <p style={{ margin: "0 auto", color: "#64748B", fontSize: "clamp(14px,3.8vw,16px)", maxWidth: 540, lineHeight: 1.7, wordBreak: "keep-all" }}>
             신청기한, 서류, 대상자, 수수료, 고객 보고서까지<br />컨설턴트용 고용지원금 운영 시스템 하나로 관리하세요.
           </p>
           {profile?.display_name && (

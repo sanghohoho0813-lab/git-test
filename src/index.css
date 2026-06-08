@@ -98,6 +98,16 @@ body.no-scroll { overflow: hidden; }
 /* ── 핵심 브리핑 그리드 (데스크톱 기본) ── */
 .brief-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 14px; }
 
+/* ── 시뮬레이터 / 급여계산기 입력 그리드 (좁아지면 1열) ── */
+@media (max-width: 760px) {
+  .sim-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .wage-input-grid { grid-template-columns: 1fr 1fr !important; }
+  .wage-input-grid > div:first-child { grid-column: 1 / -1; }
+}
+
+/* 긴 단어/금액이 줄을 깨지 않도록 한국어 단어 단위 줄바꿈 */
+h1, h2, h3, h4, .keep-word { word-break: keep-all; }
+
 /* ── 모바일 반응형 ──────────────────────────── */
 .app-sidebar { transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); }
 .app-backdrop { display: none; }
@@ -126,7 +136,10 @@ body.no-scroll { overflow: hidden; }
   /* compact 헤더 */
   .app-header { padding: 0 14px !important; height: 60px !important; }
   .app-title { font-size: 19px !important; }
-  .app-page { padding: 14px 14px !important; }
+  .app-page { padding: 14px 12px !important; }
+
+  /* 모바일: 카드 내부 패딩 축소 — 가독 공간 확보 */
+  .card { border-radius: 16px; }
 
   /* 업체 추가 버튼 — 아이콘 위주로 축소 */
   .add-co-btn { padding: 9px 13px !important; font-size: 18px !important; }

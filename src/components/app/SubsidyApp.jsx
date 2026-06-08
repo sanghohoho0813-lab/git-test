@@ -166,11 +166,22 @@ function docIsDone(d){ var s=docEffStatus(d); return s==="submitted"||s==="confi
 
 // ── 스타일 상수 ──────────────────────────────────────────
 var FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif";
-var inp = {width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:22,outline:"none",boxSizing:"border-box",fontFamily:FF,color:"#1E293B",background:"#fff",transition:"border-color 0.15s"};
+// 반응형 타이포 스케일 (clamp: 모바일 축소 · 데스크톱 균형)
+var FS_INPUT="clamp(15px,4vw,17px)";   // 입력창·기본 버튼
+var FS_BTN_SM="clamp(13px,3.4vw,15px)"; // 보조 버튼
+var FS_LABEL="clamp(13px,3.4vw,14px)";  // 라벨
+var FS_BADGE="clamp(11px,3vw,13px)";    // 배지
+var FS_PAGE_TITLE="clamp(20px,5vw,26px)"; // 페이지 메인 제목
+var FS_SECTION="clamp(17px,4.4vw,22px)";  // 섹션 제목
+var FS_CARD_TITLE="clamp(15px,4vw,18px)"; // 카드 제목
+var FS_HERO_NUM="clamp(28px,8.5vw,44px)"; // 히어로 수치(시뮬레이터 총액 등)
+var FS_BODY="clamp(13px,3.6vw,15px)";     // 본문/설명
+var FS_LIST="clamp(13px,3.6vw,16px)";     // 표/리스트
+var inp = {width:"100%",padding:"12px 15px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:FS_INPUT,outline:"none",boxSizing:"border-box",fontFamily:FF,color:"#1E293B",background:"#fff",transition:"border-color 0.15s"};
 var inpKo = Object.assign({},inp,{lang:"ko"});
-var btnP = {background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 2px rgba(37,99,235,0.18)"};
-var btnS = {background:"#fff",color:"#475569",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:500,cursor:"pointer",fontFamily:FF};
-var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:8,padding:"10px 18px",fontSize:19,cursor:"pointer",fontFamily:FF};
+var btnP = {background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontSize:FS_INPUT,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 2px rgba(37,99,235,0.18)",whiteSpace:"nowrap"};
+var btnS = {background:"#fff",color:"#475569",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"12px 24px",fontSize:FS_INPUT,fontWeight:500,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"};
+var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:8,padding:"9px 16px",fontSize:FS_BTN_SM,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"};
 
 // ── 공통 색상 토큰 (의미 기반) ─────────────────────────────
 var COLORS = {
@@ -224,10 +235,10 @@ function planTier(planType,isTrial){ return PLAN_TIERS[effPlanKey(planType,isTri
 function PlanBadge(props){ return <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"#DBEAFE",color:"#1D4ED8",marginLeft:6,verticalAlign:"middle"}}>{props.label||"PRO"}</span>; }
 
 // ── 기본 UI 컴포넌트 ─────────────────────────────────────
-function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,maxHeight:"90vh",overflow:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"22px 28px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:25,fontWeight:700}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:30,cursor:"pointer",color:"#94A3B8"}}>✕</button></div><div style={{padding:28}}>{props.children}</div></div></div>); }
-function Label(props){ return <label style={{fontSize:20,fontWeight:600,color:props.color||"#475569",marginBottom:6,display:"block"}}>{props.children}</label>; }
+function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,maxHeight:"90vh",overflow:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"18px clamp(16px,4vw,28px)",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:FS_SECTION,fontWeight:700,wordBreak:"keep-all",minWidth:0}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:28,cursor:"pointer",color:"#94A3B8",flexShrink:0,lineHeight:1}}>✕</button></div><div style={{padding:"clamp(16px,4vw,28px)"}}>{props.children}</div></div></div>); }
+function Label(props){ return <label style={{fontSize:FS_LABEL,fontWeight:600,color:props.color||"#475569",marginBottom:6,display:"block"}}>{props.children}</label>; }
 function Card(props){ return <div onClick={props.onClick} style={Object.assign({background:"#fff",borderRadius:14,border:"1px solid #F1F5F9",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},props.style||{})}>{props.children}</div>; }
-function Badge(props){ return <span style={{fontSize:16,fontWeight:600,padding:"4px 12px",borderRadius:20,background:props.bg||"#EFF6FF",color:props.color||"#2563EB",whiteSpace:"nowrap",display:"inline-block"}}>{props.children}</span>; }
+function Badge(props){ return <span style={{fontSize:FS_BADGE,fontWeight:600,padding:"4px 11px",borderRadius:20,background:props.bg||"#EFF6FF",color:props.color||"#2563EB",whiteSpace:"nowrap",display:"inline-block"}}>{props.children}</span>; }
 // ── 통일 배지 시스템 (연한 배경 + 의미 텍스트 색만) ────────
 var BADGE_BASE={fontSize:12,fontWeight:700,padding:"3px 10px",borderRadius:999,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:4,lineHeight:1.4,border:"1px solid transparent"};
 function neutralBadge(){ return Object.assign({},BADGE_BASE,{background:"#F1F5F9",color:"#475569",borderColor:"#E2E8F0"}); }
@@ -452,8 +463,8 @@ function WageCalc(){
   return(
     <div className="fade-in">
       <Card style={{padding:"20px 24px",marginBottom:16}}>
-        <h2 style={{margin:"0 0 4px",fontSize:26,fontWeight:800}}>🧮 급여 계산기</h2>
-        <p style={{margin:"0 0 20px",fontSize:16,color:"#64748B"}}>2026년 기준 · 최저임금 시급 <strong>{MIN_WAGE_2026.toLocaleString()}원</strong> · 월환산 <strong>{MIN_WAGE_MONTH_2026.toLocaleString()}원</strong>(209h)</p>
+        <h2 style={{margin:"0 0 4px",fontSize:FS_PAGE_TITLE,fontWeight:800}}>🧮 급여 계산기</h2>
+        <p style={{margin:"0 0 20px",fontSize:FS_BODY,color:"#64748B",lineHeight:1.6}}>2026년 기준 · 최저임금 시급 <strong>{MIN_WAGE_2026.toLocaleString()}원</strong> · 월환산 <strong>{MIN_WAGE_MONTH_2026.toLocaleString()}원</strong>(209h)</p>
 
         {/* 연봉↔월급 변환 */}
         <div style={{padding:"12px 16px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,marginBottom:20,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
@@ -463,7 +474,7 @@ function WageCalc(){
         </div>
 
         {/* 주요 입력 */}
-        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,marginBottom:8}}>
+        <div className="wage-input-grid" style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,marginBottom:8}}>
           <div>
             <Label>월 급여 (세전, 원)</Label>
             <input type="number" style={inp} value={st1[0]} onChange={function(e){st1[1](e.target.value);stAnnual[1]("");}} placeholder="2,200,000"/>
@@ -504,7 +515,7 @@ function WageCalc(){
           <div style={{display:"flex",gap:0,borderBottom:"2px solid #E2E8F0",marginBottom:20,background:"#fff",borderRadius:"12px 12px 0 0",overflow:"hidden"}}>
             {[["deduct","💰 실수령액"],["employer","🏢 사업주 부담"],["minwage","📊 최저임금 판정"]].map(function(arr){var on=stTab[0]===arr[0];return(
               <button key={arr[0]} onClick={function(){stTab[1](arr[0]);}}
-                style={{flex:1,padding:"14px 10px",fontSize:16,fontWeight:on?700:500,color:on?"#2563EB":"#64748B",background:on?"#EFF6FF":"transparent",border:"none",borderBottom:on?"3px solid #2563EB":"3px solid transparent",cursor:"pointer",fontFamily:FF,transition:"all 0.15s"}}>
+                style={{flex:1,padding:"13px 6px",fontSize:FS_BODY,fontWeight:on?700:500,color:on?"#2563EB":"#64748B",background:on?"#EFF6FF":"transparent",border:"none",borderBottom:on?"3px solid #2563EB":"3px solid transparent",cursor:"pointer",fontFamily:FF,transition:"all 0.15s",whiteSpace:"nowrap"}}>
                 {arr[1]}
               </button>
             );})}
@@ -621,9 +632,20 @@ function WageCalc(){
 }
 
 function Simulator(props){ var programs=props.programs; var st1=useState("youth_jump"),st2=useState(1),st3=useState(""); var selectedProgram=programs[st1[0]]; var results=useMemo(function(){if(!selectedProgram||!st2[0])return{monthly:[],total:0}; var count=parseInt(st2[0])||0; var startDate=st3[0]||new Date().toISOString().split("T")[0]; var monthly=[]; var totalAmount=0; for(var i=0;i<count;i++){(selectedProgram.rounds||[]).forEach(function(r){var eligDate=addMo(startDate,r.month);var ym=eligDate.substring(0,7);var existing=monthly.find(function(m){return m.month===ym;});if(existing){existing.amount+=r.amount;existing.count++;}else{monthly.push({month:ym,amount:r.amount,count:1});}totalAmount+=r.amount;});} return{monthly:monthly.sort(function(a,b){return a.month.localeCompare(b.month);}),total:totalAmount,perPerson:selectedProgram.totalAmount||0};}, [selectedProgram,st2[0],st3[0]]);
-  return(<Card style={{padding:24,marginBottom:20}}><h4 style={{margin:"0 0 20px",fontSize:22,fontWeight:800}}>📊 예상 수령액 시뮬레이터</h4><div style={{marginBottom:18}}><Label>지원금 선택</Label>{["신규채용","재직자유지","육아"].map(function(grp){var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];var items=Object.values(programs).filter(function(p){return p.group===grp;});if(!items.length)return null;return(<div key={grp} style={{marginBottom:12,padding:"14px 16px",borderRadius:12,background:gp.badge,border:"1.5px solid "+gp.light}}><div style={{fontSize:17,fontWeight:700,color:gp.dark,marginBottom:10}}>{gp.icon} {grp}</div><div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{items.map(function(p){var on=st1[0]===p.id;return(<button key={p.id} onClick={function(){st1[1](p.id);}} style={{padding:"8px 16px",borderRadius:8,fontSize:17,cursor:"pointer",fontWeight:on?700:400,background:on?gp.base:"#fff",color:on?"#fff":gp.text,border:on?"none":"1.5px solid "+gp.light}}>{p.name}</button>);})}</div></div>);})}</div>
-  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}><div><Label>채용 예정 인원</Label><input type="number" style={inp} value={st2[0]} onChange={function(e){st2[1](e.target.value);}} min="1" placeholder="1"/></div><div><Label>예상 입사일</Label><input type="date" style={inp} value={st3[0]} onChange={function(e){st3[1](e.target.value);}}/></div></div>
-  {results.total>0&&(<React.Fragment>{(function(){return(<div style={{padding:"20px 24px",background:"#2563EB",borderRadius:14,color:"#fff",marginBottom:20,textAlign:"center"}}><div style={{fontSize:18,opacity:0.85,marginBottom:6,fontWeight:600}}>예상 총 수령액(최대치)</div><div style={{fontSize:46,fontWeight:800,letterSpacing:"-1px"}}>{fMan(results.total)}</div><div style={{fontSize:17,opacity:0.75,marginTop:6}}>1인당 {fMan(results.perPerson)} × {st2[0]}명</div></div>);})()}<div style={{fontSize:18,fontWeight:700,marginBottom:10}}>📅 월별 예상 수령</div><div style={{maxHeight:280,overflow:"auto",display:"grid",gap:4}}>{results.monthly.map(function(m,i){var d=new Date(m.month+"-01");return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:i%2===0?"#F8FAFC":"#fff",borderRadius:8,border:"1px solid #F1F5F9"}}><span style={{fontSize:18,color:"#475569",fontWeight:500}}>{d.getFullYear()}년 {d.getMonth()+1}월</span><div style={{textAlign:"right"}}><span style={{fontSize:20,fontWeight:700,color:"#2563EB"}}>{fMan(m.amount)}</span><span style={{fontSize:15,color:"#94A3B8",marginLeft:8}}>({m.count}건)</span></div></div>);})}</div><div style={{marginTop:16,display:"flex",gap:10,flexWrap:"wrap"}}><button style={Object.assign({},btnP,{padding:"12px 22px",fontSize:15})} onClick={function(){var pname=(programs[st1[0]]||{}).name||"";var lines=results.monthly.map(function(m){var d=new Date(m.month+"-01");return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+fMan(m.amount);});var txt="대표님, 현재 "+pname+" 기준으로 "+st2[0]+"명을 채용하실 경우\n총 예상 지원금은 최대 "+fMan(results.total)+"이며,\n"+lines.join(", ")+" 순으로 수령 가능성이 있습니다.\n단, 실제 지급 여부는 요건 충족 및 기관 심사 결과에 따라 달라질 수 있습니다.";navigator.clipboard.writeText(txt).then(function(){toast("상담용 문구가 복사되었습니다. 고객에게 바로 보내세요.","success");});}}>📋 상담용 문구 복사</button></div><div style={{marginTop:14,padding:"12px 16px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:13,color:"#64748B",lineHeight:1.7}}>※ 예상 수령액은 공고 기준과 입력값을 바탕으로 계산한 <strong>참고 금액</strong>입니다. 실제 지급액은 심사 결과·예산·고용 유지 여부 등에 따라 달라질 수 있습니다.</div></React.Fragment>)}</Card>); }
+  return(<Card style={{padding:"clamp(16px,4vw,24px)",marginBottom:20}}>
+    <h4 style={{margin:"0 0 16px",fontSize:FS_SECTION,fontWeight:800}}>📊 예상 수령액 시뮬레이터</h4>
+    <div className="sim-grid" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1.1fr)",gap:20,alignItems:"start"}}>
+      {/* 좌: 입력 */}
+      <div style={{minWidth:0}}>
+        <div style={{marginBottom:16}}><Label>지원금 선택</Label>{["신규채용","재직자유지","육아"].map(function(grp){var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];var items=Object.values(programs).filter(function(p){return p.group===grp;});if(!items.length)return null;return(<div key={grp} style={{marginBottom:10,padding:"12px 14px",borderRadius:12,background:gp.badge,border:"1.5px solid "+gp.light}}><div style={{fontSize:FS_BODY,fontWeight:700,color:gp.dark,marginBottom:8}}>{gp.icon} {grp}</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{items.map(function(p){var on=st1[0]===p.id;return(<button key={p.id} onClick={function(){st1[1](p.id);}} style={{padding:"7px 13px",borderRadius:8,fontSize:FS_BTN_SM,cursor:"pointer",fontWeight:on?700:500,background:on?gp.base:"#fff",color:on?"#fff":gp.text,border:on?"none":"1.5px solid "+gp.light}}>{p.name}</button>);})}</div></div>);})}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><div><Label>채용 예정 인원</Label><input type="number" style={inp} value={st2[0]} onChange={function(e){st2[1](e.target.value);}} min="1" placeholder="1"/></div><div><Label>예상 입사일</Label><input type="date" style={inp} value={st3[0]} onChange={function(e){st3[1](e.target.value);}}/></div></div>
+      </div>
+      {/* 우: 결과 */}
+      <div style={{minWidth:0}}>
+      {results.total>0?(<React.Fragment><div style={{padding:"20px 18px",background:"#2563EB",borderRadius:14,color:"#fff",marginBottom:16,textAlign:"center"}}><div style={{fontSize:FS_BODY,opacity:0.85,marginBottom:6,fontWeight:600}}>예상 총 수령액 (최대치)</div><div style={{fontSize:FS_HERO_NUM,fontWeight:800,letterSpacing:"-1px",lineHeight:1.1,wordBreak:"keep-all"}}>{fMan(results.total)}</div><div style={{fontSize:FS_BODY,opacity:0.75,marginTop:6}}>1인당 {fMan(results.perPerson)} × {st2[0]}명</div></div><div style={{fontSize:FS_CARD_TITLE,fontWeight:700,marginBottom:8}}>📅 월별 예상 수령</div><div style={{maxHeight:280,overflow:"auto",display:"grid",gap:4}}>{results.monthly.map(function(m,i){var d=new Date(m.month+"-01");return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"10px 14px",background:i%2===0?"#F8FAFC":"#fff",borderRadius:8,border:"1px solid #F1F5F9"}}><span style={{fontSize:FS_BODY,color:"#475569",fontWeight:500,whiteSpace:"nowrap"}}>{d.getFullYear()}년 {d.getMonth()+1}월</span><div style={{textAlign:"right",whiteSpace:"nowrap"}}><span style={{fontSize:FS_LIST,fontWeight:700,color:"#2563EB"}}>{fMan(m.amount)}</span><span style={{fontSize:FS_BADGE,color:"#94A3B8",marginLeft:6}}>({m.count}건)</span></div></div>);})}</div><div style={{marginTop:14}}><button style={Object.assign({},btnP,{width:"100%",padding:"12px 18px"})} onClick={function(){var pname=(programs[st1[0]]||{}).name||"";var lines=results.monthly.map(function(m){var d=new Date(m.month+"-01");return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+fMan(m.amount);});var txt="대표님, 현재 "+pname+" 기준으로 "+st2[0]+"명을 채용하실 경우\n총 예상 지원금은 최대 "+fMan(results.total)+"이며,\n"+lines.join(", ")+" 순으로 수령 가능성이 있습니다.\n단, 실제 지급 여부는 요건 충족 및 기관 심사 결과에 따라 달라질 수 있습니다.";navigator.clipboard.writeText(txt).then(function(){toast("상담용 문구가 복사되었습니다. 고객에게 바로 보내세요.","success");});}}>📋 상담용 문구 복사</button></div><div style={{marginTop:12,padding:"11px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:FS_BADGE,color:"#64748B",lineHeight:1.7}}>※ 예상 수령액은 공고 기준과 입력값을 바탕으로 계산한 <strong>참고 금액</strong>입니다. 실제 지급액은 심사 결과·예산·고용 유지 여부 등에 따라 달라질 수 있습니다.</div></React.Fragment>):(<div style={{padding:"40px 20px",textAlign:"center",background:"#F8FAFC",borderRadius:14,border:"1px dashed #CBD5E1"}}><div style={{fontSize:40,marginBottom:10}}>📊</div><div style={{fontSize:FS_BODY,color:"#94A3B8"}}>지원금·인원·입사일을 입력하면<br/>월별 예상 수령액이 표시됩니다.</div></div>)}
+      </div>
+    </div>
+  </Card>); }
 
 // ── 보조 컴포넌트 ─────────────────────────────────────────
 function JuminInput(props){ var st1=useState(""); function handleChange(e){ var val=e.target.value.replace(/[^0-9]/g,"").substring(0,7); st1[1](val); if(val.length>=7){var parsed=parseJumin(val);if(parsed){props.onParsed(parsed);}}} return(<div><Label color="#1D4ED8">주민번호 앞 7자리 (자동입력)</Label><input style={Object.assign({},inp,{borderColor:"#93C5FD",background:"#fff"})} value={st1[0]} onChange={handleChange} placeholder="9501011" maxLength={7}/>{st1[0].length===7&&(<div style={{fontSize:11,color:"#059669",marginTop:4}}>✅ 생년월일/성별만 추출되어 저장됩니다 (주민번호 원본은 저장되지 않음)</div>)}<div style={{fontSize:11,color:"#475569",marginTop:6,padding:"7px 9px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:6,lineHeight:1.5}}>🔒 민감정보 보호를 위해 주민등록번호 전체 저장은 권장하지 않습니다. 생년월일과 성별만으로 지원금 요건을 판정합니다. 입력한 7자리는 생년월일·성별 변환에만 쓰이고 저장되지 않습니다.</div></div>); }
@@ -2463,12 +2485,12 @@ function ProgramsList(props){
   return(
     <div className="fade-in">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
-        <div>
-          <h2 style={{margin:"0 0 4px",fontSize:24,fontWeight:800}}>⚙️ 지원금 관리</h2>
-          <p style={{margin:0,fontSize:13,color:"#64748B"}}>활성화된 지원금 <strong style={{color:"#2563EB"}}>{enabledCount}개</strong>만 직원 추가 화면에 표시됩니다. ON/OFF로 노출을 제어하세요.</p>
+        <div style={{minWidth:0}}>
+          <h2 style={{margin:"0 0 4px",fontSize:FS_PAGE_TITLE,fontWeight:800}}>⚙️ 지원금 관리</h2>
+          <p style={{margin:0,fontSize:FS_BODY,color:"#64748B",lineHeight:1.6}}>활성화된 지원금 <strong style={{color:"#2563EB"}}>{enabledCount}개</strong>만 직원 추가 화면에 표시됩니다. ON/OFF로 노출을 제어하세요.</p>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button style={Object.assign({},btnS,{fontSize:17})} onClick={resetBuiltins}>↺ 기본값 복원</button>
+          <button style={btnS} onClick={resetBuiltins}>↺ 기본값 복원</button>
           <button style={btnP} className="hover-lift" onClick={openNew}>+ 커스텀 지원금 추가</button>
         </div>
       </div>
@@ -2482,36 +2504,36 @@ function ProgramsList(props){
         var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];
         return(
           <div key={grp} style={{marginBottom:22}}>
-            <div style={{fontSize:18,fontWeight:700,color:gp.dark,marginBottom:10,padding:"6px 12px",borderRadius:8,background:gp.badge,display:"inline-block"}}>{gp.icon} {grp} <span style={{fontWeight:400,opacity:0.7}}>({items.length}개)</span></div>
+            <div style={{fontSize:FS_CARD_TITLE,fontWeight:700,color:gp.dark,marginBottom:10,padding:"6px 12px",borderRadius:8,background:gp.badge,display:"inline-block"}}>{gp.icon} {grp} <span style={{fontWeight:400,opacity:0.7}}>({items.length}개)</span></div>
             <div style={{display:"grid",gap:10}}>
               {items.map(function(p){
                 var isCustom=!DEFAULT_PROGRAMS[p.id];
                 var isEnabled=p.enabled!==false;
                 var isYouth=p.id==="youth_jump";
                 return(
-                  <Card key={p.id} className="hover-card" style={{padding:"18px 20px",border:"1.5px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.65}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
-                          <span style={{fontSize:19,fontWeight:700}}>{p.name}</span>
+                  <Card key={p.id} className="hover-card" style={{padding:"16px 18px",border:"1.5px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.65}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}>
+                      <div style={{flex:1,minWidth:180}}>
+                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6,flexWrap:"wrap"}}>
+                          <span style={{fontSize:FS_CARD_TITLE,fontWeight:700,wordBreak:"keep-all"}}>{p.name}</span>
                           {isYouth&&<Badge color="#D97706" bg="#FEF3C7">⭐ 추천</Badge>}
                           {isCustom&&<Badge color={gp.text} bg={gp.badge}>커스텀</Badge>}
                           <Badge color={gp.dark} bg={gp.light}>{fMan(p.totalAmount||0)}</Badge>
                           {!isEnabled&&<Badge color="#94A3B8" bg="#F1F5F9">비활성</Badge>}
                         </div>
-                        {p.desc&&<div style={{fontSize:16,color:"#64748B",marginBottom:8,lineHeight:1.5}}>{p.desc}</div>}
-                        <div style={{display:"flex",gap:12,fontSize:16,color:"#475569",flexWrap:"wrap"}}>
+                        {p.desc&&<div style={{fontSize:FS_BODY,color:"#64748B",marginBottom:8,lineHeight:1.5}}>{p.desc}</div>}
+                        <div style={{display:"flex",gap:12,fontSize:FS_BODY,color:"#475569",flexWrap:"wrap"}}>
                           <span>🔢 {(p.rounds||[]).length}회차</span>
                           <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join(", ")}</span>
                           {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                         </div>
                       </div>
-                      <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:12,alignItems:"center"}}>
-                        <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"5px 14px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
+                      <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
+                        <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"6px 14px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
                           {isEnabled?"ON":"OFF"}
                         </button>
-                        <button style={Object.assign({},btnSm,{fontSize:16})} onClick={function(){openEdit(p);}}>편집</button>
-                        {isCustom&&<button style={Object.assign({},btnSm,{fontSize:16,color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
+                        <button style={btnSm} onClick={function(){openEdit(p);}}>편집</button>
+                        {isCustom&&<button style={Object.assign({},btnSm,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
                       </div>
                     </div>
                   </Card>
@@ -3472,22 +3494,22 @@ export default function SubsidyApp(props){
           )}
 
           {stView[0]==="wage"&&(
-            <div style={{maxWidth:700}}>
-              <p style={{margin:"0 0 20px",color:"#64748B",fontSize:15}}>최저임금·월보수 하한선을 자동 판정합니다. 지원금 요건을 가르는 핵심 기준이니 보수 설정 전 꼭 확인하세요.</p>
+            <div style={{maxWidth:980}}>
+              <p style={{margin:"0 0 16px",color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}>최저임금·월보수 하한선을 자동 판정합니다. 지원금 요건을 가르는 핵심 기준이니 보수 설정 전 꼭 확인하세요.</p>
               <WageCalc/>
             </div>
           )}
 
           {stView[0]==="simulator"&&(
-            <div style={{maxWidth:800}}>
-              <p style={{margin:"0 0 20px",color:"#64748B",fontSize:15}}>채용 인원과 입사일만 넣으면 월별 현금흐름까지 자동 계산됩니다. 결과는 고객 상담 문구로 바로 복사할 수 있어요.</p>
+            <div style={{maxWidth:980}}>
+              <p style={{margin:"0 0 16px",color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}>채용 인원과 입사일만 넣으면 월별 현금흐름까지 자동 계산됩니다. 결과는 고객 상담 문구로 바로 복사할 수 있어요.</p>
               <Simulator programs={programs}/>
             </div>
           )}
 
           {stView[0]==="diagnosis"&&(
-            <div style={{maxWidth:800}}>
-              <p style={{margin:"0 0 20px",color:"#64748B",fontSize:15}}><strong style={{color:"#1E293B"}}>채용 전 30초 진단</strong> — 채용 후 알면 늦는 고용지원금을 미리 확인하세요.</p>
+            <div style={{maxWidth:900}}>
+              <p style={{margin:"0 0 16px",color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}><strong style={{color:"#1E293B"}}>채용 전 30초 진단</strong> — 채용 후 알면 늦는 고용지원금을 미리 확인하세요.</p>
               <HiringDiagnosis programs={programs}/>
             </div>
           )}
