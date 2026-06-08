@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useData } from "../hooks/useData";
 import { useSub } from "../hooks/useSub";
@@ -59,14 +59,70 @@ function AppLoading() {
   );
 }
 
+// 세션은 있는데 org 가 아직 없을 때(신규 가입 직후 트리거 반영 지연 등) 표시.
+// 빈 대시보드나 결제 화면으로 보내지 않고, 워크스페이스가 준비될 때까지 자동 재시도한다.
+function WorkspaceInit({ onEnsure, onSignOut }) {
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    async function tick() {
+      if (cancelled) return;
+      attempts += 1;
+      await onEnsure(); // 성공해 org 가 생기면 부모가 이 컴포넌트를 언마운트함
+      if (cancelled) return;
+      if (attempts >= 5) { setStuck(true); return; }
+      setTimeout(tick, 1500);
+    }
+    const t = setTimeout(tick, 800);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [onEnsure]);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#F8FAFC", fontFamily: FF, padding: 20 }}>
+      <div style={{ textAlign: "center", maxWidth: 380 }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>🏛</div>
+        <div style={{ width: 30, height: 30, margin: "0 auto 18px", border: "3px solid #E2E8F0", borderTopColor: "#2563EB", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+        <div style={{ fontSize: 17, fontWeight: 700, color: "#1E293B", marginBottom: 6 }}>워크스페이스를 준비하고 있습니다…</div>
+        <div style={{ fontSize: 14, color: "#64748B", lineHeight: 1.7 }}>
+          계정 초기 설정을 마무리하는 중입니다. 잠시만 기다려주세요.
+        </div>
+        {stuck && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 13, color: "#DC2626", marginBottom: 12 }}>
+              초기화가 지연되고 있습니다. 새로고침해도 계속되면 잠시 후 다시 시도해주세요.
+            </div>
+            <button onClick={() => window.location.reload()} style={{ background: "#2563EB", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FF, marginRight: 8 }}>새로고침</button>
+            <button onClick={onSignOut} style={{ background: "#F1F5F9", color: "#475569", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FF }}>로그아웃</button>
+          </div>
+        )}
+      </div>
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+    </div>
+  );
+}
+
 export default function AppPage() {
-  const { org, profile, orgRole, signOut, updateProfile, authLoading } = useAuth();
+  const { org, profile, orgRole, signOut, updateProfile, authLoading, session, ensureWorkspace } = useAuth();
   const { sub, isExpired, trialDaysLeft, loading: subLoading } = useSub(org);
   const data = useData(org?.id);
   const [showBilling, setShowBilling] = useState(false);
 
+  const handleEnsure = useCallback(() => ensureWorkspace && ensureWorkspace(), [ensureWorkspace]);
+
   // 인증·구독 상태가 확정되기 전에는 절대 paywall/대시보드를 먼저 렌더링하지 않는다.
-  if (authLoading || subLoading || data.loading) {
+  if (authLoading) {
+    return <AppLoading />;
+  }
+
+  // 세션은 있는데 org 가 아직 없으면(신규 가입 직후 트리거 반영 지연 등)
+  // 빈 대시보드/결제 화면 대신 초기화 화면을 보여주고 워크스페이스가 준비될 때까지 재시도한다.
+  if (session && !org) {
+    return <WorkspaceInit onEnsure={handleEnsure} onSignOut={signOut} />;
+  }
+
+  // org 확정 후 구독/데이터 로딩 동안 로딩 화면 유지
+  if (subLoading || data.loading) {
     return <AppLoading />;
   }
 
