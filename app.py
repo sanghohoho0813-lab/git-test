@@ -99,6 +99,62 @@ COPY_TEMPLATE_SETS = [
     ],
 ]
 
+# ── AI 대본 생성 ────────────────────────────────────────────────
+SCRIPT_SYSTEM_PROMPT = """당신은 한국의 소상공인·자영업자 대상 유튜브 채널 '김팀장의 경영노트'의 전속 대본 작가입니다.
+이 채널은 세무, 정책자금, 정부지원금, 절세, 경영 노하우 등을 사장님들이 이해하기 쉽게 풀어주는 채널입니다.
+
+# 채널 톤앤매너
+- 시청자를 '사장님'이라고 부르며, 친근하지만 신뢰감 있는 전문가의 말투를 씁니다.
+- 어려운 세무·행정 용어는 반드시 쉬운 말로 풀어서 설명합니다.
+- 과장된 낚시성 표현보다는, 진짜 도움이 되는 실속 있는 정보를 차분하게 전달합니다.
+- "~하셔야 합니다", "~하시면 됩니다", "꼭 챙기세요" 같은 실천 지향적 어미를 자주 씁니다.
+
+# 15~20분 분량 롱폼 대본 구조 (이 순서를 반드시 지키세요)
+1. **인트로 (30초~1분)**: 사장님의 페인포인트를 콕 집어 공감 → 이 영상을 끝까지 보면 무엇을 얻는지 약속(후킹). "안녕하세요, 김팀장입니다."로 시작.
+2. **본론 (4~6개 섹션)**: 각 섹션은 소제목 + 핵심 설명 + 구체적 예시(금액·기준·날짜 등 숫자 포함) + 사장님이 바로 적용할 행동 지침. 섹션 사이 자연스러운 연결 멘트.
+3. **자주 묻는 질문 / 주의사항**: 실수하기 쉬운 포인트 2~3개를 짚어줍니다.
+4. **마무리 (CTA)**: 핵심 3가지 요약 → 구독·좋아요·댓글 유도 → 다음 영상 예고. 따뜻한 응원 멘트로 마무리.
+
+# 작성 규칙
+- 실제로 말하듯이, 입에 붙는 구어체로 작성합니다. (읽는 글이 아니라 '말하는 대본')
+- 섹션마다 [소제목] 형식으로 구분하고, 화면 자막용 핵심 문구는 「 」로 강조합니다.
+- 전체 분량은 공백 포함 약 4,000~6,000자 (15~20분 발화 분량)를 목표로 합니다.
+- 정확하지 않은 구체 법령 수치는 "최신 기준은 반드시 관할 기관에 확인" 같은 안전장치를 덧붙입니다.
+- 마크다운 제목(#)은 쓰지 말고, 대본 텍스트로 바로 작성합니다."""
+
+
+def generate_script(title: str, keyword: str, ref_style: str = ""):
+    """제목·키워드로 롱폼 대본을 스트리밍 생성. 텍스트 청크를 yield."""
+    import anthropic
+
+    api_key = st.secrets.get("anthropic_api_key", "")
+    client = anthropic.Anthropic(api_key=api_key)
+
+    system = SCRIPT_SYSTEM_PROMPT
+    if ref_style.strip():
+        system += (
+            "\n\n# 작성자의 기존 대본 샘플 (아래 말투·문장 호흡·구성을 최대한 똑같이 따라 하세요)\n"
+            + ref_style.strip()
+        )
+
+    user_msg = (
+        f"다음 제목으로 '김팀장의 경영노트' 채널의 15~20분 분량 롱폼 유튜브 대본을 작성해 주세요.\n\n"
+        f"제목: {title}\n"
+        f"핵심 키워드: {keyword}\n\n"
+        f"위 채널 톤앤매너와 구조 규칙을 지켜서, 실제 촬영에 바로 쓸 수 있는 완성된 대본으로 작성해 주세요."
+    )
+
+    with client.messages.stream(
+        model="claude-opus-4-8",
+        max_tokens=16000,
+        thinking={"type": "adaptive"},
+        system=system,
+        messages=[{"role": "user", "content": user_msg}],
+    ) as stream:
+        for text in stream.text_stream:
+            yield text
+
+
 st.set_page_config(
     page_title="김팀장 벤치마킹 대시보드",
     page_icon="📊",
@@ -326,6 +382,55 @@ html, body, [class*="css"], .stMarkdown, .stApp {
     .pill { font-size:9px; padding:2px 6px; }
     .rank-badge { font-size:12px; padding:2px 7px; }
 }
+
+/* ─── 콘텐츠 추천 (강조형) ───────────────────────────────────── */
+.rec-hero {
+    background: linear-gradient(135deg, #1a1640 0%, #2a1850 100%);
+    border-radius: 18px;
+    padding: 22px 26px;
+    border: 1px solid rgba(251,191,36,0.18);
+    box-shadow: 0 4px 30px rgba(124,58,237,0.15);
+    margin-bottom: 18px;
+}
+.rec-hero-title { font-size: 22px; font-weight: 900; color: #fef3c7; margin-bottom: 4px; }
+.rec-hero-sub   { font-size: 13px; color: #a5a5d0; }
+
+.rec-card {
+    background: #16162a;
+    border-radius: 16px;
+    padding: 18px 20px 8px;
+    border: 1px solid rgba(251,191,36,0.16);
+    margin-bottom: 14px;
+    box-shadow: 0 3px 20px rgba(0,0,0,0.4);
+}
+.rec-rank {
+    display:inline-block;
+    font-size:11px; font-weight:800; color:#0b0b14;
+    background: linear-gradient(135deg,#fbbf24,#f59e0b);
+    padding:3px 11px; border-radius:20px; margin-bottom:8px;
+}
+.rec-keyword { font-size:24px; font-weight:900; color:#fbbf24; margin-bottom:6px; }
+.rec-stat    { font-size:12px; color:#7799cc; margin-bottom:6px; }
+.rec-rep     { font-size:11px; color:#55556a; margin-bottom:12px; line-height:1.5; }
+.rec-idea-label {
+    font-size:10px; color:#a78bfa; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;
+}
+
+/* 제목 아이디어 버튼 (클릭 → 대본 생성) */
+.rec-card + div [data-testid="stButton"] button,
+div[data-testid="stButton"] button.rec-idea-btn { white-space: normal; }
+
+.script-panel {
+    background: linear-gradient(135deg,#0f1428 0%,#1a1030 100%);
+    border-radius: 16px;
+    padding: 22px 26px;
+    border: 1px solid rgba(167,139,250,0.3);
+    box-shadow: 0 4px 30px rgba(124,58,237,0.2);
+    margin-bottom: 18px;
+}
+.script-panel-title { font-size:18px; font-weight:900; color:#ede9fe; margin-bottom:2px; }
+.script-panel-sub   { font-size:12px; color:#a5a5d0; margin-bottom:4px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -574,8 +679,9 @@ def _extract_top_topics(df: pd.DataFrame, n: int = 4) -> list:
     return candidates
 
 
-def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
-    """상위 4개 주목 주제를 카피라이팅 아이디어와 함께 표시."""
+def render_topic_recommendations(df: pd.DataFrame, section_label: str = "", tab_key: str = ""):
+    """상위 4개 주목 주제를 표시. 제목 아이디어는 클릭 가능한 버튼 —
+    클릭 시 대본 생성 요청을 세션에 저장."""
     candidates = _extract_top_topics(df, n=4)
 
     if not candidates:
@@ -585,35 +691,41 @@ def render_topic_recommendations(df: pd.DataFrame, section_label: str = ""):
     if section_label:
         st.markdown(f"##### {section_label}")
 
-    left_col, right_col = st.columns(2)
-    col_pair = [left_col, right_col]
+    col_pair = st.columns(2)
 
     for rank, (keyword, data) in enumerate(candidates):
         vids = sorted(data["videos"], key=lambda x: x[2], reverse=True)
         ch_count = len(data["channels"])
         top_title, top_channel, top_views = vids[0]
         avg_views = int(sum(v[2] for v in vids) / len(vids))
-
         templates = COPY_TEMPLATE_SETS[rank % len(COPY_TEMPLATE_SETS)]
-        ideas_html = "".join(
-            f'<div class="topic-idea">· {t.format(kw=keyword)}</div>'
-            for t in templates
-        )
+
         title_esc   = top_title.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
         channel_esc = top_channel.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
 
-        card = (
-            f'<div class="topic-rec-card">'
-            f'<div class="topic-rank">#{rank + 1} 주목 주제</div>'
-            f'<div class="topic-keyword">🔥 {keyword}</div>'
-            f'<div class="topic-stat">{ch_count}개 채널 다룸 &nbsp;·&nbsp; 최고 {top_views:,}회 &nbsp;·&nbsp; 평균 {avg_views:,}회</div>'
-            f'<div class="topic-rep">대표 영상: <em>"{title_esc}"</em> ({channel_esc})</div>'
-            f'<div class="topic-ideas-title">📝 제목 아이디어</div>'
-            f'{ideas_html}'
-            f'</div>'
-        )
         with col_pair[rank % 2]:
-            st.markdown(card, unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="rec-card">'
+                f'<span class="rec-rank">#{rank + 1} 주목 주제</span>'
+                f'<div class="rec-keyword">🔥 {keyword}</div>'
+                f'<div class="rec-stat">{ch_count}개 채널 다룸 &nbsp;·&nbsp; 최고 {top_views:,}회 &nbsp;·&nbsp; 평균 {avg_views:,}회</div>'
+                f'<div class="rec-rep">대표 영상: <em>"{title_esc}"</em> ({channel_esc})</div>'
+                f'<div class="rec-idea-label">📝 마음에 드는 제목을 클릭 → AI 대본 자동 생성</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            for ti, t in enumerate(templates):
+                title_text = t.format(kw=keyword)
+                if st.button(
+                    f"✍️ {title_text}",
+                    key=f"idea_{tab_key}_{rank}_{ti}",
+                    use_container_width=True,
+                ):
+                    st.session_state.script_request = {
+                        "title": title_text,
+                        "keyword": keyword,
+                    }
+                    st.session_state.script_text = None
 
 
 # ── 카드 HTML 생성 ──────────────────────────────────────────────
@@ -803,19 +915,96 @@ with tab_shorts:
     render_grid(shorts_df, tab_key="shorts")
 
 with tab_rec:
-    st.markdown("### 📌 콘텐츠 주제 추천")
-    st.caption("벤치마킹 채널에서 2개 이상 다룬 주제만 표시 · 2단어 구절 우선 선정 · 조회수 가중 점수 기준")
-    st.markdown("---")
+    st.markdown(
+        '<div class="rec-hero">'
+        '<div class="rec-hero-title">📌 콘텐츠 주제 추천 &amp; AI 대본 생성</div>'
+        '<div class="rec-hero-sub">벤치마킹 채널이 2개 이상 다룬 주제만 선별 · '
+        '제목을 클릭하면 내 채널 스타일의 15~20분 롱폼 대본을 바로 만들어 드립니다.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── 내 대본 스타일 학습 (선택) ──────────────────────────────
+    with st.expander("⚙️ 내 대본 스타일 학습시키기 (선택 — 기존 대본을 붙여넣으면 그 말투로 생성)"):
+        st.caption(
+            "내가 쓰던 롱폼 대본 일부를 붙여넣으면, AI가 그 말투·문장 호흡·구성을 따라 대본을 만듭니다. "
+            "비워두면 '김팀장의 경영노트' 기본 톤으로 생성됩니다."
+        )
+        st.text_area(
+            "기존 대본 샘플",
+            key="ref_style",
+            height=160,
+            placeholder="예) 안녕하세요, 김팀장입니다. 오늘은 사장님들이 꼭 아셔야 할...",
+            label_visibility="collapsed",
+        )
+
+    # ── 대본 생성 패널 (제목 버튼 클릭 시 표시) ───────────────────
+    _req = st.session_state.get("script_request")
+    if _req:
+        st.markdown(
+            f'<div class="script-panel">'
+            f'<div class="script-panel-title">✍️ AI 대본 — {_req["title"]}</div>'
+            f'<div class="script-panel-sub">핵심 키워드: {_req["keyword"]} · 15~20분 롱폼 기준</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        _has_key = bool(st.secrets.get("anthropic_api_key", ""))
+        if not _has_key:
+            st.warning(
+                "AI 대본 생성을 사용하려면 **Anthropic API 키**가 필요합니다.  \n"
+                "Streamlit 설정의 **Secrets**에 아래 한 줄을 추가해 주세요:\n\n"
+                "```\nanthropic_api_key = \"sk-ant-...\"\n```\n"
+                "키 발급: https://console.anthropic.com/"
+            )
+        else:
+            pc1, pc2 = st.columns([1, 1])
+            with pc1:
+                _do_gen = st.button("🚀 대본 생성 시작", use_container_width=True, type="primary")
+            with pc2:
+                if st.button("✖️ 닫기", use_container_width=True):
+                    st.session_state.script_request = None
+                    st.session_state.script_text = None
+                    st.rerun()
+
+            # 이미 생성된 대본이 있으면 표시
+            if st.session_state.get("script_text"):
+                st.markdown(st.session_state.script_text)
+                st.download_button(
+                    "📥 대본 텍스트 다운로드",
+                    data=st.session_state.script_text.encode("utf-8"),
+                    file_name=f"script_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.txt",
+                    mime="text/plain",
+                )
+            elif _do_gen:
+                try:
+                    with st.spinner("대본 작성 중... (30초~1분 소요)"):
+                        _full = st.write_stream(
+                            generate_script(
+                                _req["title"], _req["keyword"],
+                                st.session_state.get("ref_style", ""),
+                            )
+                        )
+                    st.session_state.script_text = _full
+                    st.download_button(
+                        "📥 대본 텍스트 다운로드",
+                        data=_full.encode("utf-8"),
+                        file_name=f"script_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.txt",
+                        mime="text/plain",
+                    )
+                except Exception as e:
+                    st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
+
+        st.markdown("---")
 
     rec_w7  = apply_filter(vdf[vdf["days_ago"] <= 7])
     rec_w30 = apply_filter(vdf[vdf["days_ago"] <= 30])
 
     st.markdown("#### 🔥 이번 주 주목 주제 (최근 7일)")
-    render_topic_recommendations(rec_w7)
+    render_topic_recommendations(rec_w7, tab_key="rec_w7")
     st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("#### 📅 이번 달 주목 주제 (최근 30일)")
-    render_topic_recommendations(rec_w30)
+    render_topic_recommendations(rec_w30, tab_key="rec_w30")
 
 with tab4:
     st.subheader("벤치마킹 채널 현황")
