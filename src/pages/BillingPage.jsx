@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useSub } from "../hooks/useSub";
 import { supabase } from "../lib/supabase";
 
-const FF = "'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+const FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLAN_CONFIG — 플랜 정의 단일 상수

@@ -1,14 +1,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --ff: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ff: 'Pretendard', 'Pretendard Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
 }
 
 body {
   font-family: var(--ff);
-  background: #F8FAFC;
+  background: #F4F6F9;
   color: #1E293B;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 input, select, textarea, button { font-family: inherit; }
@@ -17,6 +18,9 @@ input, select, textarea, button { font-family: inherit; }
 ::-webkit-scrollbar-track { background: #F1F5F9; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* body scroll lock (모바일 메뉴 열림 시) */
+body.no-scroll { overflow: hidden; }
 
 /* ── 애니메이션 ───────────────────────────── */
 @keyframes shimmer {
@@ -55,6 +59,15 @@ input, select, textarea, button { font-family: inherit; }
 .slide-in { animation: slideInRight 0.2s ease both; }
 .page-enter { animation: pageEnter 0.22s cubic-bezier(0.22,1,0.36,1) both; }
 
+/* ── 카드 디자인 시스템 ─────────────────────────
+   일관된 카드: 둥근 모서리, 옅은 보더, 아주 약한 그림자. */
+.card {
+  background: #fff;
+  border: 1px solid #E5EAF0;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
 /* 진행 보드 가로 스크롤바를 항상 보이게 — 잘림이 아니라 스크롤임을 인지시킨다 */
 .kanban-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 #EEF2F6; }
 .kanban-scroll::-webkit-scrollbar { height: 10px; }
@@ -62,10 +75,10 @@ input, select, textarea, button { font-family: inherit; }
 .kanban-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 5px; }
 .kanban-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-/* ── 카드 호버 폴리시 ─────────────────────────
+/* ── 카드 호버/탭 폴리시 ─────────────────────────
    transform만 전환(컴포지트, 저비용)하고 box-shadow는 즉시 적용.
    마우스(pointer:fine)에서만 hover 발동 → 스크롤/터치 시 리페인트 폭증 방지. */
-.hover-card, .hover-lift, .kpi-card { transition: transform 0.15s ease; }
+.hover-card, .hover-lift, .kpi-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
 
 @media (hover: hover) and (pointer: fine) {
   .hover-card:hover {
@@ -76,29 +89,61 @@ input, select, textarea, button { font-family: inherit; }
   .hover-lift:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37,99,235,0.28); }
   .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(15,23,42,0.10); }
 }
+/* 터치 탭 피드백 */
+.hover-card:active, .kpi-card:active, .brief-card:active, .tap:active { transform: scale(0.985); }
+
+/* ── 대시보드 섹션(아코디언) 본문 전환 ── */
+.dash-sec-body { animation: fadeIn 0.22s ease both; }
+
+/* ── 핵심 브리핑 그리드 (데스크톱 기본) ── */
+.brief-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 14px; }
 
 /* ── 모바일 반응형 ──────────────────────────── */
-.app-sidebar { transition: transform 0.25s ease; }
+.app-sidebar { transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); }
 .app-backdrop { display: none; }
 .app-hamburger { display: none; }
+.show-mobile { display: none; }
 
 @media (max-width: 860px) {
   .app-sidebar {
+    width: 84vw !important;
+    max-width: 330px !important;
     transform: translateX(-100%);
-    box-shadow: 0 0 40px rgba(0,0,0,0.4);
+    box-shadow: 0 0 50px rgba(0,0,0,0.45);
   }
   .app-sidebar.open { transform: translateX(0); }
   .app-content { margin-left: 0 !important; }
   .app-backdrop {
     display: block;
     position: fixed; inset: 0; z-index: 190;
-    background: rgba(15,23,42,0.5);
+    background: rgba(15,23,42,0.45);
+    backdrop-filter: blur(1px);
     animation: fadeIn 0.2s ease both;
   }
   .app-backdrop.hidden { display: none; }
   .app-hamburger { display: inline-flex !important; }
-  .app-header { padding: 0 16px !important; }
-  .app-page { padding: 16px 16px !important; }
+
+  /* compact 헤더 */
+  .app-header { padding: 0 14px !important; height: 60px !important; }
+  .app-title { font-size: 19px !important; }
+  .app-page { padding: 14px 14px !important; }
+
+  /* 업체 추가 버튼 — 아이콘 위주로 축소 */
+  .add-co-btn { padding: 9px 13px !important; font-size: 18px !important; }
+
+  /* 그리드 */
   .grid-2-mobile { grid-template-columns: 1fr !important; }
   .hide-mobile { display: none !important; }
+  .show-mobile { display: inline-flex !important; }
+
+  /* 브리핑 카드 — 2열 compact */
+  .brief-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .brief-card { padding: 15px 15px !important; min-height: 118px !important; border-radius: 14px !important; }
+  .brief-icon { width: 28px !important; height: 28px !important; font-size: 15px !important; }
+  .brief-label { font-size: 12px !important; }
+  .brief-num { font-size: 29px !important; }
+  .brief-num-unit { font-size: 15px !important; }
+  .brief-sub { font-size: 11.5px !important; margin-top: 5px !important; }
+  .brief-btn { margin-top: 10px !important; padding: 7px 12px !important; font-size: 12.5px !important; }
+  .brief-spark { display: none !important; }
 }

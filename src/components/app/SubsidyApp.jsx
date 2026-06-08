@@ -130,7 +130,7 @@ function docEffStatus(d){ if(d.status)return d.status; return d.done?"confirmed"
 function docIsDone(d){ var s=docEffStatus(d); return s==="submitted"||s==="confirmed"||d.done===true&&!d.status; }
 
 // ── 스타일 상수 ──────────────────────────────────────────
-var FF = "'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+var FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif";
 var inp = {width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #E2E8F0",fontSize:22,outline:"none",boxSizing:"border-box",fontFamily:FF,color:"#1E293B",background:"#fff",transition:"border-color 0.15s"};
 var inpKo = Object.assign({},inp,{lang:"ko"});
 var btnP = {background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"14px 28px",fontSize:22,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 2px rgba(37,99,235,0.18)"};
@@ -1034,6 +1034,48 @@ function EmptyState(props){
 }
 
 // ── Dashboard ─────────────────────────────────────────────
+// ── 화면 크기 감지 (모바일 ≤860px) ──────────────────────────
+function useIsMobile(){
+  var st=useState(function(){return typeof window!=="undefined"&&!!window.matchMedia&&window.matchMedia("(max-width:860px)").matches;});
+  useEffect(function(){
+    if(typeof window==="undefined"||!window.matchMedia)return;
+    var mq=window.matchMedia("(max-width:860px)");
+    function on(){st[1](mq.matches);}
+    try{mq.addEventListener("change",on);}catch(e){mq.addListener(on);}
+    return function(){try{mq.removeEventListener("change",on);}catch(e){mq.removeListener(on);}};
+  },[]);
+  return st[0];
+}
+
+// ── 대시보드 섹션 (데스크톱: 항상 펼침 / 모바일: 접기·펴기) ──
+// bare=true 이면 헤더+자식만(자식이 자체 카드를 그릴 때), false 이면 흰 카드로 감쌈.
+function DashSection(props){
+  var isMobile=useIsMobile();
+  var st=useState(props.openMobile!==false);
+  var collapsible=isMobile;
+  var open=collapsible?st[0]:true;
+  var bare=props.bare;
+  var header=(
+    <button onClick={collapsible?function(){st[1](!st[0]);}:undefined}
+      style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:bare?"2px 2px 12px":"15px 18px",background:"none",border:"none",cursor:collapsible?"pointer":"default",fontFamily:FF,textAlign:"left"}}>
+      <span style={{display:"flex",alignItems:"center",gap:8,fontSize:bare?18:16,fontWeight:700,color:"#0F172A"}}>
+        {props.icon&&<span style={{fontSize:bare?18:16}}>{props.icon}</span>}{props.title}
+        {props.hint&&<span className="hide-mobile" style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{props.hint}</span>}
+      </span>
+      {collapsible&&<span style={{fontSize:15,color:"#94A3B8",transition:"transform .2s ease",transform:open?"rotate(180deg)":"none",display:"inline-block",lineHeight:1}}>⌄</span>}
+    </button>
+  );
+  if(bare){
+    return(<div style={{marginBottom:14}}>{header}{open&&<div className="dash-sec-body">{props.children}</div>}</div>);
+  }
+  return(
+    <div className="card" style={{marginBottom:14,overflow:"hidden"}}>
+      {header}
+      {open&&<div className="dash-sec-body" style={{padding:"0 18px 18px"}}>{props.children}</div>}
+    </div>
+  );
+}
+
 function Dashboard(props){
   var st1=useState("all"),st2=useState(false); var selectedCompanyId=st1[0];
   // 보기 밀도 (컴팩트/기본/넓게) — localStorage 유지, 기본값 "normal"
@@ -1137,23 +1179,23 @@ function Dashboard(props){
               <span style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{dstr} 기준</span>
             </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:14}} className="grid-2-mobile">
+          <div className="brief-grid">
             {brief.map(function(b,i){
               var btnCta={marginTop:16,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"9px 18px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
               var btnGhost={marginTop:16,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.35)",borderRadius:8,padding:"8px 16px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
               return(
-              <div key={i} className="hover-card" style={{background:b.bg,border:"none",borderRadius:16,padding:"24px 26px",display:"flex",flexDirection:"column",minHeight:168,boxShadow:"0 4px 16px rgba(15,23,42,0.14)"}}>
+              <div key={i} className="hover-card brief-card" style={{background:b.bg,border:"none",borderRadius:16,padding:"24px 26px",display:"flex",flexDirection:"column",minHeight:168,boxShadow:"0 4px 16px rgba(15,23,42,0.14)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
-                  <span style={{fontSize:18,flexShrink:0,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
-                  <span style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.88)",flex:1}}>{b.label}</span>
+                  <span className="brief-icon" style={{fontSize:18,flexShrink:0,width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
+                  <span className="brief-label" style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.88)",flex:1}}>{b.label}</span>
                   {b.badge&&<span style={{fontSize:11,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
                 </div>
-                <div style={{fontSize:50,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.04}}>
-                  {b.val}{b.unit&&<span style={{fontSize:22,opacity:0.80,marginLeft:4}}>{b.unit}</span>}
+                <div className="brief-num" style={{fontSize:50,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.04}}>
+                  {b.val}{b.unit&&<span className="brief-num-unit" style={{fontSize:22,opacity:0.80,marginLeft:4}}>{b.unit}</span>}
                 </div>
-                <div style={{fontSize:14,color:"rgba(255,255,255,0.78)",marginTop:8,fontWeight:500,flex:1,lineHeight:1.4}}>{b.sub}</div>
-                {b.spark&&<div style={{marginTop:10}}><Sparkline data={metrics.spark} width={120} height={22} color="rgba(255,255,255,0.75)"/></div>}
-                {b.btn&&<button onClick={b.on} style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
+                <div className="brief-sub" style={{fontSize:14,color:"rgba(255,255,255,0.78)",marginTop:8,fontWeight:500,flex:1,lineHeight:1.4}}>{b.sub}</div>
+                {b.spark&&<div className="brief-spark" style={{marginTop:10}}><Sparkline data={metrics.spark} width={120} height={22} color="rgba(255,255,255,0.75)"/></div>}
+                {b.btn&&<button onClick={b.on} className="brief-btn" style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
               </div>
             );})}
           </div>
@@ -1240,24 +1282,23 @@ function Dashboard(props){
       </div>
     )}
 
-    {/* 수수료 요약 (stats, 프로 플랜) */}
+    {/* 수수료 요약 (stats, 프로 플랜) — 모바일 기본 접힘 */}
     {props.mode!=="list"&&props.companies.length>0&&props.tier&&props.tier.feat.commission&&(
-      <div style={{marginBottom:20}}>
-        <div style={{fontSize:17,fontWeight:700,color:"#0F172A",marginBottom:10}}>🧾 수수료 현황</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12}}>
+      <DashSection icon="🧾" title="수수료 현황" openMobile={false}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
           {[
             {l:"이번 달 예상 수수료",v:fMan(commSummary.thisMonthFee),c:"#1D4ED8",accent:null},
             {l:"미청구 수수료",v:fMan(commSummary.unbilled),c:commSummary.unbilled>0?"#0F172A":"#94A3B8",accent:null},
             {l:"미입금 수수료",v:fMan(commSummary.unpaid),c:commSummary.unpaid>0?"#DC2626":"#94A3B8",accent:commSummary.unpaid>0?"#DC2626":null},
             {l:"누적 수수료",v:fMan(commSummary.collected),c:"#059669",accent:null}
           ].map(function(c,i){return(
-            <Card key={i} className="kpi-card" style={{padding:"16px 18px",border:"1px solid #E2E8F0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E2E8F0"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><span style={{fontSize:14,color:"#64748B",fontWeight:600}}>{c.l}</span></div>
+            <div key={i} className="kpi-card" style={{background:"#F8FAFC",borderRadius:14,padding:"15px 16px",border:"1px solid #E5EAF0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E5EAF0"}}>
+              <div style={{fontSize:13.5,color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
               <div style={{fontSize:22,fontWeight:800,color:c.c}}>{c.v}</div>
-            </Card>
+            </div>
           );})}
         </div>
-      </div>
+      </DashSection>
     )}
 
     {/* 업체별 위험도 랭킹 (stats, 전체 보기) */}
@@ -1317,11 +1358,23 @@ function Dashboard(props){
       <EmptyState icon="📊" title="대시보드가 곧 채워집니다" desc="업체와 직원을 등록하면 이곳에 이번 달 신청 가능 지원금, 월별 수령 추이, 신청 일정 캘린더가 자동으로 표시됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
     )}
 
-    {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}} className="grid-2-mobile"><div><MonthlyReport employees={props.employees}/><CompanyRanking companies={props.companies} employees={props.employees} goCompany={props.goCompany}/></div><div><CalendarView employees={props.employees} companies={props.companies} programs={props.programs} goCompany={props.goCompany} calendarMemos={props.calendarMemos} onSaveMemo={props.onSaveMemo}/></div></div>}
+    {props.mode!=="list"&&props.companies.length>0&&(
+      <DashSection bare icon="📅" title="월별 수령 · 캘린더" openMobile={false}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}} className="grid-2-mobile"><div><MonthlyReport employees={props.employees}/><CompanyRanking companies={props.companies} employees={props.employees} goCompany={props.goCompany}/></div><div><CalendarView employees={props.employees} companies={props.companies} programs={props.programs} goCompany={props.goCompany} calendarMemos={props.calendarMemos} onSaveMemo={props.onSaveMemo}/></div></div>
+      </DashSection>
+    )}
 
-    {props.mode!=="list"&&props.companies.length>0&&<Card style={{padding:20,marginTop:12,border:"1px solid #E2E8F0"}}><h4 style={{margin:"0 0 14px",fontSize:19,fontWeight:700,color:"#0F172A"}}>상태별 현황</h4>{STS.map(function(s){var cnt=stats.sc[s.key]||0;var total=fE.length||1;var done=s.key==="completed"||s.key==="approved";var barCol=done?"#059669":s.key==="resigned"?"#CBD5E1":"#94A3B8";return(<div key={s.key} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:16,color:"#475569"}}><span style={{display:"inline-block",width:8,height:8,borderRadius:4,background:barCol,marginRight:7}}/>{s.label}</span><span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>{cnt}명</span></div><div style={{height:6,background:"#F1F5F9",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:(cnt/total*100)+"%",background:barCol,borderRadius:3,transition:"width 0.5s ease"}}/></div></div>);})}</Card>}
+    {props.mode!=="list"&&props.companies.length>0&&(
+      <DashSection icon="📋" title="상태별 현황" openMobile={false}>
+        {STS.map(function(s){var cnt=stats.sc[s.key]||0;var total=fE.length||1;var done=s.key==="completed"||s.key==="approved";var barCol=done?"#059669":s.key==="resigned"?"#CBD5E1":"#94A3B8";return(<div key={s.key} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:16,color:"#475569"}}><span style={{display:"inline-block",width:8,height:8,borderRadius:4,background:barCol,marginRight:7}}/>{s.label}</span><span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>{cnt}명</span></div><div style={{height:6,background:"#F1F5F9",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:(cnt/total*100)+"%",background:barCol,borderRadius:3,transition:"width 0.5s ease"}}/></div></div>);})}
+      </DashSection>
+    )}
 
-    {props.mode!=="list"&&props.companies.length>0&&<ProgramPipeline employees={fE} programs={props.programs}/>}
+    {props.mode!=="list"&&props.companies.length>0&&(
+      <DashSection bare icon="📊" title="지원금별 파이프라인" openMobile={false}>
+        <ProgramPipeline employees={fE} programs={props.programs}/>
+      </DashSection>
+    )}
   </div>); }
 
 // ── EmpCard ───────────────────────────────────────────────
@@ -3037,10 +3090,19 @@ export default function SubsidyApp(props){
         e.preventDefault();
         stCmdK[1](function(o){return !o;});
       }
+      if(e.key==="Escape"){ stMobileNav[1](false); }
     }
     window.addEventListener("keydown",handler);
     return function(){ window.removeEventListener("keydown",handler); };
   },[]);
+
+  // 모바일 메뉴 열림 시 body 스크롤 잠금
+  useEffect(function(){
+    if(typeof document==="undefined")return;
+    if(stMobileNav[0])document.body.classList.add("no-scroll");
+    else document.body.classList.remove("no-scroll");
+    return function(){document.body.classList.remove("no-scroll");};
+  },[stMobileNav[0]]);
 
   var selectedCompany=stCompany[0]?companies.find(function(c){return c.id===stCompany[0];})||null:null;
   var stPN=useState(profile.display_name||"");
@@ -3058,7 +3120,7 @@ export default function SubsidyApp(props){
     brandTitle:{fontSize:25,fontWeight:800,color:"#fff",letterSpacing:"-0.3px"},
     brandSub:{fontSize:18,color:"#64748B",marginTop:4},
     nav:{flex:1,padding:"10px 0",overflowY:"auto"},
-    item:function(active){return{display:"flex",alignItems:"center",gap:11,padding:"11px 16px",margin:"2px 12px",borderRadius:10,fontSize:20,fontWeight:active?700:400,color:active?"#fff":"#94A3B8",background:active?"rgba(59,130,246,0.22)":"transparent",cursor:"pointer",transition:"all 0.15s",userSelect:"none",boxSizing:"border-box"};},
+    item:function(active){return{display:"flex",alignItems:"center",gap:11,padding:"11px 15px",margin:"2px 12px",borderRadius:10,fontSize:19,fontWeight:active?700:500,color:active?"#fff":"#94A3B8",background:active?"rgba(59,130,246,0.14)":"transparent",boxShadow:active?"inset 3px 0 0 #60A5FA":"none",cursor:"pointer",transition:"all 0.15s",userSelect:"none",boxSizing:"border-box"};},
     icon:{fontSize:22,width:28,textAlign:"center",flexShrink:0},
     bottom:{padding:"20px 24px",borderTop:"1px solid rgba(255,255,255,0.08)"},
     user:{display:"flex",alignItems:"center",gap:12,marginBottom:16},
@@ -3185,7 +3247,7 @@ export default function SubsidyApp(props){
                 <span style={{fontSize:24,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedCompany.name}</span>
               </div>
             ):(
-              <span style={{fontSize:26,fontWeight:700,color:"#1E293B",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+              <span className="app-title" style={{fontSize:26,fontWeight:700,color:"#1E293B",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                 {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).icon}&nbsp;
                 {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).label}
               </span>
@@ -3200,7 +3262,7 @@ export default function SubsidyApp(props){
             </button>
             <NotifBell employees={employees} companies={companies} programs={programs} goCompany={goCompany} settings={profile.settings||{}} tier={tier}/>
             {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
-              <button style={btnP} className="hover-lift" data-tour="add-company" onClick={function(){stAddComp[1](true);}}>+ 업체 추가</button>
+              <button style={btnP} className="hover-lift add-co-btn" data-tour="add-company" onClick={function(){stAddComp[1](true);}}>+<span className="hide-mobile"> 업체 추가</span></button>
             )}
           </div>
         </div>
