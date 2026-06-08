@@ -141,6 +141,12 @@ var CERT_TYPES = [
   {id:"other",label:"기타",color:"#6B7280"}
 ];
 var COMMON_EXTRA_DOCS = ["신분증 사본","근로자 통장사본","연차사용 증빙","재직증명서","사직서","육아휴직서","주민등록등본","원천징수영수증","4대보험 가입확인서","운영기관 자체 서식"];
+// 업체 서류 탭 기본 표시·빠른추가 목록
+var COMPANY_DOC_DEFAULTS = ["사업자등록증","법인등기부등본","기업통장사본","협약서","4대보험 사업장 가입자 명부","4대보험 가입확인서","원천징수영수증","급여대장","급여이체증","운영기관 자체 서식"];
+var COMPANY_QUICK_DOCS = COMPANY_DOC_DEFAULTS;
+var EMP_QUICK_DOCS = ["근로계약서","임금대장","급여이체증","졸업증명서","사실증명확인서","신분증 사본","근로자 통장사본","재직증명서","주민등록등본"];
+// 서류명 정규화 — 공백·괄호·점·중점·대소문자 차이를 무시하고 중복 판정
+function normDoc(s){ return (s||"").replace(/[\s()（）·.\-]/g,"").toLowerCase(); }
 
 // 업무 일지 유형
 var NOTE_TYPES = [
@@ -235,7 +241,7 @@ function planTier(planType,isTrial){ return PLAN_TIERS[effPlanKey(planType,isTri
 function PlanBadge(props){ return <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"#DBEAFE",color:"#1D4ED8",marginLeft:6,verticalAlign:"middle"}}>{props.label||"PRO"}</span>; }
 
 // ── 기본 UI 컴포넌트 ─────────────────────────────────────
-function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,maxHeight:"90vh",overflow:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"18px clamp(16px,4vw,28px)",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:FS_SECTION,fontWeight:700,wordBreak:"keep-all",minWidth:0}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:28,cursor:"pointer",color:"#94A3B8",flexShrink:0,lineHeight:1}}>✕</button></div><div style={{padding:"clamp(16px,4vw,28px)"}}>{props.children}</div></div></div>); }
+function Modal(props){ if(!props.open) return null; return(<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",overflowY:"auto"}} onClick={props.onClose}><div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,maxHeight:"calc(100dvh - 32px)",overflow:"auto",margin:"auto"}} onClick={function(e){e.stopPropagation();}}><div style={{padding:"18px clamp(16px,4vw,28px)",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,position:"sticky",top:0,background:"#fff",zIndex:1}}><h3 style={{margin:0,fontSize:FS_SECTION,fontWeight:700,wordBreak:"keep-all",minWidth:0}}>{props.title}</h3><button onClick={props.onClose} style={{background:"none",border:"none",fontSize:28,cursor:"pointer",color:"#94A3B8",flexShrink:0,lineHeight:1}}>✕</button></div><div style={{padding:"clamp(16px,4vw,28px)"}}>{props.children}</div></div></div>); }
 function Label(props){ return <label style={{fontSize:FS_LABEL,fontWeight:600,color:props.color||"#475569",marginBottom:6,display:"block"}}>{props.children}</label>; }
 function Card(props){ return <div onClick={props.onClick} style={Object.assign({background:"#fff",borderRadius:14,border:"1px solid #F1F5F9",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},props.style||{})}>{props.children}</div>; }
 function Badge(props){ return <span style={{fontSize:FS_BADGE,fontWeight:600,padding:"4px 11px",borderRadius:20,background:props.bg||"#EFF6FF",color:props.color||"#2563EB",whiteSpace:"nowrap",display:"inline-block"}}>{props.children}</span>; }
@@ -335,36 +341,77 @@ function ChkItem(props){
 function DocSection(props){
   var docs=props.docs||[]; var disabled=props.disabled;
   var uploadFn=props.uploadFn; var getUrlFn=props.getUrlFn;
-  var st1=useState(false); var showAdd=st1[0],setShowAdd=st1[1];
   var st2=useState(""); var newName=st2[0],setNewName=st2[1];
+  var stOther=useState(false); var showOther=stOther[0],setShowOther=stOther[1];
+  var seeded=useState(false);
+  var quickList=props.quickDocs||[];
   var done=docs.filter(function(d){return docIsDone(d);}).length;
   var missing=docs.filter(function(d){return !docIsDone(d);});
-  function addDoc(name){ if(!name||!name.trim()) return; props.onChange(docs.concat([{id:uid(),label:name.trim(),done:false,status:"none",files:[],isCustom:true}])); setNewName(""); setShowAdd(false); }
+
+  // 서류 목록이 비어 있을 때만 기본 서류를 자동 표시(seed) — 기존 데이터는 건드리지 않음
+  useEffect(function(){
+    if(disabled)return;
+    if(seeded[0])return;
+    if(docs.length===0&&props.defaultDocs&&props.defaultDocs.length>0){
+      seeded[1](true);
+      props.onChange(props.defaultDocs.map(function(label){return {id:uid(),label:label,done:false,status:"none",files:[]};}));
+    }
+  },[]);
+
+  function hasDoc(name){ var n=normDoc(name); return docs.some(function(d){return normDoc(d.label)===n;}); }
+  function addDoc(name){
+    if(!name||!name.trim())return false;
+    var label=name.trim();
+    if(hasDoc(label)){ toast("이미 추가된 서류입니다.","info"); return false; }
+    props.onChange(docs.concat([{id:uid(),label:label,done:false,status:"none",files:[],isCustom:true}]));
+    toast(label+"이(가) 추가되었습니다.","success");
+    return true;
+  }
   function delDoc(idx){ props.onChange(docs.filter(function(_,i){return i!==idx;})); }
-  function buildReq(list){ var names=list.map(function(d){return "- "+d.label;}).join("\n"); var head=(props.progName?props.progName+" ":"고용지원금 ")+"신청을 위해 아래 서류가 필요합니다."; return "대표님, "+head+"\n\n"+names+"\n\n가능하실 때 전달 부탁드립니다. 감사합니다."; }
-  function copyMissing(){ if(missing.length===0){toast("미제출 서류가 없습니다.","info");return;} navigator.clipboard.writeText(buildReq(missing)).then(function(){toast("서류 요청 문구가 복사되었습니다.","success");}); if(props.onLog)props.onLog("미제출 서류 "+missing.length+"건 요청 문구 생성","서류요청"); }
-  function copyOne(d){ navigator.clipboard.writeText(buildReq([d])).then(function(){toast("서류 요청 문구가 복사되었습니다.","success");}); if(props.onLog)props.onLog("'"+d.label+"' 요청 문구 생성","서류요청"); }
+  function copyOne(d){ var msg="대표님, "+(props.progName?props.progName+" ":"고용지원금 ")+"신청을 위해 '"+d.label+"' 서류가 필요합니다. 사진 또는 PDF 파일로 전달 부탁드립니다. 감사합니다."; navigator.clipboard.writeText(msg).then(function(){toast("서류 요청 문구가 복사되었습니다.","success");}); if(props.onLog)props.onLog("'"+d.label+"' 요청 문구 생성","서류요청"); }
+
+  // 요청 메시지 — 미요청/요청완료 상태만 포함, 제출/확인완료 제외, 보완필요는 별도
+  var reqDocs=docs.filter(function(d){var s=docEffStatus(d);return s==="none"||s==="requested";});
+  var reviseDocs=docs.filter(function(d){return docEffStatus(d)==="revise";});
+  function buildRequestMsg(){
+    var lines=reqDocs.length>0?reqDocs.map(function(d){return "- "+d.label;}).join("\n"):"- (요청할 서류가 없습니다)";
+    var msg="안녕하세요 대표님.\n고용지원금 신청을 위해 필요한 서류 안내드립니다.\n\n필요한 서류는 아래와 같습니다.\n\n"+lines+"\n\n준비되시는 대로 사진 또는 PDF 파일로 전달 부탁드립니다.\n감사합니다.";
+    if(reviseDocs.length>0){ msg+="\n\n[보완 필요 서류]\n"+reviseDocs.map(function(d){return "- "+d.label;}).join("\n"); }
+    return msg;
+  }
+  function copyRequestMsg(){ navigator.clipboard.writeText(buildRequestMsg()).then(function(){toast("서류 요청 메시지를 복사했습니다.","success");}); if(props.onLog)props.onLog("서류 요청 메시지 복사("+reqDocs.length+"건)","서류요청"); }
+
   return(
     <Card style={{padding:"18px 20px",marginBottom:props.mb||12}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
         <h4 style={{margin:0,fontSize:19,fontWeight:700}}>{props.icon} {props.title}</h4>
-        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-          <span style={done===docs.length&&docs.length>0?successBadge():neutralBadge()}>{done}/{docs.length}</span>
-          {!disabled&&missing.length>0&&<button style={Object.assign({},btnSm,{padding:"8px 14px",fontSize:14,background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE"})} onClick={copyMissing}>📤 미제출 {missing.length}건 요청 문구</button>}
-          {!disabled&&<button style={Object.assign({},btnSm,{padding:"8px 14px",fontSize:15})} onClick={function(){setShowAdd(!showAdd);}}>+ 서류</button>}
-        </div>
+        <span style={done===docs.length&&docs.length>0?successBadge():neutralBadge()}>{done}/{docs.length}</span>
       </div>
-      {showAdd&&!disabled&&(
-        <div style={{marginBottom:12,padding:14,background:"#F8FAFC",borderRadius:10}}>
-          <div style={{display:"flex",gap:6,marginBottom:8}}>
-            <input style={Object.assign({},inpKo,{flex:1,fontSize:16,padding:"9px 12px"})} value={newName} onChange={function(e){setNewName(e.target.value);}} placeholder="추가할 서류명" onKeyDown={function(e){if(e.key==="Enter")addDoc(newName);}}/>
-            <button style={Object.assign({},btnP,{padding:"9px 16px",fontSize:16})} onClick={function(){addDoc(newName);}}>추가</button>
+
+      {/* 자주 쓰는 서류 빠른 추가 — 항상 표시 */}
+      {!disabled&&(quickList.length>0)&&(
+        <div style={{marginBottom:14,padding:"12px 14px",background:"#F8FAFC",borderRadius:10,border:"1px solid #F1F5F9"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:8}}>⚡ 자주 쓰는 서류 빠른 추가</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {quickList.map(function(d){var added=hasDoc(d);return(
+              <button key={d} onClick={function(){if(added){toast("이미 추가된 서류입니다.","info");}else{addDoc(d);}}}
+                style={{fontSize:13,padding:"6px 12px",borderRadius:8,cursor:"pointer",fontFamily:FF,border:"1px solid "+(added?"#E2E8F0":"#BFDBFE"),background:added?"#F1F5F9":"#EFF6FF",color:added?"#94A3B8":"#1D4ED8",fontWeight:added?400:600}}>
+                {added?"✓ ":"+ "}{d}
+              </button>
+            );})}
+            <button onClick={function(){setShowOther(!showOther);}} style={{fontSize:13,padding:"6px 12px",borderRadius:8,cursor:"pointer",fontFamily:FF,border:"1px dashed #CBD5E1",background:"#fff",color:"#475569"}}>＋ 기타 서류</button>
           </div>
-          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{COMMON_EXTRA_DOCS.map(function(d){return <button key={d} onClick={function(){addDoc(d);}} style={{fontSize:14,padding:"6px 12px",borderRadius:8,border:"1px solid #E2E8F0",background:"#fff",color:"#475569",cursor:"pointer"}}>+{d}</button>;})}</div>
+          {showOther&&(
+            <div style={{display:"flex",gap:6,marginTop:10}}>
+              <input style={Object.assign({},inpKo,{flex:1,fontSize:15,padding:"9px 12px"})} value={newName} onChange={function(e){setNewName(e.target.value);}} placeholder="서류명 직접 입력 후 Enter" autoFocus onKeyDown={function(e){if(e.key==="Enter"){if(addDoc(newName))setNewName("");}}}/>
+              <button style={Object.assign({},btnP,{padding:"9px 16px",fontSize:15})} onClick={function(){if(addDoc(newName))setNewName("");}}>추가</button>
+            </div>
+          )}
         </div>
       )}
-      {docs.length===0?<p style={{margin:0,fontSize:16,color:"#94A3B8"}}>서류 없음</p>:(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:8}}>
+
+      {docs.length===0?<p style={{margin:"4px 0 14px",fontSize:15,color:"#94A3B8"}}>위 버튼으로 필요한 서류를 추가하세요.</p>:(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:8,marginBottom:6}}>
           {docs.map(function(d,i){return <ChkItem key={d.id||i} item={d} disabled={disabled}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onToggle={function(){var ds=docs.slice();var nd=!docIsDone(ds[i]);ds[i]=Object.assign({},ds[i],{done:nd,status:nd?"confirmed":"none"});props.onChange(ds);}}
@@ -374,6 +421,17 @@ function DocSection(props){
             onFA={function(f){var ds=docs.slice();ds[i]=Object.assign({},ds[i],{files:(ds[i].files||[]).concat([f])});props.onChange(ds);}}
             onFR={function(fid){var ds=docs.slice();ds[i]=Object.assign({},ds[i],{files:(ds[i].files||[]).filter(function(f){return f.id!==fid;})});props.onChange(ds);}}/>;
           })}
+        </div>
+      )}
+
+      {/* 서류 요청 메시지 — 항상 표시 */}
+      {!disabled&&(
+        <div style={{marginTop:14,padding:"14px 16px",background:"#F0F9FF",borderRadius:12,border:"1px solid #BAE6FD"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:14,fontWeight:700,color:"#0284C7"}}>📨 서류 요청 메시지 {reqDocs.length>0&&<span style={{fontSize:12,color:"#64748B",fontWeight:500}}>· {reqDocs.length}건</span>}</span>
+            <button style={Object.assign({},btnSm,{padding:"7px 14px",fontSize:13,background:"#0284C7",color:"#fff",border:"none"})} onClick={copyRequestMsg}>📋 복사하기</button>
+          </div>
+          <div style={{whiteSpace:"pre-line",fontSize:13,color:"#334155",lineHeight:1.7,background:"#fff",borderRadius:8,padding:"12px 14px",border:"1px solid #E0F2FE",maxHeight:240,overflow:"auto"}}>{buildRequestMsg()}</div>
         </div>
       )}
     </Card>
@@ -1532,7 +1590,7 @@ function EmpCard(props){
           )}
           {/* 직원 서류 */}
           <DocSection title="직원 서류" docs={emp.employeeDocs||[]} disabled={false}
-            progName={p?p.name:""}
+            progName={p?p.name:""} quickDocs={EMP_QUICK_DOCS}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onChange={function(ds){props.onPatch(emp.id,{employeeDocs:ds});}}
             onLog={function(txt,type){if(props.onLog&&company)props.onLog(company.id,emp.name+" "+txt,type);}}
@@ -2207,6 +2265,7 @@ function CompDet(props){
       {stTab[0]==="docs"&&(
         <div className="fade-in">
           <DocSection title="업체 서류" docs={company.companyDocs||[]} disabled={false}
+            quickDocs={COMPANY_QUICK_DOCS} defaultDocs={COMPANY_DOC_DEFAULTS}
             uploadFn={uploadFn} getUrlFn={getUrlFn}
             onChange={function(ds){props.onPatchCompany(company.id,{companyDocs:ds});}}
             onLog={function(txt,type){props.onLog(company.id,txt,type);}}
@@ -3235,7 +3294,8 @@ function ProductTour(props){
 
   var tStyle={position:"fixed",width:TW,background:"#fff",borderRadius:20,padding:"28px 30px",boxShadow:"0 24px 64px rgba(15,23,42,0.35), 0 0 0 1px rgba(0,0,0,0.06)",zIndex:4010,fontFamily:FF,boxSizing:"border-box"};
   if(!rect){
-    Object.assign(tStyle,{top:"50%",left:"50%",transform:"translate(-50%,-50%)"});
+    // 1단계·7단계: 특정 요소에 붙이지 않고 화면 정중앙 모달로 표시 (모바일에서도 잘리지 않게 반응형 폭)
+    Object.assign(tStyle,{top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"min(420px, calc(100vw - 32px))",maxHeight:"calc(100dvh - 40px)",overflowY:"auto",padding:"clamp(22px,5vw,28px)"});
   } else {
     var side=cur.side||"right"; var gap=18;
     if(side==="right"){
