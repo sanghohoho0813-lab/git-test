@@ -814,6 +814,8 @@ function AgencyReport(props){
   var stFirm=useState("");
   var stPhone=useState("");
   var stEmail=useState("");
+  var stComment=useState("");
+  var stCommentEdited=useState(false);
 
   var rd=useMemo(function(){
     var emps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";});
@@ -821,23 +823,98 @@ function AgencyReport(props){
     var totalExp=emps.reduce(function(s,e){return s+(e.totalExpected||0);},0);
     var pct=totalExp>0?Math.round(totalRcv/totalExp*100):0;
     var upcoming=[]; var overdue=[];
+    var riskItems=[]; var docItems=[]; var byProg={};
+    var planWeek=[],planMonth=[],planNext=[];
     emps.forEach(function(e){
-      var p=programs[e.programId]; if(!e.startDate||!p)return;
+      var p=programs[e.programId]; var pname=p?p.name:"(지원금 미지정)";
+      var stx=STS.find(function(s){return s.key===e.status;}); var statusLabel=stx?stx.label:"";
+      var rcv=(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);
+      if(!byProg[e.programId])byProg[e.programId]={name:pname,count:0,expected:0,received:0,delay:0,missingDocs:0};
+      var bp=byProg[e.programId]; bp.count++; bp.expected+=e.totalExpected||0; bp.received+=rcv;
+      // 필수 정보 누락
+      var missInfo=[]; if(!e.startDate)missInfo.push("입사일"); if(!e.salary)missInfo.push("급여");
+      if(missInfo.length>0){riskItems.push({empName:e.name,prog:pname,status:statusLabel,problem:"필수 정보 누락 ("+missInfo.join("·")+")",impact:0,action:missInfo.join("·")+" 입력 후 신청 일정 확정"});}
+      // 직원별 미제출 서류
+      var empMissing=(e.employeeDocs||[]).filter(function(d){return !docIsDone(d);}).map(function(d){return d.label;});
+      if(empMissing.length>0){docItems.push({empName:e.name,prog:pname,docs:empMissing}); bp.missingDocs+=empMissing.length;}
+      // 회차별 기한
       (e.rounds||[]).forEach(function(r){
-        if(r.isPaid)return;
-        var ed=addMo(e.startDate,r.month); var dd=getDday(ed);
+        if(r.isPaid||!e.startDate)return;
+        var ed=addMo(e.startDate,r.month); var dd=getDday(ed); if(dd===null)return;
         var amt=r.expectedAmount||r.amount||0;
-        if(dd!==null&&dd<0)overdue.push({empName:e.name,prog:p.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:amt});
-        else if(dd!==null&&dd<=90)upcoming.push({empName:e.name,prog:p.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:amt});
+        if(dd<0){overdue.push({empName:e.name,prog:pname,roundLabel:r.label,eligDate:ed,dday:dd,amount:amt});bp.delay++;
+          riskItems.push({empName:e.name,prog:pname,status:statusLabel,problem:"신청기한 "+Math.abs(dd)+"일 지연",impact:amt,action:"보완서류 확인 후 즉시 신청"});
+          planWeek.push(e.name+" · "+r.label+" 지연분 즉시 신청 검토");
+        }else if(dd<=90){upcoming.push({empName:e.name,prog:pname,roundLabel:r.label,eligDate:ed,dday:dd,amount:amt});
+          if(dd<=14){riskItems.push({empName:e.name,prog:pname,status:statusLabel,problem:"신청기한 D-"+dd+" 임박",impact:amt,action:"필요 서류 점검 후 신청 준비"}); planWeek.push(e.name+" · "+r.label+" 신청 준비 (D-"+dd+")");}
+          else if(dd<=30){planMonth.push(e.name+" · "+r.label+" 신청 여부 확인 (D-"+dd+")");}
+          else{planNext.push(e.name+" · "+r.label+" 급여이체증·재직확인 준비 (D-"+dd+")");}
+        }
       });
+      // 서류 미제출로 신청 지연 가능
+      if(empMissing.length>0){
+        var hasNear=(e.rounds||[]).some(function(r){if(r.isPaid||!e.startDate)return false;var dd=getDday(addMo(e.startDate,r.month));return dd!==null&&dd<=90;});
+        if(hasNear)riskItems.push({empName:e.name,prog:pname,status:statusLabel,problem:"미제출 서류 "+empMissing.length+"건으로 신청 지연 가능",impact:0,action:"서류 요청: "+empMissing.slice(0,3).join("·")+(empMissing.length>3?" 외":"")});
+      }
     });
     upcoming.sort(function(a,b){return a.dday-b.dday;});
     overdue.sort(function(a,b){return a.dday-b.dday;});
-    var sc={};
-    STS.forEach(function(s){sc[s.key]=0;});
+    riskItems.sort(function(a,b){return b.impact-a.impact;});
+    var sc={}; STS.forEach(function(s){sc[s.key]=0;});
     emps.forEach(function(e){if(sc[e.status]!==undefined)sc[e.status]++;});
-    return{emps:emps,totalRcv:totalRcv,totalExp:totalExp,pct:pct,upcoming:upcoming,overdue:overdue,sc:sc};
+    // 미제출 서류 집계
+    var companyMissingDocs=(company.companyDocs||[]).filter(function(d){return !docIsDone(d);}).map(function(d){return d.label;});
+    var missingDocsCount=companyMissingDocs.length; docItems.forEach(function(it){missingDocsCount+=it.docs.length;});
+    if(missingDocsCount>0)planWeek.unshift("미제출 서류 "+missingDocsCount+"건 요청·회수");
+    var reqSet={}; companyMissingDocs.forEach(function(l){reqSet[l]=true;}); docItems.forEach(function(it){it.docs.forEach(function(l){reqSet[l]=true;});});
+    var reqDocs=Object.keys(reqSet);
+    // 예상 수수료
+    var rate=(company.commission&&company.commission.rate)||0;
+    var estFee=Math.round(totalExp*rate/100);
+    // 지원금별 목록
+    var progList=Object.keys(byProg).map(function(k){var b=byProg[k];b.remaining=b.expected-b.received;return b;}).sort(function(a,b){return b.expected-a.expected;});
+    return{emps:emps,totalRcv:totalRcv,totalExp:totalExp,pct:pct,upcoming:upcoming,overdue:overdue,sc:sc,
+      riskItems:riskItems,riskCount:riskItems.length,docItems:docItems,companyMissingDocs:companyMissingDocs,
+      missingDocsCount:missingDocsCount,reqDocs:reqDocs,rate:rate,estFee:estFee,
+      planWeek:planWeek,planMonth:planMonth,planNext:planNext,progList:progList};
   },[company,employees,programs]);
+
+  function manWon(n){var v=Math.abs(n||0);if(v>=100000000)return Math.round(n/100000000)+"억 원";if(v>=10000)return Math.round(n/10000).toLocaleString()+"만 원";return(n||0).toLocaleString()+"원";}
+  var autoComment=useMemo(function(){
+    var parts=[];
+    if(rd.totalExp>0)parts.push("현재 귀사에서 신청 가능한 고용지원금 예상 총액은 약 "+manWon(rd.totalExp)+"이며, 이 중 "+manWon(rd.totalRcv)+"을 이미 수령하셨습니다.");
+    if(rd.riskCount>0)parts.push("다만 신청 기한이 임박했거나 지연된 항목이 "+rd.riskCount+"건 있어 우선적으로 확인하시는 것이 좋습니다.");
+    else parts.push("현재 신청 일정상 급히 지연된 항목은 없어 전반적으로 양호하게 진행되고 있습니다.");
+    if(rd.missingDocsCount>0)parts.push("미제출 서류 "+rd.missingDocsCount+"건을 보완하시면 이후 회차 신청이 한결 수월해집니다.");
+    parts.push("회차별 지급 시점에는 급여이체증과 재직 여부 확인이 필요하니 미리 준비해두시길 권장드립니다.");
+    return parts.join(" ");
+  },[rd]);
+  // 모달 열릴 때 코멘트 자동 채움(사용자가 직접 수정한 경우 유지)
+  useEffect(function(){ if(st1[0]&&!stCommentEdited[0])stComment[1](autoComment); },[st1[0],autoComment]);
+
+  function copyText(text,label){
+    function ok(){toast((label||"문구")+"가 복사되었습니다.","success");}
+    function fail(){
+      try{var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);ok();}
+      catch(e){toast("복사에 실패했습니다. 직접 선택해 복사해주세요.","error");}
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(ok).catch(fail); else fail();
+  }
+  function summaryText(){
+    var s="대표님, 현재 확인된 고용지원금 예상 수령액은 약 "+manWon(rd.totalExp)+"이며, 이 중 "+manWon(rd.totalExp-rd.totalRcv)+"은 향후 신청 및 서류 보완 여부에 따라 달라질 수 있습니다.";
+    var tail=[];
+    if(rd.missingDocsCount>0)tail.push("미제출 서류 "+rd.missingDocsCount+"건");
+    if(rd.riskCount>0)tail.push("신청 일정 확인이 필요한 항목 "+rd.riskCount+"건");
+    if(tail.length>0)s+=" 현재 "+tail.join("과 ")+"이 있어 우선 해당 부분부터 정리해드리겠습니다.";
+    else s+=" 현재 급히 처리할 지연 항목은 없으며, 회차별 지급 일정에 맞춰 계속 관리해드리겠습니다.";
+    return s;
+  }
+  function docRequestText(){
+    var docs=rd.reqDocs;
+    if(docs.length===0)return "대표님 안녕하세요. 현재 추가로 요청드릴 미제출 서류는 없습니다. 감사합니다.";
+    var lines=docs.map(function(d,i){return(i+1)+". "+d;});
+    return "대표님 안녕하세요. 고용지원금 신청을 위해 아래 서류 확인이 필요합니다.\n\n"+lines.join("\n")+"\n\n확인 후 전달 부탁드립니다.";
+  }
 
   function genHTML(){
     var today=new Date();
@@ -878,9 +955,34 @@ function AgencyReport(props){
     var overdueHtml=rd.overdue.slice(0,12).map(function(o){
       return'<tr><td style="font-weight:600;color:#0F172A">'+o.empName+'</td><td style="color:#64748B">'+o.prog+'</td><td>'+o.roundLabel+'</td><td style="color:#475569">'+fD(o.eligDate)+'</td><td><span style="padding:3px 10px;border-radius:20px;font-size:12px;background:#FEE2E2;color:#DC2626;font-weight:800">'+Math.abs(o.dday)+'일 경과</span></td><td style="text-align:right;font-weight:700;color:#DC2626">'+fN(o.amount)+'원</td></tr>';
     }).join("");
-    // 동적 섹션 번호
+    // 동적 섹션 번호 (순차 카운터)
     var secO=rd.overdue.length>0, secU=rd.upcoming.length>0;
-    var nNum=1; var nSummary=nNum; var nOverdue=secO?(++nNum):0; var nUpcoming=secU?(++nNum):0; var nEmp=(++nNum);
+    var secRisk=rd.riskItems.length>0, secDoc=rd.missingDocsCount>0, secProg=rd.progList.length>0;
+    var SNO=0;
+    function shx(title){ SNO++; return '<div class="sh"><div class="sn">'+SNO+'</div><div class="st">'+title+'</div></div>'; }
+    // 놓치면 손해 보는 항목
+    var riskHtml=rd.riskItems.slice(0,16).map(function(it){
+      return '<tr><td style="font-weight:700;color:#0F172A">'+it.empName+'</td><td style="color:#64748B;font-size:12px">'+it.prog+'</td><td><span style="padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#FEE2E2;color:#DC2626">'+it.problem+'</span></td><td style="text-align:right;font-weight:700;color:#DC2626">'+(it.impact>0?fM2(it.impact):'-')+'</td><td style="color:#475569;font-size:12px">'+it.action+'</td></tr>';
+    }).join("");
+    // 30일 액션 플랜
+    function planList(arr){ if(!arr.length)return '<div style="font-size:13px;color:#94A3B8;padding:4px 0">예정된 작업이 없습니다.</div>'; return '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.95;color:#334155">'+arr.slice(0,7).map(function(x){return '<li>'+x+'</li>';}).join("")+'</ul>'; }
+    // 지원금별 진행 현황
+    var progHtml=rd.progList.map(function(b){
+      return '<tr><td style="font-weight:700;color:#0F172A">'+b.name+'</td><td style="text-align:center">'+b.count+'명</td><td style="text-align:right;color:#2563EB;font-weight:700">'+fM2(b.expected)+'</td><td style="text-align:right;color:#059669;font-weight:700">'+fM2(b.received)+'</td><td style="text-align:right;color:#2563EB">'+fM2(b.remaining)+'</td><td style="text-align:center;color:'+(b.delay>0?'#DC2626':'#94A3B8')+';font-weight:700">'+b.delay+'건</td><td style="text-align:center;color:'+(b.missingDocs>0?'#D97706':'#94A3B8')+';font-weight:700">'+b.missingDocs+'건</td></tr>';
+    }).join("");
+    // 미제출 서류
+    var docRows='';
+    if(rd.companyMissingDocs.length>0)docRows+='<tr><td style="font-weight:700;color:#0F172A">업체 서류</td><td style="color:#64748B;font-size:12px">'+company.name+'</td><td>'+rd.companyMissingDocs.join(", ")+'</td><td style="text-align:center"><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#FEF3C7;color:#D97706">요청 필요</span></td></tr>';
+    rd.docItems.forEach(function(it){docRows+='<tr><td style="font-weight:700;color:#0F172A">'+it.empName+'</td><td style="color:#64748B;font-size:12px">'+it.prog+'</td><td>'+it.docs.join(", ")+'</td><td style="text-align:center"><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#FEF3C7;color:#D97706">요청 필요</span></td></tr>';});
+    // 6-카드 요약
+    var kpiHtml=[
+      '<div class="kc"><div class="l">예상 총 수령액</div><div class="v" style="color:#2563EB">'+fM2(rd.totalExp)+'</div></div>',
+      '<div class="kc"><div class="l">이미 수령한 금액</div><div class="v" style="color:#059669">'+fM2(rd.totalRcv)+'</div></div>',
+      '<div class="kc"><div class="l">앞으로 받을 잔여</div><div class="v" style="color:#2563EB">'+fM2(rd.totalExp-rd.totalRcv)+'</div></div>',
+      '<div class="kc" style="'+(rd.riskCount>0?'background:#FEF2F2;border-color:#FECACA':'')+'"><div class="l">신청 지연·위험</div><div class="v" style="color:'+(rd.riskCount>0?'#DC2626':'#059669')+'">'+rd.riskCount+'건</div></div>',
+      '<div class="kc" style="'+(rd.missingDocsCount>0?'background:#FFFBEB;border-color:#FDE68A':'')+'"><div class="l">미제출 서류</div><div class="v" style="color:'+(rd.missingDocsCount>0?'#D97706':'#059669')+'">'+rd.missingDocsCount+'건</div></div>',
+      '<div class="kc"><div class="l">예상 컨설팅 수수료'+(rd.rate>0?' ('+rd.rate+'%)':'')+'</div><div class="v" style="color:#334155">'+(rd.rate>0?fM2(rd.estFee):'-')+'</div></div>'
+    ].join("");
     var narrative='현재 <strong>'+cl+'</strong>은(는) 총 <strong>'+rd.emps.length+'명</strong>의 근로자에 대해 고용지원금 검토 및 관리를 진행 중입니다. 현재까지 수령 완료된 금액은 <strong style="color:#059669">'+fM2(rd.totalRcv)+'</strong>이며, 향후 예상 수령액은 <strong style="color:#2563EB">'+fM2(rd.totalExp-rd.totalRcv)+'</strong>입니다. 향후 90일 이내 신청 또는 확인이 필요한 건은 총 <strong>'+rd.upcoming.length+'건</strong>'+(secO?', 그중 신청기한이 지나 즉시 점검이 필요한 건은 <strong style="color:#DC2626">'+rd.overdue.length+'건</strong>':'')+'입니다.';
     var CSS=[
       '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}',
@@ -944,16 +1046,12 @@ function AgencyReport(props){
         '</div>',
       '</div>',
 
-      // ── SEC 1: 요약 현황 ──
+      // ── SEC: 요약 현황 ──
       '<div class="page">',
-        '<div class="sh"><div class="sn">'+nSummary+'</div><div class="st">요약 현황</div></div>',
+        shx('요약 현황'),
+        '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:16px 20px;margin-bottom:22px;font-size:13.5px;line-height:1.7;color:#1E40AF;font-weight:600">대표님 회사의 고용지원금 진행 현황과 앞으로 챙겨야 할 항목 — 받을 수 있는 지원금, 놓치면 손해 볼 수 있는 일정, 보완이 필요한 서류를 기준으로 한눈에 정리한 상담용 보고서입니다.</div>',
         '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-left:4px solid #2563EB;border-radius:0 10px 10px 0;padding:18px 22px;margin-bottom:26px;font-size:14px;line-height:1.85;color:#334155">',narrative,'</div>',
-        '<div class="kr">',
-          '<div class="kc"><div class="l">지원 대상자</div><div class="v" style="color:#2563EB">',rd.emps.length,'명</div></div>',
-          '<div class="kc"><div class="l">수령완료 (누적)</div><div class="v" style="color:#059669">',fM2(rd.totalRcv),'</div></div>',
-          '<div class="kc"><div class="l">예상 잔여</div><div class="v" style="color:#2563EB">',fM2(rd.totalExp-rd.totalRcv),'</div></div>',
-          '<div class="kc"><div class="l">지원금 수령률</div><div class="v" style="color:#059669">',rd.pct,'%</div></div>',
-        '</div>',
+        '<div class="kr" style="grid-template-columns:repeat(3,1fr)">',kpiHtml,'</div>',
         '<div style="display:flex;justify-content:space-between;font-size:13px;color:#64748B;margin-bottom:8px"><span>지원금 수령 진행률</span><span style="font-weight:700;color:#2563EB">'+fN(rd.totalRcv)+'원 / '+fN(rd.totalExp)+'원</span></div>',
         '<div style="height:14px;background:#E2E8F0;border-radius:7px;overflow:hidden;margin-bottom:36px"><div style="height:100%;width:'+rd.pct+'%;background:#2563EB;border-radius:7px;transition:width 0.5s"></div></div>',
         '<div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:14px">진행 단계별 인원 현황</div>',
@@ -961,12 +1059,29 @@ function AgencyReport(props){
         '<div style="display:flex;flex-wrap:wrap;gap:14px">',legendHtml,'</div>',
       '</div>',
 
-      // ── SEC: 확인 필요(지연) 건 (conditional) ──
-      secO?[
+      // ── SEC: 놓치면 손해 보는 항목 ──
+      secRisk?[
         '<div class="page">',
-          '<div class="sh"><div class="sn">'+nOverdue+'</div><div class="st">⚠️ 즉시 확인이 필요한 건</div></div>',
-          '<table><thead><tr><th>직원명</th><th>지원금</th><th>회차</th><th>신청가능일</th><th>경과</th><th style="text-align:right">예상 수령액</th></tr></thead><tbody>',overdueHtml,'</tbody></table>',
-          '<div class="notice">위 항목은 신청가능일이 경과한 건입니다. 일부 지원금은 소급 신청이 제한될 수 있으므로, 담당 컨설턴트와 신청 가능 여부 및 보완서류를 우선 점검하시기 바랍니다.</div>',
+          shx('🚨 놓치면 손해 보는 항목'),
+          '<table><thead><tr><th>직원명</th><th>지원금</th><th>문제 요약</th><th style="text-align:right">예상 영향</th><th>권장 조치</th></tr></thead><tbody>',riskHtml,'</tbody></table>',
+          '<div class="notice" style="border-left-color:#DC2626;background:#FEF2F2;color:#7F1D1D">위 항목은 신청기한·서류·필수정보를 기준으로 자동 점검된 결과입니다. 예상 영향 금액은 해당 회차 예상 수령액 기준이며, 실제 신청 가능 여부는 담당기관 심사에 따라 달라질 수 있습니다.</div>',
+        '</div>'
+      ].join(""):""
+      ,
+      // ── SEC: 앞으로 30일 액션 플랜 ──
+      '<div class="page">',
+        shx('✅ 앞으로 30일 액션 플랜'),
+        '<div style="display:grid;grid-template-columns:1fr;gap:14px">',
+          '<div style="border:1px solid #E2E8F0;border-radius:12px;overflow:hidden"><div style="background:#FEF2F2;color:#DC2626;font-weight:800;font-size:13px;padding:11px 16px">이번 주 안에 처리할 일</div><div style="padding:14px 18px">'+planList(rd.planWeek)+'</div></div>',
+          '<div style="border:1px solid #E2E8F0;border-radius:12px;overflow:hidden"><div style="background:#EFF6FF;color:#2563EB;font-weight:800;font-size:13px;padding:11px 16px">이번 달 안에 처리할 일</div><div style="padding:14px 18px">'+planList(rd.planMonth)+'</div></div>',
+          '<div style="border:1px solid #E2E8F0;border-radius:12px;overflow:hidden"><div style="background:#F0FDF4;color:#059669;font-weight:800;font-size:13px;padding:11px 16px">다음 달 준비할 일</div><div style="padding:14px 18px">'+planList(rd.planNext)+'</div></div>',
+        '</div>',
+      '</div>',
+      // ── SEC: 지원금별 진행 현황 ──
+      secProg?[
+        '<div class="page">',
+          shx('지원금별 진행 현황'),
+          '<table><thead><tr><th>지원금</th><th style="text-align:center">대상자</th><th style="text-align:right">예상 수령액</th><th style="text-align:right">수령 완료</th><th style="text-align:right">남은 금액</th><th style="text-align:center">지연</th><th style="text-align:center">미제출</th></tr></thead><tbody>',progHtml,'</tbody></table>',
         '</div>'
       ].join(""):""
       ,
@@ -974,18 +1089,34 @@ function AgencyReport(props){
       // ── SEC: 향후 일정 (conditional) ──
       secU?[
         '<div class="page">',
-          '<div class="sh"><div class="sn">'+nUpcoming+'</div><div class="st">향후 90일 신청 일정</div></div>',
+          shx('향후 90일 신청 일정'),
           '<table><thead><tr><th>직원명</th><th>지원금</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th style="text-align:right">예상 수령액</th></tr></thead><tbody>',upcomingHtml,'</tbody></table>',
           '<div class="notice">⚠️ 위 일정은 입사일 기준으로 자동 산출된 예상 일정입니다. 실제 신청가능일은 심사 상황에 따라 달라질 수 있으니, 신청 전 고용24(work24.go.kr)에서 반드시 최신 공고를 확인하시기 바랍니다.</div>',
         '</div>'
       ].join(""):""
       ,
 
+      // ── SEC: 미제출 서류 ──
+      secDoc?[
+        '<div class="page">',
+          shx('📋 미제출 서류'),
+          '<table><thead><tr><th>대상</th><th>구분</th><th>서류명</th><th style="text-align:center">상태</th></tr></thead><tbody>',docRows,'</tbody></table>',
+          '<div class="notice">위 서류는 신청·심사에 필요한 미제출 항목입니다. 보고서 생성 화면의 "서류 요청 문구 복사" 버튼으로 대표님께 보낼 메시지를 바로 만들 수 있습니다.</div>',
+        '</div>'
+      ].join(""):""
+      ,
       // ── SEC: 직원별 상세 ──
       '<div class="page">',
-        '<div class="sh"><div class="sn">'+nEmp+'</div><div class="st">직원별 상세 현황</div></div>',
+        shx('직원별 상세 현황'),
         '<table><thead><tr><th>직원명</th><th>지원금</th><th>진행 상태</th><th>입사일</th><th>수령완료</th><th>잔여 예상</th><th style="min-width:100px">수령률</th></tr></thead><tbody>',empHtml,'</tbody></table>',
         '<div class="notice" style="margin-top:26px;background:#F8FAFC;border-left-color:#94A3B8;color:#475569">본 보고서는 고용지원금 관리 현황 공유를 위한 참고 자료이며, 실제 신청 가능 여부와 지급 여부는 담당기관의 심사 결과에 따라 달라질 수 있습니다. 지원금 요건·금액·신청기간은 매년 공고에 따라 변경될 수 있으므로, 신청 전 반드시 고용24(work24.go.kr) 등 담당기관의 최신 공고를 확인하시기 바랍니다.</div>',
+      '</div>',
+
+      // ── SEC: 컨설턴트 코멘트 ──
+      '<div class="page">',
+        shx('컨설턴트 코멘트'),
+        '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:24px 26px;font-size:14px;line-height:1.95;color:#334155;white-space:pre-wrap">'+((stComment[0]||autoComment)||"")+'</div>',
+        (stName[0]?'<div style="text-align:right;margin-top:16px;font-size:13px;color:#64748B">'+stName[0]+(stTitle2[0]?' · '+stTitle2[0]:'')+' 드림</div>':''),
       '</div>',
 
       // ── FOOTER ──
@@ -1020,6 +1151,17 @@ function AgencyReport(props){
     if(props.onLog)props.onLog(company.id,"고객 보고서 출력","기타");
     toast("고객 보고서가 생성되었습니다.","success");
   }
+  // 새 창에서 보고서를 열고 인쇄 대화상자 호출 → 사용자가 'PDF로 저장' 선택.
+  // 보고서는 독립 HTML 문서라 앱 사이드바·메뉴가 포함되지 않음(자동으로 본문만 출력).
+  function printReport(){
+    var html=genHTML();
+    var w=window.open("","_blank");
+    if(!w){toast("팝업이 차단되어 인쇄 창을 열 수 없습니다. 팝업을 허용해주세요.","error");return;}
+    w.document.open(); w.document.write(html); w.document.close();
+    w.focus();
+    setTimeout(function(){try{w.print();}catch(e){}},400);
+    if(props.onLog)props.onLog(company.id,"고객 보고서 인쇄/PDF","기타");
+  }
 
   return(
     <React.Fragment>
@@ -1040,11 +1182,20 @@ function AgencyReport(props){
               );})}
             </div>
           </div>
+          {/* 위험·서류 요약 칩 */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            {[["놓치면 손해",rd.riskCount+"건",rd.riskCount>0?"#DC2626":"#059669",rd.riskCount>0?"#FEF2F2":"#F0FDF4"],["미제출 서류",rd.missingDocsCount+"건",rd.missingDocsCount>0?"#D97706":"#059669",rd.missingDocsCount>0?"#FFFBEB":"#F0FDF4"],["예상 수수료",rd.rate>0?fMan(rd.estFee):"-","#334155","#F8FAFC"]].map(function(arr,i){return(
+              <div key={i} style={{padding:"12px 14px",borderRadius:10,background:arr[3],textAlign:"center"}}>
+                <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:4}}>{arr[0]}</div>
+                <div style={{fontSize:18,fontWeight:800,color:arr[2]}}>{arr[1]}</div>
+              </div>
+            );})}
+          </div>
           {/* 구성 */}
           <div style={{padding:"12px 16px",background:"#F8FAFC",borderRadius:10,fontSize:13}}>
             <div style={{fontWeight:700,color:"#1E293B",marginBottom:8}}>📋 보고서 구성</div>
             <div style={{display:"grid",gap:4}}>
-              {[["표지","업체명·수령 현황·담당자 정보"],["요약 현황","핵심 지표·요약 서술문·진행률"],rd.overdue.length?["확인 필요 건","신청기한 경과 항목 (붉게 강조)"]:null,rd.upcoming.length?["향후 90일 일정","D-Day 하이라이트"]:null,["직원별 상세","수령률 시각화 + 면책 안내"]].filter(Boolean).map(function(arr,i){return(<div key={i} style={{display:"flex",gap:10,color:"#475569"}}><span style={{color:"#2563EB",fontWeight:700,flexShrink:0}}>{("0"+(i+1)).slice(-2)}</span><span><strong style={{color:"#1E293B"}}>{arr[0]}</strong> — {arr[1]}</span></div>);})}
+              {[["표지","업체명·핵심 수령 현황·담당자"],["요약 현황","6대 핵심 지표 + 진행률"],rd.riskCount?["놓치면 손해 보는 항목","기한·서류·필수정보 위험 "+rd.riskCount+"건"]:null,["앞으로 30일 액션 플랜","이번 주/이번 달/다음 달 할 일"],rd.progList.length?["지원금별 진행 현황","지원금별 금액·지연·미제출"]:null,rd.upcoming.length?["향후 90일 일정","D-Day 하이라이트"]:null,rd.missingDocsCount?["미제출 서류","업체·직원 서류 "+rd.missingDocsCount+"건"]:null,["직원별 상세","수령률 시각화"],["컨설턴트 코멘트","상담 코멘트(편집 가능)"]].filter(Boolean).map(function(arr,i){return(<div key={i} style={{display:"flex",gap:10,color:"#475569"}}><span style={{color:"#2563EB",fontWeight:700,flexShrink:0}}>{("0"+(i+1)).slice(-2)}</span><span><strong style={{color:"#1E293B"}}>{arr[0]}</strong> — {arr[1]}</span></div>);})}
             </div>
           </div>
           {/* 담당자 정보 입력 */}
@@ -1058,10 +1209,25 @@ function AgencyReport(props){
               <div><Label>이메일</Label><input style={inp} value={stEmail[0]} onChange={function(e){stEmail[1](e.target.value);}} placeholder="hong@example.com"/></div>
             </div>
           </div>
-          <button style={Object.assign({},btnP,{width:"100%",padding:"15px",fontSize:16,background:"linear-gradient(135deg,#1E40AF,#2563EB)",boxShadow:"0 4px 20px rgba(37,99,235,0.35)"})} onClick={download}>
-            📥 고객 보고서 다운로드
-          </button>
-          <p style={{fontSize:11,color:"#94A3B8",textAlign:"center",margin:"0 0 4px"}}>브라우저에서 파일을 열고 인쇄(Ctrl+P) → PDF로 저장하면 완성됩니다</p>
+          {/* 컨설턴트 코멘트 (편집 가능 · 보고서 하단·인쇄 포함) */}
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div style={{fontSize:14,fontWeight:700,color:"#1E293B"}}>🗒️ 컨설턴트 코멘트 <span style={{fontWeight:400,color:"#94A3B8",fontSize:12}}>(편집 가능 · 보고서에 포함)</span></div>
+              <button onClick={function(){stCommentEdited[1](false);stComment[1](autoComment);}} style={{background:"none",border:"none",color:"#2563EB",fontSize:12,cursor:"pointer",fontFamily:FF,fontWeight:600}}>자동 코멘트로 되돌리기</button>
+            </div>
+            <textarea style={Object.assign({},inp,{height:110,resize:"vertical",fontSize:13,lineHeight:1.7})} value={stComment[0]} onChange={function(e){stCommentEdited[1](true);stComment[1](e.target.value);}} placeholder="고객 상담용 코멘트를 입력하세요."/>
+          </div>
+          {/* 공유 문구 복사 */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <button style={Object.assign({},btnS,{padding:"12px",fontSize:14,fontWeight:600})} onClick={function(){copyText(summaryText(),"상담 요약 문구");}}>💬 상담 요약 복사</button>
+            <button style={Object.assign({},btnS,{padding:"12px",fontSize:14,fontWeight:600})} onClick={function(){copyText(docRequestText(),"서류 요청 문구");}}>📋 서류 요청 복사</button>
+          </div>
+          {/* 출력 */}
+          <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr",gap:8}}>
+            <button style={Object.assign({},btnP,{padding:"15px",fontSize:16,background:"linear-gradient(135deg,#1E40AF,#2563EB)",boxShadow:"0 4px 20px rgba(37,99,235,0.35)"})} onClick={printReport}>🖨 인쇄 / PDF 저장</button>
+            <button style={Object.assign({},btnS,{padding:"15px",fontSize:15,fontWeight:600})} onClick={download}>📥 HTML 저장</button>
+          </div>
+          <p style={{fontSize:11,color:"#94A3B8",textAlign:"center",margin:"0 0 4px"}}>인쇄 창에서 "대상 → PDF로 저장"을 선택하면 PDF가 됩니다. 사이드바·앱 메뉴는 인쇄에 포함되지 않습니다.</p>
         </div>
       </Modal>
     </React.Fragment>
