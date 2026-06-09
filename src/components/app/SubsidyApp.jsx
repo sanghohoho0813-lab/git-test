@@ -3228,6 +3228,163 @@ var SAMPLE_DATA = [
   }
 ];
 
+// ── 관리자 전용: 베타 피드백 리포트 화면 ──────────────────
+function fbFmtDateTime(ds){if(!ds)return "";var d=new Date(ds);if(isNaN(d))return String(ds);var p=function(n){return n<10?"0"+n:""+n;};return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
+
+function FbAnswerBlock(props){
+  var v=props.value;
+  if(v===undefined||v===null||(Array.isArray(v)&&v.length===0))return null;
+  return(
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:FS_LABEL,fontWeight:700,color:"#475569",marginBottom:5}}>{props.label}</div>
+      {Array.isArray(v)?(
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          {v.map(function(item,i){return(
+            <span key={i} style={{fontSize:FS_BADGE,fontWeight:600,padding:"4px 11px",borderRadius:20,background:"#EFF6FF",color:"#2563EB",whiteSpace:"normal"}}>{item}</span>
+          );})}
+        </div>
+      ):(
+        <div style={{fontSize:FS_BODY,color:"#1E293B",fontWeight:600}}>{String(v)}</div>
+      )}
+    </div>
+  );
+}
+
+function FbCard(props){
+  var r=props.row;
+  var answers=r.answers||{};
+  var score=fbScoreNum(answers);
+  var scoreColor=score===null?"#94A3B8":score>=8?"#059669":score>=6?"#D97706":"#DC2626";
+  return(
+    <Card style={{padding:"18px 20px",marginBottom:14,border:"1px solid #E2E8F0"}} className="fade-in-up">
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:14,paddingBottom:12,borderBottom:"1px solid #F1F5F9"}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>{r.user_email||"(이메일 없음)"}</div>
+          <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:3}}>
+            {r.org_name?r.org_name+" · ":""}{fbFmtDateTime(r.created_at)}
+          </div>
+        </div>
+        {score!==null&&(
+          <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:10,background:scoreColor+"14",border:"1px solid "+scoreColor+"40"}}>
+            <span style={{fontSize:"var(--fs-dday)",fontWeight:800,color:scoreColor}}>완성도 {score}/10</span>
+          </div>
+        )}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"0 24px"}}>
+        {FB_REPORT_ORDER.map(function(qid){
+          return <FbAnswerBlock key={qid} label={FB_LABELS[qid]||qid} value={answers[qid]}/>;
+        })}
+      </div>
+      {r.free_text&&(
+        <div style={{marginTop:8,padding:"14px 16px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:12}}>
+          <div style={{fontSize:FS_LABEL,fontWeight:700,color:"#0369A1",marginBottom:6}}>💬 자유 의견</div>
+          <div style={{fontSize:FS_BODY,color:"#1E293B",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{r.free_text}</div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function AdminFeedback(props){
+  var stRows=useState([]);
+  var stLoading=useState(true);
+  var stErr=useState(null);
+  var stFreeOnly=useState(false);
+  var stLowOnly=useState(false);
+
+  function load(){
+    stLoading[1](true);stErr[1](null);
+    supabase.from("feedback_responses").select("*").order("created_at",{ascending:false}).then(function(res){
+      if(res.error){
+        console.warn("[AdminFeedback] 조회 실패:",{message:res.error.message,details:res.error.details,hint:res.error.hint,code:res.error.code});
+        stErr[1](res.error);
+      }else{
+        stRows[1](res.data||[]);
+      }
+      stLoading[1](false);
+    }).catch(function(e){
+      console.warn("[AdminFeedback] 조회 예외:",e&&e.message);
+      stErr[1](e);stLoading[1](false);
+    });
+  }
+  useEffect(function(){load();},[]);
+
+  var rows=stRows[0];
+  var filtered=rows.filter(function(r){
+    if(stFreeOnly[0]&&!(r.free_text&&String(r.free_text).trim()))return false;
+    if(stLowOnly[0]){var s=fbScoreNum(r.answers||{});if(s===null||s>=7)return false;}
+    return true;
+  });
+
+  function downloadCsv(){
+    var cols=["created_at","user_email","org_name"].concat(FB_REPORT_ORDER).concat(["free_text"]);
+    var headers=["제출일시","제출자","조직명"].concat(FB_REPORT_ORDER.map(function(q){return FB_LABELS[q]||q;})).concat(["자유 의견"]);
+    function esc(v){if(v===undefined||v===null)return "";var s=Array.isArray(v)?v.join(" | "):String(v);if(/[",\n]/.test(s))s='"'+s.replace(/"/g,'""')+'"';return s;}
+    var lines=[headers.join(",")];
+    filtered.forEach(function(r){
+      var a=r.answers||{};
+      var row=cols.map(function(c){
+        if(c==="created_at")return esc(fbFmtDateTime(r.created_at));
+        if(c==="user_email")return esc(r.user_email);
+        if(c==="org_name")return esc(r.org_name);
+        if(c==="free_text")return esc(r.free_text);
+        return esc(a[c]);
+      });
+      lines.push(row.join(","));
+    });
+    var csv="﻿"+lines.join("\n"); // BOM → 엑셀 한글 깨짐 방지
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;a.download="feedback_"+new Date().toISOString().slice(0,10)+".csv";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  var fBtn=function(on){return{padding:"8px 14px",borderRadius:9,fontSize:"var(--fs-btn)",fontWeight:on?700:500,cursor:"pointer",fontFamily:FF,border:on?"2px solid #2563EB":"1.5px solid #E2E8F0",background:on?"#EFF6FF":"#fff",color:on?"#2563EB":"#475569"};};
+
+  return(
+    <div style={{maxWidth:1100}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:8}}>
+        <div>
+          <h2 style={{margin:0,fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>📋 베타 피드백</h2>
+          <p style={{margin:"4px 0 0",color:"#64748B",fontSize:FS_BODY}}>사용자가 제출한 설문 응답을 최신순으로 확인합니다. (관리자 전용)</p>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button style={Object.assign({},btnS,{padding:"9px 16px",fontSize:"var(--fs-btn)"})} onClick={load}>↻ 새로고침</button>
+          <button style={Object.assign({},btnP,{padding:"9px 18px",fontSize:"var(--fs-btn)"})} onClick={downloadCsv} disabled={filtered.length===0}>⬇ CSV 다운로드</button>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",margin:"14px 0 18px"}}>
+        <button style={fBtn(stFreeOnly[0])} onClick={function(){stFreeOnly[1](!stFreeOnly[0]);}}>💬 자유 의견 있는 응답만</button>
+        <button style={fBtn(stLowOnly[0])} onClick={function(){stLowOnly[1](!stLowOnly[0]);}}>⚠️ 점수 낮은 응답만 (7점 미만)</button>
+        <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8",alignSelf:"center"}}>{filtered.length} / {rows.length}건</span>
+      </div>
+
+      {stLoading[0]?(
+        <Card style={{padding:40,textAlign:"center"}}><div className="skeleton" style={{height:18,width:"40%",margin:"0 auto 12px"}}/><div style={{color:"#94A3B8",fontSize:FS_BODY}}>피드백을 불러오는 중…</div></Card>
+      ):stErr[0]?(
+        <Card style={{padding:"28px 24px",border:"1px solid #FECACA",background:"#FEF2F2"}}>
+          <div style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#DC2626",marginBottom:8}}>조회 권한이 없습니다 (RLS)</div>
+          <p style={{fontSize:FS_BODY,color:"#7F1D1D",lineHeight:1.7,margin:"0 0 12px"}}>
+            현재 <code>feedback_responses</code> 테이블은 INSERT만 허용되고 SELECT 정책이 없어 앱에서 직접 조회가 막혀 있습니다.
+            아래 SELECT 정책을 Supabase SQL Editor에서 실행하면 이 화면에서 응답을 볼 수 있습니다. (코드 임의 실행 안 함 — 직접 확인 후 적용하세요)
+          </p>
+          <pre style={{background:"#1E293B",color:"#E2E8F0",padding:"14px 16px",borderRadius:10,fontSize:13,overflowX:"auto",lineHeight:1.6,margin:0}}>{
+"CREATE POLICY \"feedback_select_admin\"\n  ON feedback_responses\n  FOR SELECT\n  TO authenticated\n  USING (\n    auth.jwt() ->> 'email' IN (\n      'kim90813@naver.com',\n      'ksh90813@naver.com',\n      'sanghohoho0813@gmail.com'\n    )\n  );"
+          }</pre>
+          <p style={{fontSize:"var(--fs-meta)",color:"#94A3B8",margin:"12px 0 0"}}>적용 전까지는 Supabase Table Editor 또는 이메일 리포트로 확인할 수 있습니다. 오류 상세는 브라우저 콘솔(console)에 기록됩니다.</p>
+        </Card>
+      ):filtered.length===0?(
+        <Card style={{padding:40,textAlign:"center"}}><div style={{fontSize:40,marginBottom:8}}>📭</div><p style={{color:"#94A3B8",fontSize:FS_BODY,margin:0}}>{rows.length===0?"아직 제출된 피드백이 없습니다.":"필터 조건에 맞는 응답이 없습니다."}</p></Card>
+      ):(
+        filtered.map(function(r){return <FbCard key={r.id||r.created_at} row={r}/>;})
+      )}
+    </div>
+  );
+}
+
 var SIDEBAR_NAV = [
   {key:"dashboard", icon:"📊", label:"대시보드"},
   {key:"company",   icon:"🏢", label:"업체 관리"},
@@ -3659,6 +3816,24 @@ var FEEDBACK_QUESTIONS=[
   {id:"q11",type:"multi",q:"개선이 가장 시급한 부분은 무엇인가요? (복수 선택)",options:["화면 디자인/가독성","사용 방법 안내","업체/직원 등록 흐름","지원금 요건 체크","서류 요청/관리","고객 보고서","진행보드","수수료 정산","모바일 화면","속도/버그","결제/요금제","기타"]}
 ];
 
+// q1~q11 → 운영자가 읽기 좋은 짧은 라벨
+var FB_LABELS={
+  q1:"전체 첫인상", q2:"엑셀 대비 평가", q3:"유용한 기능", q4:"불편한 부분",
+  q5:"자주 쓸 기능", q6:"영업자료 활용 가능성", q7:"보고서 보강 희망",
+  q8:"적정 월 이용료", q9:"유료 사용 중요 기준", q10:"완성도 점수", q11:"개선 시급 항목"
+};
+// 리포트 표시 순서 (단일선택 핵심지표 먼저 → 복수선택 상세)
+var FB_REPORT_ORDER=["q1","q2","q6","q8","q10","q3","q4","q5","q7","q9","q11"];
+// 관리자 전용 화면 노출 대상 (이 배열에 없는 계정은 메뉴 자체가 보이지 않음)
+var ADMIN_EMAILS=[
+  "kim90813@naver.com",
+  "ksh90813@naver.com",
+  "sanghohoho0813@gmail.com"
+];
+function isAdminEmail(email){return ADMIN_EMAILS.indexOf(String(email||"").trim().toLowerCase())>=0;}
+// q10("8점") → 숫자 8 추출 (점수 낮은 응답 필터용)
+function fbScoreNum(answers){var v=answers&&answers.q10;if(!v)return null;var m=String(v).match(/\d+/);return m?parseInt(m[0],10):null;}
+
 function FeedbackModal(props){
   var stA=useState({});   // {qid: string | string[]}
   var stTxt=useState(""); // 자유 의견
@@ -3801,6 +3976,7 @@ export default function SubsidyApp(props){
   // 계정 전환(스코프 변경) 시 그 계정 기준으로 노출/반짝임 재평가
   useEffect(function(){stFbGlow[1](fbIsDue(fbScope));stFbHidden[1](fbIsHidden(fbScope));},[fbScope]);
   function openFeedback(){stFbOpen[1](true);stFbGlow[1](false);}
+  var isAdmin=isAdminEmail(props.userEmail||(profile&&profile.email)||"");
   var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
@@ -3998,6 +4174,7 @@ export default function SubsidyApp(props){
             <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
           </button>)}
           <button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
+          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
           <div style={SB.actions} className="sb-actions">
             <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
             <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
@@ -4137,6 +4314,10 @@ export default function SubsidyApp(props){
 
           {stView[0]==="programs"&&(
             <ProgramsList programs={programs} onUpdate={onSavePrograms}/>
+          )}
+
+          {stView[0]==="adminFeedback"&&isAdmin&&(
+            <AdminFeedback/>
           )}
 
           </div>
