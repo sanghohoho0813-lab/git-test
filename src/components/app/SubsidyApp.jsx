@@ -3143,87 +3143,146 @@ function NotifBell(props){
 // 실행 시점 기준 실제 날짜로 변환. 항상 "지연 3건·신청 임박 5건"이 살아있는 데모가 됨.
 var SAMPLE_DATA = [
   {
-    company:{isSample:true,name:"한라식품 주식회사",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:18,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:20,billed:true,paid:false,taxInvoice:false,successFee:true},
-      notes:[{id:"sn1",text:"청년채용 사전신청 완료. 이서연 2차(6개월) 신청기한 경과 — 즉시 보완서류 확인 필요.",at:"2026-05-20T09:10:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
+    company:{isSample:true,name:"(주)미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀부품 제조업",empCount:31,phone:"043-905-3300",email:"hr@miraeprecision.co.kr",commission:{rate:20,retainer:300000,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"착수금 30만 수령 · 성공보수 20% 청구분 입금 대기"},
+      notes:[{id:"sn1",text:"장우진 고령자 계속고용 2분기 신청기한 임박. 재고용 근로계약서 사본만 받으면 신청 가능.",at:"2026-05-28T06:30:00.000Z",author:"담당 컨설턴트"}],
+      companyDocs:[{id:"cd1a",label:"사업자등록증",done:true,files:[]},{id:"cd1b",label:"4대보험 가입자명부",done:true,files:[]},{id:"cd1c",label:"기업통장 사본",done:false,files:[]}]},
     employees:[
-      {isSample:true,name:"박준혁",birthDate:"1999-03-15",gender:"male",programId:"youth_jump",programYear:2024,status:"inprogress",totalExpected:7200000,startOff:9,ds:4,
+      {isSample:true,name:"장우진",birthDate:"1959-07-21",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:7,ds:-10,
+        rounds:[{month:3,amount:900000,label:"1분기",isPaid:true,paidOff:4,received:900000},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별임금대장",done:true,files:[]},{label:"재고용 근로계약서",done:false,files:[]}]},
+      {isSample:true,name:"김도현",birthDate:"2000-04-12",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:2,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:3,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
         employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]},{label:"최종학력확인서(졸업증명서)",done:true,files:[]}]},
-      {isSample:true,name:"이서연",birthDate:"1996-08-22",gender:"female",programId:"regular_convert",status:"inprogress",totalExpected:7200000,startOff:7,ds:-8,
-        rounds:[{month:3,amount:1800000,label:"1차(3개월)",isPaid:true,paidOff:4,received:1800000},{month:6,amount:1800000,label:"2차(6개월)"},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],
-        employeeDocs:[{label:"전환 전 근로계약서",done:true,files:[]},{label:"전환 후 근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]},
-      {isSample:true,name:"김도현",birthDate:"2001-01-09",gender:"male",programId:"youth_jump",status:"submitted",totalExpected:7200000,startOff:2,ds:0,
+      {isSample:true,name:"권지민",birthDate:"1996-11-05",gender:"female",programId:"youth_jump",status:"submitted",totalExpected:7200000,startOff:2,ds:0,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
         employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"급여이체확인서류",done:false,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]},
-      {isSample:true,name:"한지민",birthDate:"1990-06-30",gender:"female",programId:"emp_promo",status:"reviewing",totalExpected:7200000,startOff:6,ds:6,
-        rounds:[{month:6,amount:3600000,label:"1회차(6개월)"},{month:12,amount:3600000,label:"2회차(12개월)"}],
-        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별급여대장",done:false,files:[]},{label:"급여이체증빙",done:false,files:[]},{label:"취업지원프로그램 이수증",done:true,files:[]}]}
+      {isSample:true,name:"차은호",birthDate:"1962-02-18",gender:"male",programId:"senior_continue",status:"approved",totalExpected:7200000,startOff:4,ds:3,
+        rounds:[{month:3,amount:900000,label:"1분기"},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별임금대장",done:true,files:[]}]}
     ]
   },
   {
-    company:{isSample:true,name:"서울테크솔루션",bizNo:"129-86-45012",ceoName:"정재훈",addr:"서울 강남구 테헤란로 415, 12층",region:"수도권",corpType:"법인",bizType:"소프트웨어 개발",empCount:11,phone:"02-557-2200",email:"people@seoultech.io",
-      notes:[{id:"sn2",text:"정우성 2차(9개월) 신청 임박. 임금대장·이체확인서 수령 완료, 신청서만 제출하면 됨.",at:"2026-06-01T01:30:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
+    company:{isSample:true,name:"한라식품(주)",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:22,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:20,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"1차 수령분 성공보수 청구 · 입금 확인 필요"},
+      notes:[{id:"sn2",text:"한소희 고용촉진장려금 심사중. 월별급여대장·이체증빙 보완하면 1회차 지급 예정.",at:"2026-05-22T08:10:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
-      {isSample:true,name:"정우성",birthDate:"1998-11-02",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:1,
+      {isSample:true,name:"박준혁",birthDate:"1999-03-15",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:5,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:3,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
-        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]},
-      {isSample:true,name:"강민재",birthDate:"2000-05-19",gender:"male",programId:"work_exp",status:"completed",totalExpected:1400000,startOff:6,ds:0,
-        rounds:[{month:1,amount:200000,label:"1개월",isPaid:true,paidOff:5,received:200000},{month:2,amount:200000,label:"2개월",isPaid:true,paidOff:4,received:200000},{month:3,amount:200000,label:"3개월",isPaid:true,paidOff:3,received:200000},{month:4,amount:200000,label:"4개월",isPaid:true,paidOff:2,received:200000}],
-        employeeDocs:[{label:"참여신청서",done:true,files:[]},{label:"출근부",done:true,files:[]},{label:"수당지급확인서",done:true,files:[]}]},
-      {isSample:true,name:"오세훈",birthDate:"2002-02-14",gender:"male",programId:"work_exp",status:"inprogress",totalExpected:1400000,startOff:3,ds:2,
-        rounds:[{month:1,amount:200000,label:"1개월",isPaid:true,paidOff:2,received:200000},{month:2,amount:200000,label:"2개월",isPaid:true,paidOff:1,received:200000},{month:3,amount:200000,label:"3개월"},{month:4,amount:200000,label:"4개월"}],
-        employeeDocs:[{label:"참여신청서",done:true,files:[]},{label:"출근부",done:true,files:[]},{label:"수당지급확인서",done:false,files:[]}]},
-      {isSample:true,name:"신예은",birthDate:"1997-07-08",gender:"female",programId:"regular_convert",status:"approved",totalExpected:7200000,startOff:4,ds:3,
-        rounds:[{month:3,amount:1800000,label:"1차(3개월)",isPaid:true,paidOff:1,received:1800000},{month:6,amount:1800000,label:"2차(6개월)"},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],
-        employeeDocs:[{label:"전환 전 근로계약서",done:true,files:[]},{label:"전환 후 근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]}
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:true,files:[]},{label:"최종학력확인서(졸업증명서)",done:false,files:[]}]},
+      {isSample:true,name:"한소희",birthDate:"1995-08-22",gender:"female",programId:"emp_promo",status:"reviewing",totalExpected:7200000,startOff:6,ds:6,
+        rounds:[{month:6,amount:3600000,label:"1회차(6개월)"},{month:12,amount:3600000,label:"2회차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별급여대장",done:false,files:[]},{label:"급여이체증빙",done:false,files:[]},{label:"취업지원프로그램 이수증",done:true,files:[]}]},
+      {isSample:true,name:"임재현",birthDate:"1960-10-05",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:5,ds:0,
+        rounds:[{month:3,amount:900000,label:"1분기",isPaid:true,paidOff:2,received:900000},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별임금대장",done:true,files:[]}]}
     ]
   },
   {
-    company:{isSample:true,name:"더좋은푸드",bizNo:"105-23-67891",ceoName:"오세라",addr:"서울 마포구 양화로 45, 2층",region:"수도권",corpType:"법인",bizType:"외식업(프랜차이즈)",empCount:7,phone:"02-336-1180",email:"admin@thebetterfood.kr",commission:{rate:12,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"성공보수 12% 계약 · 세금계산서 발행 완료"},
-      notes:[],companyDocs:[]},
+    company:{isSample:true,name:"(주)더좋은푸드",bizNo:"105-23-67891",ceoName:"오세라",addr:"서울 마포구 양화로 45, 2층",region:"수도권",corpType:"법인",bizType:"식품 도소매·외식",empCount:13,phone:"02-336-1180",email:"admin@thebetterfood.kr",commission:{rate:12,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"성공보수 12% 계약 · 세금계산서 발행 완료 (정산 마감)"},
+      notes:[{id:"sn3",text:"오하린 새일여성인턴 전 회차 수령 완료. 고객 보고서 출력 후 미팅자료로 공유 예정.",at:"2026-06-02T02:00:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"오하린",birthDate:"1989-09-25",gender:"female",programId:"saeil_women",status:"completed",totalExpected:4000000,startOff:18,ds:0,
         rounds:[{month:1,amount:800000,label:"인턴1개월",isPaid:true,paidOff:16,received:800000},{month:2,amount:800000,label:"인턴2개월",isPaid:true,paidOff:15,received:800000},{month:3,amount:800000,label:"인턴3개월",isPaid:true,paidOff:14,received:800000},{month:9,amount:800000,label:"고용유지1차",isPaid:true,paidOff:8,received:800000},{month:15,amount:800000,label:"고용유지2차",isPaid:true,paidOff:2,received:800000}],
         employeeDocs:[{label:"구직등록확인서",done:true,files:[]},{label:"근로계약서",done:true,files:[]},{label:"임금대장",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]}]},
-      {isSample:true,name:"윤지우",birthDate:"1962-04-03",gender:"male",programId:"senior_intern",status:"inprogress",totalExpected:5500000,startOff:12,ds:0,
-        rounds:[{month:3,amount:1200000,label:"1단계(3개월)",isPaid:true,paidOff:9,received:1200000},{month:9,amount:1500000,label:"2단계(6개월)",isPaid:true,paidOff:3,received:1500000},{month:18,amount:900000,label:"3단계(18개월)"},{month:24,amount:900000,label:"3단계(24개월)"},{month:36,amount:1000000,label:"3단계(36개월)"}],
-        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"사전교육 이수증",done:true,files:[]},{label:"월별급여대장",done:true,files:[]}]},
-      {isSample:true,name:"서민아",birthDate:"1991-12-11",gender:"female",programId:"saeil_women",status:"preparing",totalExpected:4000000,startOff:0,ds:0,
-        rounds:[{month:1,amount:800000,label:"인턴1개월"},{month:2,amount:800000,label:"인턴2개월"},{month:3,amount:800000,label:"인턴3개월"},{month:9,amount:800000,label:"고용유지1차"},{month:15,amount:800000,label:"고용유지2차"}],
-        employeeDocs:[{label:"구직등록확인서",done:false,files:[]},{label:"근로계약서",done:true,files:[]},{label:"임금대장",done:false,files:[]}]}
+      {isSample:true,name:"신예린",birthDate:"1992-12-11",gender:"female",programId:"saeil_women",status:"approved",totalExpected:4000000,startOff:9,ds:4,
+        rounds:[{month:1,amount:800000,label:"인턴1개월",isPaid:true,paidOff:8,received:800000},{month:2,amount:800000,label:"인턴2개월",isPaid:true,paidOff:7,received:800000},{month:3,amount:800000,label:"인턴3개월",isPaid:true,paidOff:6,received:800000},{month:9,amount:800000,label:"고용유지1차"},{month:15,amount:800000,label:"고용유지2차"}],
+        employeeDocs:[{label:"구직등록확인서",done:true,files:[]},{label:"근로계약서",done:true,files:[]},{label:"임금대장",done:true,files:[]},{label:"급여이체확인서류",done:false,files:[]}]},
+      {isSample:true,name:"유하늘",birthDate:"2001-06-03",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:7,ds:0,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:1,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:true,files:[]}]}
     ]
   },
   {
-    company:{isSample:true,name:"미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀 제조업",empCount:24,phone:"043-905-3300",email:"hr@miraeprecision.com",commission:{rate:20,retainer:300000,billed:false,paid:false,successFee:true},
-      notes:[{id:"sn3",text:"강태양 고령자 계속고용 2분기 신청기한 경과. 재고용 취업규칙 사본 추가 확인 필요.",at:"2026-05-12T07:00:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
-    employees:[
-      {isSample:true,name:"강태양",birthDate:"1958-04-12",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:7,ds:-12,
-        rounds:[{month:3,amount:900000,label:"1분기",isPaid:true,paidOff:4,received:900000},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
-        employeeDocs:[{label:"지급신청서",done:true,files:[]},{label:"취업규칙(정년 명문화)",done:true,files:[]},{label:"재고용 근로계약서",done:false,files:[]},{label:"월별임금대장",done:false,files:[]}]},
-      {isSample:true,name:"문수빈",birthDate:"1994-03-27",gender:"female",programId:"emp_retention",status:"inprogress",totalExpected:6000000,startOff:3,ds:5,
-        rounds:[{month:1,amount:1500000,label:"1개월",isPaid:true,paidOff:2,received:1500000},{month:2,amount:1500000,label:"2개월",isPaid:true,paidOff:1,received:1500000},{month:3,amount:1500000,label:"3개월"},{month:4,amount:1500000,label:"4개월"}],
-        employeeDocs:[{label:"고용유지조치계획서",done:true,files:[]},{label:"월별임금대장",done:true,files:[]},{label:"고용유지조치 동의서",done:false,files:[]}]},
-      {isSample:true,name:"임재현",birthDate:"1960-10-05",gender:"male",programId:"senior_continue",status:"approved",totalExpected:7200000,startOff:4,ds:2,
-        rounds:[{month:3,amount:900000,label:"1분기",isPaid:true,paidOff:1,received:900000},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
-        employeeDocs:[{label:"지급신청서",done:true,files:[]},{label:"취업규칙(정년 명문화)",done:true,files:[]},{label:"재고용 근로계약서",done:false,files:[]}]},
-      {isSample:true,name:"박나래",birthDate:"1993-05-16",gender:"female",programId:"emp_retention",status:"submitted",totalExpected:6000000,startOff:2,ds:-5,
-        rounds:[{month:1,amount:1500000,label:"1개월"},{month:2,amount:1500000,label:"2개월"},{month:3,amount:1500000,label:"3개월"},{month:4,amount:1500000,label:"4개월"}],
-        employeeDocs:[{label:"고용유지조치계획서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]},{label:"고용유지조치 동의서",done:false,files:[]}]}
-    ]
-  },
-  {
-    company:{isSample:true,name:"해든디자인",bizNo:"214-09-55178",ceoName:"서지안",addr:"서울 성동구 성수이로 66, 4층",region:"수도권",corpType:"개인",bizType:"인테리어·공간 디자인",empCount:6,phone:"02-462-7090",email:"studio@haedeun.kr",
+    company:{isSample:true,name:"헤든디자인",bizNo:"214-09-55178",ceoName:"서지안",addr:"서울 성동구 성수이로 66, 4층",region:"수도권",corpType:"개인",bizType:"디자인·브랜딩 스튜디오",empCount:4,phone:"02-462-7090",email:"studio@haedeun.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"최유진",birthDate:"2000-08-21",gender:"female",programId:"youth_jump",status:"submitted",totalExpected:7200000,startOff:4,ds:0,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
-        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]},
-      {isSample:true,name:"정해성",birthDate:"1991-02-28",gender:"male",programId:"parental_leave",status:"approved",totalExpected:3600000,startOff:5,ds:0,
-        rounds:[{month:3,amount:900000,label:"1차(3개월)",isPaid:true,paidOff:2,received:900000},{month:6,amount:900000,label:"2차(6개월)"},{month:9,amount:900000,label:"3차(9개월)"},{month:12,amount:900000,label:"4차(12개월)"}],
-        employeeDocs:[{label:"육아휴직 신청서",done:true,files:[]},{label:"가족관계증명서",done:true,files:[]},{label:"휴직 발령 증빙",done:false,files:[]}]},
-      {isSample:true,name:"김보람",birthDate:"2001-11-30",gender:"female",programId:"youth_jump",status:"preparing",totalExpected:7200000,startOff:1,ds:0,
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"급여이체확인서류",done:false,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]},
+      {isSample:true,name:"백지아",birthDate:"2002-11-30",gender:"female",programId:"youth_jump",status:"preparing",totalExpected:7200000,startOff:1,ds:0,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
         employeeDocs:[{label:"근로계약서",done:false,files:[]},{label:"임금대장(6개월)",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"(주)해온테크",bizNo:"137-81-44820",ceoName:"노형석",addr:"충남 천안시 서북구 직산읍 4산단로 18",region:"비수도권",corpType:"법인",bizType:"전자부품 제조업",empCount:18,phone:"041-585-6600",email:"people@haeontech.co.kr",commission:{rate:20,retainer:300000,billed:false,paid:false,successFee:true},
+      notes:[{id:"sn4",text:"조현우 2차(9개월) 신청 임박. 임금대장·이체확인서 수령 완료, 신청서 제출만 남음.",at:"2026-06-03T00:40:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"조현우",birthDate:"1998-11-02",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:1,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:3,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]},
+      {isSample:true,name:"서민아",birthDate:"1993-07-08",gender:"female",programId:"regular_convert",status:"approved",totalExpected:7200000,startOff:4,ds:3,
+        rounds:[{month:3,amount:1800000,label:"1차(3개월)",isPaid:true,paidOff:1,received:1800000},{month:6,amount:1800000,label:"2차(6개월)"},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],
+        employeeDocs:[{label:"전환 전 근로계약서",done:true,files:[]},{label:"전환 후 근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]},
+      {isSample:true,name:"강태양",birthDate:"1959-04-12",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:7,ds:-12,
+        rounds:[{month:3,amount:900000,label:"1분기",isPaid:true,paidOff:4,received:900000},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"(주)다온정밀",bizNo:"506-81-77213",ceoName:"백건우",addr:"경북 구미시 산동읍 첨단기업1로 45",region:"비수도권",corpType:"법인",bizType:"자동차부품 정밀가공",empCount:37,phone:"054-462-8800",email:"hr@daonprecision.co.kr",commission:{rate:18,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"성공보수 18% 청구 · 세금계산서 발행 대기"},
+      notes:[{id:"sn5",text:"이서연 정규직전환 3차 지급 예정. 월별임금대장만 보완하면 신청 가능.",at:"2026-05-30T05:20:00.000Z",author:"담당 컨설턴트"}],
+      companyDocs:[{id:"cd6a",label:"사업자등록증",done:true,files:[]},{id:"cd6b",label:"협약서",done:true,files:[]},{id:"cd6c",label:"고용보험 취득확인서",done:false,files:[]}]},
+    employees:[
+      {isSample:true,name:"김성훈",birthDate:"1961-01-27",gender:"male",programId:"senior_continue",status:"inprogress",totalExpected:7200000,startOff:6,ds:1,
+        rounds:[{month:3,amount:900000,label:"1분기",isPaid:true,paidOff:3,received:900000},{month:6,amount:900000,label:"2분기"},{month:9,amount:900000,label:"3분기"},{month:12,amount:900000,label:"4분기"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별임금대장",done:true,files:[]}]},
+      {isSample:true,name:"박지훈",birthDate:"1997-09-14",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:3,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:3,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:true,files:[]},{label:"최종학력확인서(졸업증명서)",done:true,files:[]}]},
+      {isSample:true,name:"이서연",birthDate:"1996-08-22",gender:"female",programId:"regular_convert",status:"inprogress",totalExpected:7200000,startOff:7,ds:-8,
+        rounds:[{month:3,amount:1800000,label:"1차(3개월)",isPaid:true,paidOff:4,received:1800000},{month:6,amount:1800000,label:"2차(6개월)",isPaid:true,paidOff:1,received:1800000},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],
+        employeeDocs:[{label:"전환 전 근로계약서",done:true,files:[]},{label:"전환 후 근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]},
+      {isSample:true,name:"정민재",birthDate:"1990-05-09",gender:"male",programId:"regular_convert",status:"submitted",totalExpected:7200000,startOff:3,ds:0,
+        rounds:[{month:3,amount:1800000,label:"1차(3개월)"},{month:6,amount:1800000,label:"2차(6개월)"},{month:9,amount:1800000,label:"3차(9개월)"},{month:12,amount:1800000,label:"4차(12개월)"}],
+        employeeDocs:[{label:"전환 전 근로계약서",done:true,files:[]},{label:"전환 후 근로계약서",done:true,files:[]},{label:"월별임금대장",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"(주)은성패키지",bizNo:"412-86-30157",ceoName:"조은성",addr:"경기 안산시 단원구 별망로 178",region:"수도권",corpType:"법인",bizType:"포장재 제조업",empCount:9,phone:"031-491-2020",email:"admin@eunseongpack.co.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
+      notes:[],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"윤지우",birthDate:"1962-04-03",gender:"male",programId:"senior_intern",status:"inprogress",totalExpected:5500000,startOff:12,ds:0,
+        rounds:[{month:3,amount:1200000,label:"1단계(3개월)",isPaid:true,paidOff:9,received:1200000},{month:9,amount:1500000,label:"2단계(6개월)",isPaid:true,paidOff:3,received:1500000},{month:18,amount:900000,label:"3단계(18개월)"},{month:24,amount:900000,label:"3단계(24개월)"},{month:36,amount:1000000,label:"3단계(36개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"사전교육 이수증",done:true,files:[]},{label:"월별급여대장",done:true,files:[]}]},
+      {isSample:true,name:"홍세라",birthDate:"2001-03-19",gender:"female",programId:"youth_jump",status:"submitted",totalExpected:7200000,startOff:2,ds:0,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"급여이체확인서류",done:false,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"바른유통",bizNo:"220-15-88301",ceoName:"문바른",addr:"서울 송파구 충민로 66, 가든파이브툴",region:"수도권",corpType:"개인",bizType:"생활용품 도소매",empCount:4,phone:"02-449-3360",email:"barun@barundist.kr",
+      notes:[],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"오세훈",birthDate:"2002-02-14",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:8,ds:6,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:2,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"제이앤케어(주)",bizNo:"144-81-26694",ceoName:"정유라",addr:"서울 강서구 공항대로 217, 5층",region:"수도권",corpType:"법인",bizType:"방문요양·돌봄 서비스",empCount:16,phone:"02-2662-7140",email:"hr@jncare.co.kr",commission:{rate:15,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"분기 정산 완료 · 세금계산서 발행"},
+      notes:[{id:"sn6",text:"배수진 새일여성인턴 인턴 3개월 수령 완료. 고용유지 1차 신청 준비 중.",at:"2026-05-26T03:15:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"배수진",birthDate:"1988-06-17",gender:"female",programId:"saeil_women",status:"inprogress",totalExpected:4000000,startOff:6,ds:0,
+        rounds:[{month:1,amount:800000,label:"인턴1개월",isPaid:true,paidOff:5,received:800000},{month:2,amount:800000,label:"인턴2개월",isPaid:true,paidOff:4,received:800000},{month:3,amount:800000,label:"인턴3개월",isPaid:true,paidOff:3,received:800000},{month:9,amount:800000,label:"고용유지1차"},{month:15,amount:800000,label:"고용유지2차"}],
+        employeeDocs:[{label:"구직등록확인서",done:true,files:[]},{label:"근로계약서",done:true,files:[]},{label:"임금대장",done:true,files:[]},{label:"급여이체확인서류",done:false,files:[]}]},
+      {isSample:true,name:"문수빈",birthDate:"2000-10-08",gender:"female",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:4,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)",isPaid:true,paidOff:3,received:3600000},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:true,files:[]},{label:"급여이체확인서류",done:true,files:[]},{label:"개인정보동의서(근로자)",done:true,files:[]}]},
+      {isSample:true,name:"남궁현",birthDate:"1963-12-22",gender:"male",programId:"senior_intern",status:"approved",totalExpected:5500000,startOff:3,ds:2,
+        rounds:[{month:3,amount:1200000,label:"1단계(3개월)"},{month:9,amount:1500000,label:"2단계(6개월)"},{month:18,amount:900000,label:"3단계(18개월)"},{month:24,amount:900000,label:"3단계(24개월)"},{month:36,amount:1000000,label:"3단계(36개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"사전교육 이수증",done:true,files:[]},{label:"월별급여대장",done:false,files:[]}]}
+    ]
+  },
+  {
+    company:{isSample:true,name:"(주)지앤비물류",bizNo:"312-81-61905",ceoName:"구본승",addr:"충북 음성군 대소면 삼성로 412",region:"비수도권",corpType:"법인",bizType:"종합물류·운송",empCount:7,phone:"043-882-5500",email:"hr@gnblogis.co.kr",commission:{rate:20,billed:false,paid:false,successFee:true},
+      notes:[],companyDocs:[]},
+    employees:[
+      {isSample:true,name:"정해성",birthDate:"1991-02-28",gender:"male",programId:"emp_promo",status:"inprogress",totalExpected:7200000,startOff:7,ds:3,
+        rounds:[{month:6,amount:3600000,label:"1회차(6개월)",isPaid:true,paidOff:1,received:3600000},{month:12,amount:3600000,label:"2회차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"월별급여대장",done:true,files:[]},{label:"급여이체증빙",done:true,files:[]},{label:"취업지원프로그램 이수증",done:true,files:[]}]},
+      {isSample:true,name:"송가은",birthDate:"1999-12-09",gender:"female",programId:"youth_jump",status:"preparing",totalExpected:7200000,startOff:1,ds:0,
+        rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"급여이체확인서류",done:false,files:[]}]}
     ]
   }
 ];
@@ -4249,7 +4308,7 @@ export default function SubsidyApp(props){
           <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"11px 48px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
             <span style={{...neutralBadge(),flexShrink:0}}>샘플</span>
             <div style={{flex:1,minWidth:200}}>
-              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(5개 고객사·18명)이며, 언제든 삭제할 수 있습니다.</span>
+              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(10개 고객사·27명)이며, 언제든 삭제할 수 있습니다.</span>
             </div>
             <button onClick={deleteSampleData} style={{background:"#fff",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>샘플 데이터 삭제</button>
           </div>
@@ -4264,7 +4323,7 @@ export default function SubsidyApp(props){
             <div style={{background:"#F8FAFC",border:"2px dashed #BFDBFE",borderRadius:20,padding:"44px 32px",marginBottom:32,textAlign:"center"}}>
               <div style={{fontSize:52,marginBottom:16}}>✨</div>
               <h3 style={{margin:"0 0 10px",fontSize:24,fontWeight:800,color:"#0F172A"}}>처음이신가요?</h3>
-              <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>실제 컨설팅 현장과 똑같은 <strong>5개 고객사·18명 대상자</strong> 데이터로 먼저 둘러보세요.<br/>지연 신청 건, 신청 임박 알림, 수령 현황, 고객 보고서까지 한 번에 확인할 수 있어요.</p>
+              <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>실제 컨설팅 현장과 똑같은 <strong>10개 고객사·27명 대상자</strong> 데이터로 먼저 둘러보세요.<br/>지연 신청 건, 신청 임박 알림, 수령 현황, 고객 보고서까지 한 번에 확인할 수 있어요.</p>
               <p style={{margin:"0 0 28px",fontSize:14,color:"#94A3B8"}}>둘러본 뒤 "샘플 데이터 삭제" 버튼 한 번이면 깔끔하게 초기화됩니다.</p>
               <button onClick={loadSampleData} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 38px",fontSize:17,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.20)",display:"inline-flex",alignItems:"center",gap:8}}>
                 <span>샘플 데이터로 둘러보기</span>
