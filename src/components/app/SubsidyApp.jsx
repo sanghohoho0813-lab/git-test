@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
+import { supabase } from "../../lib/supabase";
 import { TeamSettings } from "../TeamSettings";
 import { validateUploadFile, ALLOWED_FILE_EXT, MAX_FILE_MB } from "../../hooks/useData";
 
@@ -3581,6 +3582,7 @@ var FB_INTERVAL_MS=7*24*60*60*1000; // 7일
 function fbLastInteraction(){try{var a=localStorage.getItem(FB_KEYS.sub);var b=localStorage.getItem(FB_KEYS.dis);var ta=a?new Date(a).getTime():0;var tb=b?new Date(b).getTime():0;return Math.max(ta||0,tb||0);}catch(e){return 0;}}
 function fbIsDue(){var last=fbLastInteraction();if(!last)return true;return(Date.now()-last)>=FB_INTERVAL_MS;}
 function fbSaveResponse(resp){try{var raw=localStorage.getItem(FB_KEYS.res);var arr=raw?JSON.parse(raw):[];if(!Array.isArray(arr))arr=[];arr.push(resp);localStorage.setItem(FB_KEYS.res,JSON.stringify(arr));localStorage.setItem(FB_KEYS.sub,resp.submittedAt);}catch(e){console.error("[피드백] 저장 실패",e);}}
+function fbMarkSubmitted(){try{localStorage.setItem(FB_KEYS.sub,new Date().toISOString());}catch(e){}}
 function fbDismiss(){try{localStorage.setItem(FB_KEYS.dis,new Date().toISOString());}catch(e){}}
 
 var FEEDBACK_QUESTIONS=[
@@ -3601,16 +3603,31 @@ function FeedbackModal(props){
   var stA=useState({});   // {qid: string | string[]}
   var stTxt=useState(""); // 자유 의견
   var stDone=useState(false);
+  var stSubmitting=useState(false);
+  var stSaveErr=useState("");
   var answers=stA[0];
   function pickSingle(qid,opt){var m=Object.assign({},answers);m[qid]=opt;stA[1](m);}
   function toggleMulti(qid,opt){var m=Object.assign({},answers);var arr=(m[qid]||[]).slice();var i=arr.indexOf(opt);if(i>=0)arr.splice(i,1);else arr.push(opt);m[qid]=arr;stA[1](m);}
-  function reset(){stA[1]({});stTxt[1]("");stDone[1](false);}
-  function submit(){
-    var resp={submittedAt:new Date().toISOString(),userEmail:props.userEmail||"",orgName:props.orgName||"",answers:answers,freeText:stTxt[0]};
-    fbSaveResponse(resp);
-    console.log("[피드백 응답 저장됨]",resp);
+  function reset(){stA[1]({});stTxt[1]("");stDone[1](false);stSubmitting[1](false);stSaveErr[1]("");}
+  async function submit(){
+    stSubmitting[1](true);
+    stSaveErr[1]("");
+    var now=new Date().toISOString();
+    var dbRow={org_id:props.orgId||null,user_id:props.userId||null,user_email:props.userEmail||"",org_name:props.orgName||"",answers:answers,free_text:stTxt[0]||null,page_path:window.location.pathname,user_agent:navigator.userAgent,app_version:"1.0-beta",created_at:now};
+    var saved=false;
+    try{
+      var result=await supabase.from("feedback_responses").insert(dbRow);
+      if(result.error)throw result.error;
+      saved=true;
+    }catch(e){
+      console.warn("[피드백] Supabase 저장 실패, localStorage 백업",e);
+      try{var bk=JSON.parse(localStorage.getItem("hrSubsidyPro_feedback_backup")||"[]");if(!Array.isArray(bk))bk=[];bk.push(Object.assign({},dbRow,{savedAt:now}));localStorage.setItem("hrSubsidyPro_feedback_backup",JSON.stringify(bk));}catch(e2){}
+    }
+    fbMarkSubmitted();
+    stSubmitting[1](false);
     stDone[1](true);
     props.onSubmitted&&props.onSubmitted();
+    if(!saved)stSaveErr[1]("피드백이 임시 저장되었습니다. 네트워크 상태가 안정되면 다시 제출해 주세요.");
   }
   function close(){
     if(!stDone[0]){fbDismiss();props.onDismiss&&props.onDismiss();}
@@ -3624,7 +3641,8 @@ function FeedbackModal(props){
         <div style={{textAlign:"center",padding:"24px 8px"}}>
           <div style={{fontSize:52,marginBottom:14}}>🙏</div>
           <h3 style={{margin:"0 0 10px",fontSize:20,fontWeight:800,color:"#1E293B"}}>소중한 의견 감사합니다.</h3>
-          <p style={{margin:"0 0 24px",fontSize:15,color:"#64748B",lineHeight:1.7}}>남겨주신 피드백은 다음 업데이트에 반영하겠습니다.</p>
+          <p style={{margin:"0 0 20px",fontSize:15,color:"#64748B",lineHeight:1.7}}>남겨주신 피드백은 다음 업데이트에 반영하겠습니다.</p>
+          {stSaveErr[0]&&<p style={{margin:"0 0 16px",fontSize:13,color:"#D97706",lineHeight:1.5,padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8}}>{stSaveErr[0]}</p>}
           <button style={Object.assign({},btnP,{padding:"12px 40px",fontSize:15})} onClick={close}>닫기</button>
         </div>
       ):(
@@ -3662,7 +3680,7 @@ function FeedbackModal(props){
             <span style={{fontSize:13,color:"#94A3B8"}}>{answeredCount}/{FEEDBACK_QUESTIONS.length}개 문항 응답</span>
             <div style={{display:"flex",gap:8}}>
               <button style={btnS} onClick={close}>나중에</button>
-              <button style={Object.assign({},btnP,{padding:"11px 30px"})} onClick={submit}>제출하기</button>
+              <button style={Object.assign({},btnP,{padding:"11px 30px",opacity:stSubmitting[0]?0.65:1,cursor:stSubmitting[0]?"not-allowed":"pointer"})} onClick={submit} disabled={stSubmitting[0]}>{stSubmitting[0]?"제출 중…":"제출하기"}</button>
             </div>
           </div>
         </div>
@@ -3701,6 +3719,7 @@ export default function SubsidyApp(props){
   var stMobileNav=useState(false);
   var stFbOpen=useState(false); // 피드백 설문 모달
   var stFbGlow=useState(function(){return fbIsDue();}); // 7일 주기 반짝임
+  var stFbHidden=useState(function(){return !fbIsDue();}); // 제출 후 7일간 버튼 숨김
   function openFeedback(){stFbOpen[1](true);stFbGlow[1](false);}
   var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
   function startTour(){stTour[1](true);}
@@ -3894,10 +3913,10 @@ export default function SubsidyApp(props){
             <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
             {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
           </div>
-          <button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
+          {!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
             <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
             <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
-          </button>
+          </button>)}
           <button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
           <div style={SB.actions} className="sb-actions">
             <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
@@ -4095,8 +4114,10 @@ export default function SubsidyApp(props){
         open={stFbOpen[0]}
         userEmail={props.userEmail||(profile&&profile.email)||""}
         orgName={orgName}
+        orgId={props.orgId||null}
+        userId={props.userId||null}
         onClose={function(){stFbOpen[1](false);}}
-        onSubmitted={function(){stFbGlow[1](false);}}
+        onSubmitted={function(){stFbGlow[1](false);stFbHidden[1](true);}}
         onDismiss={function(){stFbGlow[1](false);}}
       />
       <ProductTour open={stTour[0]} onClose={endTour}/>
