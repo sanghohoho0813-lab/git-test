@@ -15,9 +15,12 @@ CREATE TABLE IF NOT EXISTS feedback_responses (
 
 ALTER TABLE feedback_responses ENABLE ROW LEVEL SECURITY;
 
--- authenticated 사용자만 INSERT 가능
-CREATE POLICY "feedback_responses_insert" ON feedback_responses
-  FOR INSERT TO authenticated
-  WITH CHECK (true);
+-- 이전에 생성된 구 정책이 있으면 삭제 후 재생성
+DROP POLICY IF EXISTS "feedback_responses_insert" ON feedback_responses;
 
--- 일반 사용자 SELECT 정책 없음 (운영자만 Supabase 대시보드 Table Editor에서 확인)
+-- 로그인된 사용자라면 누구나 INSERT 가능 (SELECT/UPDATE/DELETE 정책 없음 = 차단)
+CREATE POLICY "feedback_insert_authenticated"
+  ON feedback_responses
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() IS NOT NULL);

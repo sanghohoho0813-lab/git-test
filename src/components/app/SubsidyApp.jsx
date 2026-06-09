@@ -3678,9 +3678,12 @@ function FeedbackModal(props){
       var result=await supabase.from("feedback_responses").insert(dbRow);
       if(result.error)throw result.error;
       saved=true;
+      // 이메일 알림 (실패해도 사용자 경험 영향 없음)
+      supabase.functions.invoke("notify-feedback",{body:{row:dbRow,savedAt:now}}).catch(function(err){
+        console.warn("[notify-feedback] 알림 발송 실패:",err&&err.message);
+      });
     }catch(e){
-      // 실제 에러 메시지를 조용히 묻지 않고 console.warn 으로 노출
-      console.warn("[피드백] Supabase 저장 실패:", (e&&e.message)?e.message:e, e);
+      console.warn("[Feedback submit failed]",{message:e&&e.message,details:e&&e.details,hint:e&&e.hint,code:e&&e.code});
       fbBackup(props.scope, Object.assign({},dbRow,{savedAt:now}));
     }
     stSubmitting[1](false);
