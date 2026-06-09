@@ -6,12 +6,19 @@
  *
  * ── 필수 환경변수 (Supabase Dashboard → Project Settings → Edge Functions → Secrets) ──
  *   RESEND_API_KEY   Resend 대시보드(https://resend.com)에서 발급한 API 키
- *   ADMIN_EMAIL      알림 수신 주소 (예: kim90813@naver.com) — 콤마로 여러 명 가능
+ *   ADMIN_EMAIL      알림 수신 주소 (기본: ksh90813@naver.com) — 콤마로 여러 명 가능
  *   FROM_EMAIL       발신 주소 — Resend에서 인증된 도메인 필요
  *                    (테스트 시 onboarding@resend.dev 임시 사용 가능)
  *
  * ── 배포 ──
  *   npx supabase functions deploy notify-feedback --no-verify-jwt
+ *
+ * ── Secrets 설정 ──
+ *   supabase secrets set RESEND_API_KEY=...
+ *   supabase secrets set ADMIN_EMAIL=ksh90813@naver.com
+ *   supabase secrets set FROM_EMAIL=onboarding@resend.dev
+ *
+ * 위 환경변수가 설정되지 않으면 메일이 발송되지 않는 것이 정상입니다(저장은 정상).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -75,11 +82,12 @@ serve(async (req: Request) => {
     const answers: Record<string, unknown> = row.answers ?? {};
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-    const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "";
+    // ADMIN_EMAIL 환경변수가 있으면 사용, 없으면 총괄 관리자 기본값으로 발송
+    const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") ?? "ksh90813@naver.com";
     const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "onboarding@resend.dev";
 
     if (!RESEND_API_KEY || !ADMIN_EMAIL) {
-      console.warn("[notify-feedback] RESEND_API_KEY 또는 ADMIN_EMAIL 미설정 — 발송 건너뜀");
+      console.warn("[notify-feedback] RESEND_API_KEY 미설정 — 발송 건너뜀");
       return new Response(JSON.stringify({ ok: false, reason: "env_missing" }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...CORS },

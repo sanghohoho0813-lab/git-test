@@ -3291,6 +3291,8 @@ function AdminFeedback(props){
   var stErr=useState(null);
   var stFreeOnly=useState(false);
   var stLowOnly=useState(false);
+  // 내부 2차 방어: 사이드바 버튼/뷰 가드를 우회해 들어와도 여기서 한 번 더 차단
+  var allowed=isAdminEmail(props.userEmail);
 
   function load(){
     stLoading[1](true);stErr[1](null);
@@ -3307,7 +3309,17 @@ function AdminFeedback(props){
       stErr[1](e);stLoading[1](false);
     });
   }
-  useEffect(function(){load();},[]);
+  useEffect(function(){if(allowed)load();},[allowed]);
+
+  if(!allowed){
+    return(
+      <Card style={{padding:"40px 28px",textAlign:"center",maxWidth:560}}>
+        <div style={{fontSize:42,marginBottom:10}}>🔒</div>
+        <h2 style={{margin:"0 0 8px",fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>접근 권한이 없습니다</h2>
+        <p style={{margin:0,color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}>이 화면은 관리자 전용입니다.</p>
+      </Card>
+    );
+  }
 
   var rows=stRows[0];
   var filtered=rows.filter(function(r){
@@ -3372,7 +3384,7 @@ function AdminFeedback(props){
             아래 SELECT 정책을 Supabase SQL Editor에서 실행하면 이 화면에서 응답을 볼 수 있습니다. (코드 임의 실행 안 함 — 직접 확인 후 적용하세요)
           </p>
           <pre style={{background:"#1E293B",color:"#E2E8F0",padding:"14px 16px",borderRadius:10,fontSize:13,overflowX:"auto",lineHeight:1.6,margin:0}}>{
-"CREATE POLICY \"feedback_select_admin\"\n  ON feedback_responses\n  FOR SELECT\n  TO authenticated\n  USING (\n    auth.jwt() ->> 'email' IN (\n      'kim90813@naver.com',\n      'ksh90813@naver.com',\n      'sanghohoho0813@gmail.com'\n    )\n  );"
+"CREATE POLICY \"feedback_select_admin\"\n  ON feedback_responses\n  FOR SELECT\n  TO authenticated\n  USING (\n    lower(auth.jwt() ->> 'email') = 'ksh90813@naver.com'\n  );"
           }</pre>
           <p style={{fontSize:"var(--fs-meta)",color:"#94A3B8",margin:"12px 0 0"}}>적용 전까지는 Supabase Table Editor 또는 이메일 리포트로 확인할 수 있습니다. 오류 상세는 브라우저 콘솔(console)에 기록됩니다.</p>
         </Card>
@@ -3824,13 +3836,16 @@ var FB_LABELS={
 };
 // 리포트 표시 순서 (단일선택 핵심지표 먼저 → 복수선택 상세)
 var FB_REPORT_ORDER=["q1","q2","q6","q8","q10","q3","q4","q5","q7","q9","q11"];
-// 관리자 전용 화면 노출 대상 (이 배열에 없는 계정은 메뉴 자체가 보이지 않음)
+// 관리자 전용 화면 노출 대상 (총괄 관리자 1명만). 이 배열에 없는 계정은 메뉴 자체가 보이지 않음.
 var ADMIN_EMAILS=[
-  "kim90813@naver.com",
-  "ksh90813@naver.com",
-  "sanghohoho0813@gmail.com"
+  "ksh90813@naver.com"
 ];
-function isAdminEmail(email){return ADMIN_EMAILS.indexOf(String(email||"").trim().toLowerCase())>=0;}
+// 반드시 로그인한 Supabase Auth user.email 기준으로만 판별.
+// 이메일이 비어있거나(로딩 중·미존재) 매칭 안 되면 false.
+function isAdminEmail(email){
+  if(!email)return false;
+  return ADMIN_EMAILS.indexOf(String(email).trim().toLowerCase())>=0;
+}
 // q10("8점") → 숫자 8 추출 (점수 낮은 응답 필터용)
 function fbScoreNum(answers){var v=answers&&answers.q10;if(!v)return null;var m=String(v).match(/\d+/);return m?parseInt(m[0],10):null;}
 
@@ -3853,9 +3868,19 @@ function FeedbackModal(props){
       var result=await supabase.from("feedback_responses").insert(dbRow);
       if(result.error)throw result.error;
       saved=true;
-      // 이메일 알림 (실패해도 사용자 경험 영향 없음)
-      supabase.functions.invoke("notify-feedback",{body:{row:dbRow,savedAt:now}}).catch(function(err){
-        console.warn("[notify-feedback] 알림 발송 실패:",err&&err.message);
+      // 관리자 이메일 알림. 저장은 이미 성공 → 이 호출이 실패해도 사용자는 "성공" 처리.
+      // (Edge Function 미배포 / Resend Secrets 미설정이면 메일이 안 오는 것이 정상이며, 원인은 콘솔에 기록됨)
+      supabase.functions.invoke("notify-feedback",{body:{row:dbRow,savedAt:now}}).then(function(res){
+        if(res&&res.error){
+          console.warn("[notify-feedback failed]",{message:res.error.message,details:res.error.details,hint:res.error.hint,code:res.error.code});
+        }else if(res&&res.data&&res.data.ok===false){
+          // 함수는 떴지만 환경변수 미설정 등으로 메일 미발송
+          console.warn("[notify-feedback] 이메일 미발송 (Edge Function 응답):",res.data);
+        }else{
+          console.log("[notify-feedback] 알림 요청 완료:",res&&res.data);
+        }
+      }).catch(function(err){
+        console.warn("[notify-feedback failed]",{message:err&&err.message,details:err&&err.details,hint:err&&err.hint,code:err&&err.code});
       });
     }catch(e){
       console.warn("[Feedback submit failed]",{message:e&&e.message,details:e&&e.details,hint:e&&e.hint,code:e&&e.code});
@@ -3976,7 +4001,10 @@ export default function SubsidyApp(props){
   // 계정 전환(스코프 변경) 시 그 계정 기준으로 노출/반짝임 재평가
   useEffect(function(){stFbGlow[1](fbIsDue(fbScope));stFbHidden[1](fbIsHidden(fbScope));},[fbScope]);
   function openFeedback(){stFbOpen[1](true);stFbGlow[1](false);}
-  var isAdmin=isAdminEmail(props.userEmail||(profile&&profile.email)||"");
+  // 관리자 판별: 오직 로그인한 Supabase Auth user.email(props.userEmail) 기준.
+  // profile.display_name·org_name·localStorage·초대/테스트 데이터로 판별하지 않음.
+  // 이메일이 로딩 중이거나 없으면 isAdmin=false.
+  var isAdmin=isAdminEmail(props.userEmail);
   var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
@@ -4316,8 +4344,17 @@ export default function SubsidyApp(props){
             <ProgramsList programs={programs} onUpdate={onSavePrograms}/>
           )}
 
-          {stView[0]==="adminFeedback"&&isAdmin&&(
-            <AdminFeedback/>
+          {stView[0]==="adminFeedback"&&(
+            isAdmin?(
+              <AdminFeedback userEmail={props.userEmail}/>
+            ):(
+              <Card style={{padding:"40px 28px",textAlign:"center",maxWidth:560}}>
+                <div style={{fontSize:42,marginBottom:10}}>🔒</div>
+                <h2 style={{margin:"0 0 8px",fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>접근 권한이 없습니다</h2>
+                <p style={{margin:"0 0 20px",color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}>이 화면은 관리자 전용입니다.</p>
+                <button style={Object.assign({},btnP,{padding:"10px 22px",fontSize:"var(--fs-btn)"})} onClick={function(){stView[1]("dashboard");}}>대시보드로 돌아가기</button>
+              </Card>
+            )
           )}
 
           </div>
