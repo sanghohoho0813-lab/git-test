@@ -54,24 +54,24 @@ input, select, textarea, button { font-family: inherit; }
 /* body scroll lock (모바일 메뉴 열림 시) */
 body.no-scroll { overflow: hidden; }
 
-/* 피드백 버튼 — 7일 주기 반짝임 */
+/* 피드백 버튼 — 7일 주기 반짝임 (은은하게, 살짝 더 눈에 띄게) */
 @keyframes fbGlow {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(96,165,250,0.0);
-    border-color: rgba(96,165,250,0.35);
+    border-color: rgba(96,165,250,0.4);
     background: rgba(59,130,246,0.12);
   }
   50% {
-    box-shadow: 0 0 14px 3px rgba(96,165,250,0.55), 0 0 0 3px rgba(96,165,250,0.15);
-    border-color: rgba(96,165,250,0.9);
-    background: rgba(59,130,246,0.22);
+    box-shadow: 0 0 20px 5px rgba(96,165,250,0.62), 0 0 0 3px rgba(96,165,250,0.22);
+    border-color: rgba(96,165,250,1);
+    background: rgba(59,130,246,0.26);
   }
 }
 @keyframes fbFadeOut {
   from { opacity: 1; max-height: 80px; }
   to   { opacity: 0; max-height: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; }
 }
-.fb-glow { animation: fbGlow 2.7s ease-in-out infinite; }
+.fb-glow { animation: fbGlow 2.6s ease-in-out infinite; }
 .fb-fadeout { animation: fbFadeOut 0.45s ease forwards; }
 
 /* ── 애니메이션 ───────────────────────────── */

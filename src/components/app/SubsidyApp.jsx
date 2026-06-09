@@ -1525,11 +1525,77 @@ function Dashboard(props){
   </div>); }
 
 // ── EmpCard ───────────────────────────────────────────────
+// ── 진행상태 드롭다운: createPortal(body) 기반 floating menu ──
+// 카드의 overflow:hidden / transform(page-enter) 영향 없이 화면 위에 떠서 잘리지 않는다.
+function StatusDropdown(props){
+  var stOpen=useState(false);
+  var stPos=useState(null);
+  var btnRef=useRef(null);
+  var menuRef=useRef(null);
+  var cur=STS.find(function(s){return s.key===props.value;})||STS[0];
+  function recompute(){
+    var el=btnRef.current; if(!el)return null;
+    var r=el.getBoundingClientRect();
+    var vh=window.innerHeight, vw=window.innerWidth;
+    var width=Math.max(r.width,200);
+    var menuH=Math.min(STS.length*42+34, Math.round(vh*0.6));
+    var spaceBelow=vh-r.bottom;
+    var openUp=spaceBelow<menuH+14; // 아래 공간 부족하면 위로 열기
+    var left=r.left;
+    if(left+width>vw-8) left=vw-8-width; // 우측 화면 밖 방지
+    if(left<8) left=8;                   // 좌측 화면 밖 방지
+    var p={left:left,width:width,openUp:openUp,maxH:menuH};
+    if(openUp){p.bottom=vh-r.top+4;}else{p.top=r.bottom+4;}
+    return p;
+  }
+  function open(e){ if(e){e.stopPropagation();} var p=recompute(); if(p){stPos[1](p);stOpen[1](true);} }
+  function close(){ stOpen[1](false); }
+  useEffect(function(){
+    if(!stOpen[0])return;
+    function onDoc(ev){ if(menuRef.current&&menuRef.current.contains(ev.target))return; if(btnRef.current&&btnRef.current.contains(ev.target))return; close(); }
+    function onKey(ev){ if(ev.key==="Escape")close(); }
+    function onMove(){ var p=recompute(); if(p)stPos[1](p); }
+    document.addEventListener("mousedown",onDoc,true);
+    document.addEventListener("keydown",onKey,true);
+    window.addEventListener("resize",onMove,true);
+    window.addEventListener("scroll",onMove,true);
+    return function(){
+      document.removeEventListener("mousedown",onDoc,true);
+      document.removeEventListener("keydown",onKey,true);
+      window.removeEventListener("resize",onMove,true);
+      window.removeEventListener("scroll",onMove,true);
+    };
+  },[stOpen[0]]);
+  var pos=stPos[0];
+  return(
+    <>
+      <span ref={btnRef} onClick={open} title="클릭해서 상태 변경"
+        style={{fontSize:"var(--fs-badge)",fontWeight:600,padding:"3px 10px",borderRadius:999,background:cur.bg,color:cur.color,whiteSpace:"nowrap",cursor:"pointer",border:"1px solid "+cur.color+"33",userSelect:"none"}}>
+        {cur.label} ▾
+      </span>
+      {stOpen[0]&&pos&&createPortal(
+        <div ref={menuRef} onClick={function(e){e.stopPropagation();}}
+          style={Object.assign({position:"fixed",left:pos.left,width:pos.width,zIndex:900,background:"#fff",borderRadius:12,boxShadow:"0 12px 36px rgba(15,23,42,0.22)",border:"1px solid #E2E8F0",padding:6,maxHeight:pos.maxH,overflowY:"auto",WebkitOverflowScrolling:"touch"},pos.openUp?{bottom:pos.bottom}:{top:pos.top})}>
+          <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",padding:"3px 8px 5px"}}>진행 상태 변경</div>
+          {STS.map(function(s){var on=props.value===s.key;return(
+            <div key={s.key} onClick={function(){props.onChange(s.key);close();}}
+              style={{display:"flex",alignItems:"center",gap:7,padding:"9px 9px",borderRadius:8,cursor:"pointer",fontSize:"var(--fs-row)",background:on?s.bg:"transparent",color:on?s.color:"#334155",fontWeight:on?700:400}}
+              onMouseEnter={function(e){if(!on)e.currentTarget.style.background="#F1F5F9";}}
+              onMouseLeave={function(e){if(!on)e.currentTarget.style.background="transparent";}}>
+              <span>{s.icon}</span><span>{s.label}</span>{on&&<span style={{marginLeft:"auto",fontSize:"var(--fs-badge)"}}>✓</span>}
+            </div>
+          );})}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 function EmpCard(props){
   var emp=props.emp,programs=props.programs,company=props.company;
   var uploadFn=props.uploadFn,getUrlFn=props.getUrlFn;
   var st1=useState(false); // expanded
-  var stSM=useState(false); // status menu open
   var p=programs[emp.programId];
   var gp=p?GROUP_COLORS[p.group]||GROUP_COLORS["커스텀"]:GROUP_COLORS["커스텀"];
   var st=STS.find(function(s){return s.key===emp.status;})||STS[0];
@@ -1543,18 +1609,15 @@ function EmpCard(props){
   var certDone=certDocs.filter(function(d){return d.done;}).length;
   return(
     <Card style={{marginBottom:8,overflow:"hidden",border:props.highlight?"2px solid #F59E0B":"1px solid #E2E8F0",position:"relative",boxShadow:props.highlight?"0 0 0 4px rgba(245,158,11,0.18)":undefined,transition:"box-shadow 0.4s,border-color 0.4s"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer"}} onClick={function(){st1[1](!st1[0]);stSM[1](false);}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer"}} onClick={function(){st1[1](!st1[0]);}}>
         <div style={{width:34,height:34,borderRadius:17,background:"#F1F5F9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#475569",flexShrink:0,fontWeight:700}}>
           {emp.name.charAt(0)}
         </div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap",marginBottom:2}}>
             <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#1E293B"}}>{emp.name}</span>
-            {/* 클릭 가능한 상태 배지 */}
-            <span onClick={function(e){e.stopPropagation();stSM[1](!stSM[0]);}}
-              style={{fontSize:"var(--fs-badge)",fontWeight:600,padding:"3px 10px",borderRadius:999,background:st.bg,color:st.color,whiteSpace:"nowrap",cursor:"pointer",border:"1px solid "+st.color+"33",userSelect:"none"}} title="클릭해서 상태 변경">
-              {st.label} ▾
-            </span>
+            {/* 클릭 가능한 상태 배지 (portal floating menu — 카드 잘림 없음) */}
+            <StatusDropdown value={emp.status} onChange={function(k){props.onPatch(emp.id,{status:k});}}/>
             {p&&<span style={{...neutralBadge()}}>{p.name}</span>}
             <YearBadge year={empProgYear(emp,programs)}/>
           </div>
@@ -1574,18 +1637,6 @@ function EmpCard(props){
           </div>
         </div>
       </div>
-      {/* 빠른 상태 변경 드롭다운 */}
-      {stSM[0]&&(
-        <div onClick={function(e){e.stopPropagation();}} style={{position:"absolute",left:14,top:50,zIndex:50,background:"#fff",borderRadius:12,boxShadow:"0 8px 24px rgba(15,23,42,0.18)",border:"1px solid #E2E8F0",padding:6,width:190}}>
-          <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",padding:"3px 8px 5px"}}>진행 상태 변경</div>
-          {STS.map(function(s){var on=emp.status===s.key;return(
-            <div key={s.key} onClick={function(){props.onPatch(emp.id,{status:s.key});stSM[1](false);}}
-              style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:8,cursor:"pointer",fontSize:"var(--fs-row)",background:on?s.bg:"transparent",color:on?s.color:"#334155",fontWeight:on?700:400}}>
-              <span>{s.icon}</span><span>{s.label}</span>{on&&<span style={{marginLeft:"auto",fontSize:"var(--fs-badge)"}}>✓</span>}
-            </div>
-          );})}
-        </div>
-      )}
       {st1[0]&&(
         <div style={{padding:"0 14px 14px"}}>
           {/* 회차 진행상황 */}
@@ -3577,13 +3628,22 @@ function ProductTour(props){
 }
 
 // ── 베타 피드백 설문 ──────────────────────────────────────
-var FB_KEYS={sub:"hrSubsidyPro_feedback_lastSubmittedAt",dis:"hrSubsidyPro_feedback_lastDismissedAt",res:"hrSubsidyPro_feedback_responses"};
+// localStorage 키는 계정별(userId>userEmail>orgId>anon)로 분리한다.
+// → 다른 계정으로 로그인하면 그 계정 고유의 제출/닫기 기록만 본다.
+var FB_PREFIX="hrSubsidyPro_feedback";
 var FB_INTERVAL_MS=7*24*60*60*1000; // 7일
-function fbLastInteraction(){try{var a=localStorage.getItem(FB_KEYS.sub);var b=localStorage.getItem(FB_KEYS.dis);var ta=a?new Date(a).getTime():0;var tb=b?new Date(b).getTime():0;return Math.max(ta||0,tb||0);}catch(e){return 0;}}
-function fbIsDue(){var last=fbLastInteraction();if(!last)return true;return(Date.now()-last)>=FB_INTERVAL_MS;}
-function fbSaveResponse(resp){try{var raw=localStorage.getItem(FB_KEYS.res);var arr=raw?JSON.parse(raw):[];if(!Array.isArray(arr))arr=[];arr.push(resp);localStorage.setItem(FB_KEYS.res,JSON.stringify(arr));localStorage.setItem(FB_KEYS.sub,resp.submittedAt);}catch(e){console.error("[피드백] 저장 실패",e);}}
-function fbMarkSubmitted(){try{localStorage.setItem(FB_KEYS.sub,new Date().toISOString());}catch(e){}}
-function fbDismiss(){try{localStorage.setItem(FB_KEYS.dis,new Date().toISOString());}catch(e){}}
+function fbScopeId(scope){return (scope===null||scope===undefined||scope==="")?"anon":String(scope);}
+function fbKeys(scope){var s=fbScopeId(scope);return {sub:FB_PREFIX+"_lastSubmittedAt_"+s,dis:FB_PREFIX+"_lastDismissedAt_"+s,backup:FB_PREFIX+"_backup_"+s};}
+function fbGetTime(key){try{var v=localStorage.getItem(key);return v?new Date(v).getTime():0;}catch(e){return 0;}}
+function fbLastSubmitted(scope){return fbGetTime(fbKeys(scope).sub);}
+function fbLastInteraction(scope){var k=fbKeys(scope);return Math.max(fbGetTime(k.sub)||0,fbGetTime(k.dis)||0);}
+// glow 노출 여부: 마지막 상호작용(제출/닫기) 후 7일 경과 시 다시 반짝임. 기록 없으면 반짝임.
+function fbIsDue(scope){var last=fbLastInteraction(scope);if(!last)return true;return(Date.now()-last)>=FB_INTERVAL_MS;}
+// 버튼 숨김 여부: '제출 성공' 후 7일 이내만 숨긴다. 닫기(나중에)는 숨기지 않는다.
+function fbIsHidden(scope){var sub=fbLastSubmitted(scope);if(!sub)return false;return(Date.now()-sub)<FB_INTERVAL_MS;}
+function fbMarkSubmitted(scope){try{localStorage.setItem(fbKeys(scope).sub,new Date().toISOString());}catch(e){}}
+function fbDismiss(scope){try{localStorage.setItem(fbKeys(scope).dis,new Date().toISOString());}catch(e){}}
+function fbBackup(scope,resp){try{var k=fbKeys(scope).backup;var raw=localStorage.getItem(k);var arr=raw?JSON.parse(raw):[];if(!Array.isArray(arr))arr=[];arr.push(resp);localStorage.setItem(k,JSON.stringify(arr));}catch(e){}}
 
 var FEEDBACK_QUESTIONS=[
   {id:"q1",type:"single",q:"전체적으로 이 프로그램을 써본 첫인상은 어떠셨나요?",options:["매우 좋다","괜찮다","보통이다","아직은 복잡하다","실제로 쓰기 어렵다"]},
@@ -3603,15 +3663,14 @@ function FeedbackModal(props){
   var stA=useState({});   // {qid: string | string[]}
   var stTxt=useState(""); // 자유 의견
   var stDone=useState(false);
+  var stSaved=useState(false); // 서버 저장 성공 여부
   var stSubmitting=useState(false);
-  var stSaveErr=useState("");
   var answers=stA[0];
   function pickSingle(qid,opt){var m=Object.assign({},answers);m[qid]=opt;stA[1](m);}
   function toggleMulti(qid,opt){var m=Object.assign({},answers);var arr=(m[qid]||[]).slice();var i=arr.indexOf(opt);if(i>=0)arr.splice(i,1);else arr.push(opt);m[qid]=arr;stA[1](m);}
-  function reset(){stA[1]({});stTxt[1]("");stDone[1](false);stSubmitting[1](false);stSaveErr[1]("");}
+  function reset(){stA[1]({});stTxt[1]("");stDone[1](false);stSaved[1](false);stSubmitting[1](false);}
   async function submit(){
     stSubmitting[1](true);
-    stSaveErr[1]("");
     var now=new Date().toISOString();
     var dbRow={org_id:props.orgId||null,user_id:props.userId||null,user_email:props.userEmail||"",org_name:props.orgName||"",answers:answers,free_text:stTxt[0]||null,page_path:window.location.pathname,user_agent:navigator.userAgent,app_version:"1.0-beta",created_at:now};
     var saved=false;
@@ -3620,17 +3679,20 @@ function FeedbackModal(props){
       if(result.error)throw result.error;
       saved=true;
     }catch(e){
-      console.warn("[피드백] Supabase 저장 실패, localStorage 백업",e);
-      try{var bk=JSON.parse(localStorage.getItem("hrSubsidyPro_feedback_backup")||"[]");if(!Array.isArray(bk))bk=[];bk.push(Object.assign({},dbRow,{savedAt:now}));localStorage.setItem("hrSubsidyPro_feedback_backup",JSON.stringify(bk));}catch(e2){}
+      // 실제 에러 메시지를 조용히 묻지 않고 console.warn 으로 노출
+      console.warn("[피드백] Supabase 저장 실패:", (e&&e.message)?e.message:e, e);
+      fbBackup(props.scope, Object.assign({},dbRow,{savedAt:now}));
     }
-    fbMarkSubmitted();
     stSubmitting[1](false);
+    stSaved[1](saved);
     stDone[1](true);
-    props.onSubmitted&&props.onSubmitted();
-    if(!saved)stSaveErr[1]("피드백이 임시 저장되었습니다. 네트워크 상태가 안정되면 다시 제출해 주세요.");
+    // 제출 성공한 경우에만 7일 숨김 타이머 기록 (실패 시 버튼 유지 → 재전송 가능)
+    if(saved)fbMarkSubmitted(props.scope);
+    props.onSubmitted&&props.onSubmitted(saved);
   }
   function close(){
-    if(!stDone[0]){fbDismiss();props.onDismiss&&props.onDismiss();}
+    // 제출 완료 화면이 아닌 상태에서 닫으면 '나중에' = dismiss(glow만 7일 중지, 버튼은 유지)
+    if(!stDone[0]){fbDismiss(props.scope);props.onDismiss&&props.onDismiss();}
     reset();
     props.onClose&&props.onClose();
   }
@@ -3638,13 +3700,24 @@ function FeedbackModal(props){
   return(
     <Modal open={props.open} onClose={close} title="💬 베타 사용 피드백" width={620}>
       {stDone[0]?(
+        stSaved[0]?(
         <div style={{textAlign:"center",padding:"24px 8px"}}>
           <div style={{fontSize:52,marginBottom:14}}>🙏</div>
-          <h3 style={{margin:"0 0 10px",fontSize:20,fontWeight:800,color:"#1E293B"}}>소중한 의견 감사합니다.</h3>
-          <p style={{margin:"0 0 20px",fontSize:15,color:"#64748B",lineHeight:1.7}}>남겨주신 피드백은 다음 업데이트에 반영하겠습니다.</p>
-          {stSaveErr[0]&&<p style={{margin:"0 0 16px",fontSize:13,color:"#D97706",lineHeight:1.5,padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8}}>{stSaveErr[0]}</p>}
+          <h3 style={{margin:"0 0 10px",fontSize:20,fontWeight:800,color:"#1E293B"}}>피드백이 정상적으로 저장되었습니다.</h3>
+          <p style={{margin:"0 0 20px",fontSize:15,color:"#64748B",lineHeight:1.7}}>소중한 의견 감사합니다. 남겨주신 내용은 다음 업데이트에 반영하겠습니다.</p>
           <button style={Object.assign({},btnP,{padding:"12px 40px",fontSize:15})} onClick={close}>닫기</button>
         </div>
+        ):(
+        <div style={{textAlign:"center",padding:"24px 8px"}}>
+          <div style={{fontSize:52,marginBottom:14}}>📦</div>
+          <h3 style={{margin:"0 0 10px",fontSize:20,fontWeight:800,color:"#1E293B"}}>임시 저장되었습니다.</h3>
+          <p style={{margin:"0 0 16px",fontSize:14,color:"#D97706",lineHeight:1.6,padding:"12px 16px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10}}>피드백이 서버에 저장되지 않아 이 브라우저에 임시 저장되었습니다. 관리자에게 알려주세요. (작성하신 내용은 사라지지 않았습니다)</p>
+          <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+            <button style={btnS} onClick={close}>닫기</button>
+            <button style={Object.assign({},btnP,{padding:"12px 32px",fontSize:15,opacity:stSubmitting[0]?0.65:1,cursor:stSubmitting[0]?"not-allowed":"pointer"})} onClick={function(){stDone[1](false);submit();}} disabled={stSubmitting[0]}>{stSubmitting[0]?"재전송 중…":"다시 제출하기"}</button>
+          </div>
+        </div>
+        )
       ):(
         <div>
           <p style={{margin:"0 0 18px",fontSize:14,color:"#475569",lineHeight:1.7,padding:"12px 14px",background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:10}}>실제 컨설턴트 업무에 더 잘 맞는 프로그램으로 만들기 위해 의견을 받고 있습니다. 편하게 선택해 주세요. <span style={{color:"#94A3B8"}}>(약 3분 · 모두 선택사항)</span></p>
@@ -3718,8 +3791,12 @@ export default function SubsidyApp(props){
   var stProfileOpen=useState(false);
   var stMobileNav=useState(false);
   var stFbOpen=useState(false); // 피드백 설문 모달
-  var stFbGlow=useState(function(){return fbIsDue();}); // 7일 주기 반짝임
-  var stFbHidden=useState(function(){return !fbIsDue();}); // 제출 후 7일간 버튼 숨김
+  // 계정별 스코프: userId > userEmail > orgId > anon
+  var fbScope=props.userId||props.userEmail||props.orgId||"anon";
+  var stFbGlow=useState(function(){return fbIsDue(fbScope);}); // 7일 주기 반짝임
+  var stFbHidden=useState(function(){return fbIsHidden(fbScope);}); // 제출 성공 후 7일간 버튼 숨김
+  // 계정 전환(스코프 변경) 시 그 계정 기준으로 노출/반짝임 재평가
+  useEffect(function(){stFbGlow[1](fbIsDue(fbScope));stFbHidden[1](fbIsHidden(fbScope));},[fbScope]);
   function openFeedback(){stFbOpen[1](true);stFbGlow[1](false);}
   var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
   function startTour(){stTour[1](true);}
@@ -4112,12 +4189,13 @@ export default function SubsidyApp(props){
       {/* 베타 피드백 설문 */}
       <FeedbackModal
         open={stFbOpen[0]}
+        scope={fbScope}
         userEmail={props.userEmail||(profile&&profile.email)||""}
         orgName={orgName}
         orgId={props.orgId||null}
         userId={props.userId||null}
         onClose={function(){stFbOpen[1](false);}}
-        onSubmitted={function(){stFbGlow[1](false);stFbHidden[1](true);}}
+        onSubmitted={function(saved){stFbGlow[1](false);if(saved)stFbHidden[1](true);}}
         onDismiss={function(){stFbGlow[1](false);}}
       />
       <ProductTour open={stTour[0]} onClose={endTour}/>
