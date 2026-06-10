@@ -373,12 +373,54 @@ export default function BillingPage({ onBack }) {
   const headH = Math.round(106 * scale);
   const priceH = Math.round(116 * scale);
 
-  function handleCta(plan) {
+  // ── 토스페이먼츠 SDK 동적 로딩 (v1 표준 SDK — requestBillingAuth 지원) ──
+  function loadTossSdk() {
+    return new Promise((resolve, reject) => {
+      if (window.TossPayments) return resolve(window.TossPayments);
+      const s = document.createElement("script");
+      s.src = "https://js.tosspayments.com/v1/payment";
+      s.onload = () => resolve(window.TossPayments);
+      s.onerror = () => reject(new Error("토스페이먼츠 SDK 로딩에 실패했습니다. 네트워크를 확인해주세요."));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function handleCta(plan) {
     if (plan.isConsult) {
       showToast("도입 상담 문의를 남겨주세요. 빠른 시일 내 연락드리겠습니다. (support@hrsubsidy.kr)");
-    } else {
-      showToast("결제 연동 준비 중입니다. 베타 기간에는 무료로 이용 가능합니다.");
+      return;
     }
+    if (isAdminUser) return; // 관리자는 CTA 자체가 숨겨져 있음 (이중 방어)
+    if (period === "annual") {
+      showToast("연간 결제는 준비 중입니다. 월간 결제로 진행해주세요.");
+      return;
+    }
+    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
+    if (!clientKey) {
+      showToast("결제 설정이 아직 완료되지 않았습니다. (VITE_TOSS_CLIENT_KEY 미설정 — 관리자에게 문의)");
+      return;
+    }
+    if (!org?.id) {
+      showToast("조직 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    setLoading(plan.planKey);
+    try {
+      const TossPayments = await loadTossSdk();
+      const toss = TossPayments(clientKey);
+      // customerKey = org_id (조직 단위 구독). 금액은 서버(Edge Function)가 결정한다.
+      await toss.requestBillingAuth("카드", {
+        customerKey: org.id,
+        successUrl: window.location.origin + "/billing/result?plan=" + plan.planKey,
+        failUrl: window.location.origin + "/billing/result?fail=1&plan=" + plan.planKey,
+        customerEmail: session?.user?.email || undefined,
+        customerName: profile?.display_name || undefined,
+      });
+    } catch (err) {
+      if (err && err.code === "USER_CANCEL") showToast("카드 등록을 취소했습니다.");
+      else showToast("카드 등록 창을 여는 중 오류가 발생했습니다: " + (err?.message || ""));
+    }
+    setLoading(null);
   }
 
   async function handlePortal() {
@@ -633,7 +675,7 @@ export default function BillingPage({ onBack }) {
                     관리자 계정 — 결제 대상이 아닙니다
                   </div>
                 ) : (
-                <button onClick={() => handleCta(plan)}
+                <button onClick={() => handleCta(plan)} disabled={!!loading}
                   style={{
                     width: "100%",
                     padding: "14px",
@@ -641,7 +683,8 @@ export default function BillingPage({ onBack }) {
                     border: hl ? "none" : `1.5px solid ${plan.color}`,
                     fontSize: fs(15),
                     fontWeight: 800,
-                    cursor: "pointer",
+                    cursor: loading ? "wait" : "pointer",
+                    opacity: loading && loading !== plan.planKey ? 0.55 : 1,
                     fontFamily: FF,
                     letterSpacing: "-0.3px",
                     background: hl
@@ -653,7 +696,7 @@ export default function BillingPage({ onBack }) {
                     boxShadow: hl ? `0 6px 22px ${plan.color}44` : isVip ? "0 4px 14px rgba(146,64,14,0.3)" : "none",
                     transition: "opacity 0.15s",
                   }}>
-                  {plan.ctaText}
+                  {loading === plan.planKey ? "카드 등록 창을 여는 중..." : plan.ctaText}
                 </button>
                 )}
               </div>
