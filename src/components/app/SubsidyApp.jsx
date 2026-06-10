@@ -1282,15 +1282,17 @@ function DdayAlerts(props){
   var overdueCount=tasks.filter(function(t){return t.pri===0;}).length;
   var LIMIT=7;
   var shown=stAll[0]?tasks:tasks.slice(0,LIMIT);
+  var top=tasks[0]; // 최우선 1건 (기한 초과 → 임박 순 정렬의 첫 항목)
   return(
-    <Card style={{marginBottom:16,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:"3px solid "+(overdueCount>0?"#DC2626":"#2563EB")}}>
-      <div style={{padding:"13px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-        <span style={{fontSize:18}}>🔔</span>
-        <span style={{fontSize:17,fontWeight:800,color:"#0F172A"}}>오늘 바로 해야 할 일</span>
-        {overdueCount>0&&<span style={{...dangerBadge()}}>기한 초과 {overdueCount}건</span>}
-        <span style={{...neutralBadge(),marginLeft:"auto"}}>총 {tasks.length}건</span>
-      </div>
-      <div style={{padding:"6px 8px"}}>
+    <DashGroup id="today" icon="🔔" title="오늘 바로 해야 할 일" accent={overdueCount>0?"#DC2626":"#2563EB"}
+      summary={
+        <span>
+          총 {tasks.length}건
+          {overdueCount>0&&<span style={{color:"#DC2626",fontWeight:700}}> / 기한 초과 {overdueCount}건</span>}
+          {top&&top.dday!==null&&<span className="hide-mobile"> / 최우선: <strong style={{color:overdueCount>0?"#DC2626":"#0F172A",fontWeight:700}}>{top.title} {formatDday(top.dday)}</strong></span>}
+        </span>
+      }>
+      <div>
         {shown.map(function(t){
           var isOverdue=t.pri===0;
           return(
@@ -1313,7 +1315,7 @@ function DdayAlerts(props){
           </button>
         )}
       </div>
-    </Card>
+    </DashGroup>
   );
 }
 
@@ -1489,7 +1491,7 @@ function DashGroup(props){
   var open=st[0];
   function toggle(){var v=!st[0];st[1](v);try{localStorage.setItem(lsKey,v?"1":"0");}catch(e){}}
   return(
-    <div className="card" style={{marginBottom:14,overflow:"hidden",border:"1px solid #E2E8F0",background:"#fff",borderRadius:14}}>
+    <div className="card" style={{marginBottom:14,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:props.accent?("3px solid "+props.accent):"1px solid #E2E8F0",background:"#fff",borderRadius:14}}>
       <button onClick={toggle}
         style={{width:"100%",display:"flex",alignItems:"center",gap:11,padding:"16px 18px",background:open?"#FAFBFC":"none",border:"none",cursor:"pointer",fontFamily:FF,textAlign:"left"}}>
         <span style={{width:28,height:28,borderRadius:9,background:open?"#EFF6FF":"#F1F5F9",color:open?"#2563EB":"#64748B",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:800,flexShrink:0,lineHeight:1}}>{open?"−":"+"}</span>
