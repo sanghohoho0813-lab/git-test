@@ -1284,7 +1284,7 @@ function DdayAlerts(props){
   var shown=stAll[0]?tasks:tasks.slice(0,LIMIT);
   var top=tasks[0]; // 최우선 1건 (기한 초과 → 임박 순 정렬의 첫 항목)
   return(
-    <DashGroup id="today" icon="🔔" title="오늘 바로 해야 할 일" accent={overdueCount>0?"#DC2626":"#2563EB"}
+    <DashGroup id="today" icon="🔔" title="오늘 바로 해야 할 일" badge="필수 확인" accent={overdueCount>0?"#DC2626":"#2563EB"}
       summary={
         <span>
           총 {tasks.length}건
@@ -1491,15 +1491,19 @@ function DashGroup(props){
   var open=st[0];
   function toggle(){var v=!st[0];st[1](v);try{localStorage.setItem(lsKey,v?"1":"0");}catch(e){}}
   return(
-    <div className="card" style={{marginBottom:14,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:props.accent?("3px solid "+props.accent):"1px solid #E2E8F0",background:"#fff",borderRadius:14}}>
-      <button onClick={toggle}
-        style={{width:"100%",display:"flex",alignItems:"center",gap:11,padding:"16px 18px",background:open?"#FAFBFC":"none",border:"none",cursor:"pointer",fontFamily:FF,textAlign:"left"}}>
-        <span style={{width:28,height:28,borderRadius:9,background:open?"#EFF6FF":"#F1F5F9",color:open?"#2563EB":"#64748B",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:800,flexShrink:0,lineHeight:1}}>{open?"−":"+"}</span>
+    <div className="card dash-group" style={{marginBottom:14,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:props.accent?("3px solid "+props.accent):"1px solid #E2E8F0",background:"#fff",borderRadius:14}}>
+      <button onClick={toggle} className="dash-group-head"
+        style={{width:"100%",display:"flex",alignItems:"center",gap:11,padding:"18px 18px",background:open?"#FAFBFC":"transparent",border:"none",cursor:"pointer",fontFamily:FF,textAlign:"left",transition:"background 0.18s ease"}}>
+        <span style={{width:32,height:32,borderRadius:10,background:open?"#DBEAFE":"#E2E8F0",color:open?"#1D4ED8":"#475569",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:19,fontWeight:800,flexShrink:0,lineHeight:1}}>{open?"−":"+"}</span>
         <span style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",minWidth:0,flex:1}}>
           <span style={{fontSize:17,fontWeight:700,color:"#0F172A",whiteSpace:"nowrap"}}>{props.icon&&<span style={{marginRight:6}}>{props.icon}</span>}{props.title}</span>
+          {props.badge&&<span style={{fontSize:11,fontWeight:800,color:"#B91C1C",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:999,padding:"2px 8px",whiteSpace:"nowrap",alignSelf:"center"}}>{props.badge}</span>}
           {props.summary&&<span style={{fontSize:14,color:"#64748B",fontWeight:500}}>· {props.summary}</span>}
         </span>
-        <span style={{fontSize:15,color:"#94A3B8",transition:"transform .2s ease",transform:open?"rotate(180deg)":"none",display:"inline-block",lineHeight:1,flexShrink:0}}>⌄</span>
+        <span style={{display:"inline-flex",alignItems:"center",gap:5,flexShrink:0,color:"#64748B",fontSize:13,fontWeight:600}}>
+          <span className="hide-mobile">{open?"접기":"펼치기"}</span>
+          <span style={{fontSize:15,transition:"transform .2s ease",transform:open?"rotate(180deg)":"none",display:"inline-block",lineHeight:1}}>⌄</span>
+        </span>
       </button>
       {open&&<div style={{padding:"4px 18px 18px"}}>{props.children}</div>}
     </div>
@@ -1686,6 +1690,11 @@ function Dashboard(props){
         </div>
       );
     })()}
+
+    {/* accordion 첫 사용자 안내 (보조 문구 · 작게) */}
+    {props.mode!=="list"&&props.companies.length>0&&(
+      <div style={{textAlign:"right",fontSize:12,color:"#94A3B8",margin:"0 4px 6px"}}>각 항목을 클릭하면 상세 내용을 확인할 수 있습니다.</div>
+    )}
 
     {props.mode!=="list"&&<DdayAlerts employees={props.employees} companies={props.companies} programs={props.programs} goCompany={props.goCompany} settings={props.settings}/>}
 
