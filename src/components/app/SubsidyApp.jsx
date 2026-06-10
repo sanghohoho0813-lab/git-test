@@ -3986,6 +3986,7 @@ function KanbanBoard(props){
   var stOver=useState(null);   // 드래그 오버 중인 컬럼 key
   var stMenu=useState(null);   // 이동 메뉴 열린 직원 id
   var stExp=useState({});      // 카드 펼침 상태 (id→true)
+  var stColExp=useState({});   // 컬럼별 "더 보기" 펼침 상태 (colKey→true, 컬럼별 독립)
   function toggleExp(id){ var m=Object.assign({},stExp[0]); m[id]=!m[id]; stExp[1](m); }
 
   // 메뉴 바깥 클릭 시 닫기
@@ -3997,6 +3998,25 @@ function KanbanBoard(props){
   function normStatus(s){ return STS.find(function(x){return x.key===s;})?s:"preparing"; }
   function empRemaining(e){ return (e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?0:(r.expectedAmount||r.amount||0));},0); }
   function empNextDday(e){ var dd=null; (e.rounds||[]).some(function(r){ if(!r.isPaid&&e.startDate){ dd=getDday(addMo(e.startDate,r.month)); return true; } return false; }); return dd; }
+  // 카드 노출 우선순위: 0 지연 → 1 임박(D-7 이내) → 2 서류 미완료 → 3 일반
+  // 컬럼이 접힌 상태에서 숨겨지는 카드는 상대적으로 덜 급한 카드가 되도록 정렬에 사용.
+  function empUrgency(e){
+    var dd=empNextDday(e);
+    if(dd!==null&&dd<0)return 0;
+    if(dd!==null&&dd<=7)return 1;
+    var docs=e.employeeDocs||[]; var done=docs.filter(function(d){return d.done;}).length;
+    if(docs.length>0&&done<docs.length)return 2;
+    return 3;
+  }
+  function byUrgency(a,b){
+    var ua=empUrgency(a),ub=empUrgency(b);
+    if(ua!==ub)return ua-ub;
+    var da=empNextDday(a),db=empNextDday(b);
+    if(da===null&&db===null)return 0;
+    if(da===null)return 1;
+    if(db===null)return -1;
+    return da-db;
+  }
 
   var visEmps=useMemo(function(){
     return stFilter[0]==="all"?employees:employees.filter(function(e){return e.companyId===stFilter[0];});
@@ -4043,26 +4063,26 @@ function KanbanBoard(props){
         onDragEnd={function(){stDrag[1](null);stOver[1](null);}}
         onClick={function(){toggleExp(e.id);}}
         title={expanded?"클릭하면 접힙니다":"클릭하면 상세가 펼쳐집니다"}
-        style={{background:overdue?"#FFF5F5":kc.soft,borderRadius:12,border:"1px solid "+(overdue?"#FECACA":kc.border),borderLeft:"4px solid "+(overdue?"#DC2626":kc.main),padding:"11px 13px",marginBottom:9,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 2px rgba(15,23,42,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":"scale(1)"}}>
+        style={{background:overdue?"#FFF5F5":kc.soft,borderRadius:12,border:"1px solid "+(overdue?"#FECACA":kc.border),borderLeft:"4px solid "+(overdue?"#DC2626":kc.main),padding:"10px 12px",marginBottom:8,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 2px rgba(15,23,42,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":"scale(1)"}}>
         {/* 기본 노출: 이름 · 회사 · 지원금/연도 */}
         <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-          <div style={{width:32,height:32,borderRadius:16,background:"#fff",border:"1px solid "+kc.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:kc.main,fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
+          <div style={{width:30,height:30,borderRadius:15,background:"#fff",border:"1px solid "+kc.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:kc.main,fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#0F172A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
             <div onClick={function(ev){ev.stopPropagation();goCompany(e.companyId);}} title="업체 상세 보기" style={{fontSize:"var(--fs-sub)",color:"#2563EB",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer"}}>🏢 {company?company.name:""}</div>
           </div>
           <button onClick={function(ev){ev.stopPropagation();stMenu[1](menuOpen?null:e.id);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#94A3B8",padding:"0 2px",flexShrink:0,lineHeight:1}} title="상태 이동">⋮</button>
         </div>
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:8}}>
-          {p&&<span style={{...neutralBadge()}}>{p.name}</span>}
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:7}}>
+          {p&&<span style={{...neutralBadge(),maxWidth:130,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"inline-block",verticalAlign:"bottom"}} title={p.name}>{p.name}</span>}
           <YearBadge year={empProgYear(e,programs)}/>
           {!expanded&&ddBadge&&<span style={ddBadge.kind==="danger"?dangerBadge():ddBadge.kind==="primary"?primaryBadge():neutralBadge()}>{ddBadge.t}</span>}
         </div>
-        {/* 처리하기: 직원 수정 화면으로 바로 이동 */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:9}}>
-          <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{expanded?"카드를 누르면 접힙니다":"카드를 누르면 상세"}</span>
+        {/* 처리하기: 직원 수정 화면으로 바로 이동 (상세 펼침 안내는 tooltip + 최소 문구) */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:7}}>
+          <span style={{fontSize:11.5,color:"#94A3B8"}}>{expanded?"접기 ▴":"상세 ▾"}</span>
           <button onClick={function(ev){ev.stopPropagation();onProcess(e.companyId,e.id);}}
-            style={{background:kc.main,color:"#fff",border:"none",borderRadius:8,padding:"6px 13px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}
+            style={{background:kc.main,color:"#fff",border:"none",borderRadius:8,padding:"5px 12px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}
             title="이 직원의 처리 화면으로 이동">처리하기 →</button>
         </div>
         {/* 펼침: 상세 정보 */}
@@ -4144,6 +4164,17 @@ function KanbanBoard(props){
             var colExp=es.reduce(function(s,e){return s+empRemaining(e);},0);
             var isOver=stOver[0]===col.key;
             var kc=kcol(col.key);
+            // 지연 → 임박 → 서류 → 일반 순으로 정렬해 기본 3장에 급한 카드를 먼저 노출
+            var sorted=es.slice().sort(byUrgency);
+            var COL_LIMIT=3;
+            var colOpen=!!stColExp[0][col.key];
+            var shownEs=colOpen?sorted:sorted.slice(0,COL_LIMIT);
+            var hiddenCount=Math.max(0,sorted.length-COL_LIMIT);
+            var colOverdue=sorted.filter(function(e){return empUrgency(e)===0;}).length;
+            var summaryParts=[];
+            if(colExp>0)summaryParts.push("잔여 "+fMan(colExp));
+            if(colOverdue>0)summaryParts.push("지연 "+colOverdue+"건");
+            if(!colOpen&&hiddenCount>0)summaryParts.push("숨김 "+hiddenCount+"명");
             return(
               <div key={col.key} className="kanban-col"
                 onDragOver={function(ev){ev.preventDefault();if(stOver[0]!==col.key)stOver[1](col.key);}}
@@ -4155,10 +4186,20 @@ function KanbanBoard(props){
                   <span style={{fontSize:"var(--fs-sub)",fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{col.icon} {col.label}</span>
                   <span style={{fontSize:"var(--fs-badge)",fontWeight:800,color:"#fff",background:"rgba(255,255,255,0.28)",borderRadius:999,padding:"1px 9px",flexShrink:0,minWidth:24,textAlign:"center"}}>{es.length}</span>
                 </div>
-                {colExp>0&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",padding:"0 2px 9px",fontWeight:600}}>잔여 {fMan(colExp)}</div>}
+                {summaryParts.length>0&&<div style={{fontSize:"var(--fs-meta)",color:colOverdue>0?"#B91C1C":"#94A3B8",padding:"0 2px 9px",fontWeight:600}}>{summaryParts.join(" · ")}</div>}
                 {es.length===0?(
                   <div style={{textAlign:"center",padding:"24px 0",fontSize:"var(--fs-sub)",color:isOver?kc.main:"#CBD5E1",fontWeight:isOver?700:400,borderRadius:10,border:isOver?"2px dashed "+kc.main:"2px dashed transparent",transition:"all 0.15s"}}>{isOver?"⬇ 여기에 놓기":"비어 있음"}</div>
-                ):es.map(card)}
+                ):(
+                  <React.Fragment>
+                    {shownEs.map(card)}
+                    {es.length>COL_LIMIT&&(
+                      <button onClick={function(){var m=Object.assign({},stColExp[0]);m[col.key]=!colOpen;stColExp[1](m);}}
+                        style={{width:"100%",padding:"11px 0",borderRadius:10,border:"1.5px dashed "+kc.border,background:"#fff",color:kc.main,fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>
+                        {colOpen?"접기 ▴":"+ "+hiddenCount+"명 더 보기"}
+                      </button>
+                    )}
+                  </React.Fragment>
+                )}
               </div>
             );
           })}
