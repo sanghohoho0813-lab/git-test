@@ -156,6 +156,13 @@ body.no-scroll { overflow: hidden; }
   .dash-parallel.two { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; }
 }
 
+/* ── 무료체험 요약: PC 넓은 화면은 우측 보조 패널, 그 외엔 제목 아래 한 줄 배지 ── */
+.trial-aside { display: block; animation: fadeIn 0.25s ease both; }
+@media (max-width: 1180px) {
+  .trial-aside { display: none !important; }
+  .trial-inline { display: flex !important; }
+}
+
 /* ── '오늘 바로 해야 할 일' 항목 그리드 (데스크톱 2열로 세로 길이 압축) ── */
 .dday-grid { display: grid; grid-template-columns: 1fr; gap: 1px; }
 @media (min-width: 861px) {

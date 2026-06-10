@@ -1571,8 +1571,44 @@ function Dashboard(props){
   var starredCompanies=props.companies.filter(function(c){return(c.tags||[]).includes("star");});
   function handleExcelCopy(){var data=makeExcelData(props.companies,props.employees,props.programs);navigator.clipboard.writeText(data).then(function(){st2[1](true);setTimeout(function(){st2[1](false);},2000);toast("엑셀용 데이터가 복사되었습니다.","success");});}
 
-  return(<div className="fade-in">
+  // ── 무료체험 요약 패널 (우측 보조 패널 · X로 닫기 · 브라우저별 유지) ──
+  // TODO(확장): 무료체험 만료 임박(예: trialDaysLeft<=3) 시에는 dismissed 여부와
+  // 무관하게 패널을 다시 노출하는 조건을 여기에 추가할 수 있음.
+  var stTrialPanel=useState(function(){try{return localStorage.getItem("hrSubsidyPro_trialPanelDismissed")==="1";}catch(e){return false;}});
+  var trialAsideRef=useRef(null);
+  function dismissTrialPanel(){
+    try{localStorage.setItem("hrSubsidyPro_trialPanelDismissed","1");}catch(e){}
+    var el=trialAsideRef.current;
+    if(el){ // 너비를 부드럽게 0으로 줄인 뒤 제거 → 본문이 자연스럽게 가운데로 복귀
+      el.style.transition="width 0.25s ease, opacity 0.25s ease";
+      el.style.overflow="hidden";
+      el.style.width="0px";
+      el.style.opacity="0";
+      setTimeout(function(){stTrialPanel[1](true);},260);
+    }else{stTrialPanel[1](true);}
+  }
+  // 관리자 계정은 SubsidyApp 에서 isTrial=false 로 내려오므로 여기서 자동 제외됨
+  var showTrialPanel=props.mode!=="list"&&props.isTrial&&props.companies.length>0&&!stTrialPanel[0];
+  var trialInfo=null;
+  if(showTrialPanel){
+    var tiActive=props.employees.filter(function(e){return e.status!=="resigned";}).length;
+    var tiSched=0;props.employees.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)tiSched++;});});
+    trialInfo={comp:props.companies.length,emp:tiActive,expect:stats.tE,sched:tiSched};
+  }
+
+  return(<div className="fade-in" style={{display:"flex",gap:20,alignItems:"flex-start"}}>
+    <div style={{flex:1,minWidth:0}}>
     {props.mode!=="stats"&&<GlobalSearch employees={props.employees} companies={props.companies} goCompany={props.goCompany}/>}
+
+    {/* 무료체험 요약 — 중간/모바일 화면용 한 줄 배지 (PC에서는 우측 패널로 표시) */}
+    {showTrialPanel&&trialInfo&&(
+      <div className="trial-inline" style={{display:"none",alignItems:"center",gap:8,flexWrap:"wrap",padding:"9px 12px",marginBottom:12,background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10}}>
+        <span style={{fontSize:12,fontWeight:800,color:"#0F766E",background:"#CCFBF1",borderRadius:999,padding:"2px 9px",whiteSpace:"nowrap"}}>⏳ 무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일 남음":""}</span>
+        <span style={{fontSize:12.5,color:"#115E59",fontWeight:600}}>업체 {trialInfo.comp} · 대상자 {trialInfo.emp} · 예상 {fMan(trialInfo.expect)} · 일정 {trialInfo.sched}건</span>
+        <button onClick={props.onOpenBilling||function(){}} style={{marginLeft:"auto",background:"#0F766E",color:"#fff",border:"none",borderRadius:7,padding:"5px 11px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"}}>요금제</button>
+        <button onClick={dismissTrialPanel} title="닫기" style={{background:"none",border:"none",color:"#14B8A6",fontSize:16,cursor:"pointer",padding:"0 2px",lineHeight:1}}>×</button>
+      </div>
+    )}
 
     {/* ── 핵심 KPI 브리핑 (4-Card Executive View) ── */}
     {props.mode!=="list"&&props.companies.length>0&&(function(){
@@ -1618,11 +1654,9 @@ function Dashboard(props){
       );
     })()}
 
-    {/* ── 동급 요약 블록 병렬 배치: [좌] 즉시 확인 필요 · [우] 무료체험 요약 ── */}
-    {props.mode!=="list"&&(metrics.overdueCount>0||(props.isTrial&&props.companies.length>0))&&(function(){
-      var hasOverdue=metrics.overdueCount>0;
-      var hasTrial=props.isTrial&&props.companies.length>0;
-      var overdueBlock=hasOverdue?(
+    {/* ── 즉시 확인 필요 (기한 경과) — 무료체험 요약은 우측 패널로 이동 ── */}
+    {props.mode!=="list"&&metrics.overdueCount>0&&(function(){
+      var overdueBlock=(
         <div style={{borderRadius:12,overflow:"hidden",background:"#DC2626",border:"none",boxShadow:"0 4px 16px rgba(220,38,38,0.22)"}}>
           <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid rgba(255,255,255,0.18)"}}>
             <span style={{fontSize:16}}>🚨</span>
@@ -1645,33 +1679,10 @@ function Dashboard(props){
             {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"7px 0",fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.85)"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
           </div>
         </div>
-      ):null;
-      var trialBlock=hasTrial?(function(){
-        var emps=props.employees; var active=emps.filter(function(e){return e.status!=="resigned";});
-        var sched=0; emps.forEach(function(e){(e.rounds||[]).forEach(function(r){if(!r.isPaid&&e.startDate)sched++;});});
-        var items=[["예상 지원금",fMan(stats.tE)],["관리 업체",props.companies.length+"개"],["대상자",active.length+"명"],["신청 일정",sched+"건"]];
-        return(
-          <div style={{borderRadius:12,overflow:"hidden",background:"#14B8A6",border:"none",boxShadow:"0 4px 16px rgba(20,184,166,0.22)"}}>
-            <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid rgba(255,255,255,0.22)"}}>
-              <span style={{fontSize:"var(--fs-badge)",fontWeight:800,color:"#0F766E",background:"rgba(255,255,255,0.92)",borderRadius:999,padding:"3px 11px"}}>무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일":""}</span>
-              <span style={{fontSize:"var(--fs-sub)",fontWeight:800,color:"#fff"}}>이만큼 관리 중이에요</span>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-              {items.map(function(it,i){return(
-                <div key={i} style={{padding:"11px 16px",borderRight:i%2===0?"1px solid rgba(255,255,255,0.22)":"none",borderBottom:i<2?"1px solid rgba(255,255,255,0.22)":"none"}}>
-                  <div style={{fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.85)",fontWeight:600,marginBottom:3}}>{it[0]}</div>
-                  <div style={{fontSize:19,fontWeight:800,color:"#fff",letterSpacing:"-0.5px"}}>{it[1]}</div>
-                </div>
-              );})}
-            </div>
-            <button onClick={props.onOpenBilling||function(){}} style={{width:"100%",background:"#0F766E",color:"#fff",border:"none",padding:"12px 0",fontSize:"var(--fs-btn)",fontWeight:800,cursor:"pointer",fontFamily:FF}}>지금 구독하고 계속 관리하기 →</button>
-          </div>
-        );
-      })():null;
+      );
       return(
-        <div className={"dash-parallel"+(hasOverdue&&hasTrial?" two":"")} style={{marginBottom:18}}>
+        <div className="dash-parallel" style={{marginBottom:18}}>
           {overdueBlock}
-          {trialBlock}
         </div>
       );
     })()}
@@ -1749,6 +1760,31 @@ function Dashboard(props){
         <ProgramPipeline employees={fE} programs={props.programs}/>
         {st1[0]==="all"&&props.companies.length>=2&&<CompanyRiskRanking companies={props.companies} employees={props.employees} goCompany={props.goCompany}/>}
       </DashGroup>
+    )}
+    </div>
+
+    {/* ── 우측 무료체험 요약 패널 (PC 넓은 화면 전용 · X로 닫기) ── */}
+    {showTrialPanel&&trialInfo&&(
+      <aside ref={trialAsideRef} className="trial-aside" style={{width:230,flexShrink:0,position:"sticky",top:92}}>
+        <div style={{background:"#fff",border:"1px solid #99F6E4",borderRadius:14,overflow:"hidden",boxShadow:"0 2px 10px rgba(13,148,136,0.08)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,padding:"11px 13px",background:"#F0FDFA",borderBottom:"1px solid #CCFBF1"}}>
+            <span style={{fontSize:13,fontWeight:800,color:"#0F766E",whiteSpace:"nowrap"}}>⏳ 무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일 남음":" 이용 중"}</span>
+            <button onClick={dismissTrialPanel} title="닫기" style={{marginLeft:"auto",background:"none",border:"none",color:"#14B8A6",fontSize:17,cursor:"pointer",padding:0,lineHeight:1}}>×</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:1,background:"#F1F5F9"}}>
+            {[["관리 업체",trialInfo.comp+"개"],["대상자",trialInfo.emp+"명"],["예상 지원금",fMan(trialInfo.expect)],["신청 일정",trialInfo.sched+"건"]].map(function(it,i){return(
+              <div key={i} style={{background:"#fff",padding:"9px 12px"}}>
+                <div style={{fontSize:11.5,color:"#64748B",fontWeight:600,marginBottom:2}}>{it[0]}</div>
+                <div style={{fontSize:14.5,fontWeight:800,color:"#0F172A",wordBreak:"keep-all"}}>{it[1]}</div>
+              </div>
+            );})}
+          </div>
+          <div style={{padding:"10px 12px",borderTop:"1px solid #F1F5F9"}}>
+            <button onClick={props.onOpenBilling||function(){}} style={{width:"100%",background:"#0F766E",color:"#fff",border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF}}>요금제 보기 →</button>
+            <div style={{fontSize:11,color:"#94A3B8",textAlign:"center",marginTop:6}}>계속 이용하려면 구독이 필요합니다</div>
+          </div>
+        </div>
+      </aside>
     )}
   </div>); }
 
