@@ -1238,8 +1238,10 @@ function AgencyReport(props){
 // ── Dashboard 보조 컴포넌트 ───────────────────────────────
 function DdayAlerts(props){
   var ddayLimit=(props.settings&&props.settings.ddayAlert)||7;
-  var alerts=useMemo(function(){
+  var stAll=useState(false); // 전체 보기 토글 (기본 상위 7건만)
+  var tasks=useMemo(function(){
     var list=[];
+    // 1) 신청기한 초과/임박 + 지급 예정 확인 (회차 기한 기준)
     props.employees.forEach(function(emp){
       if(emp.status==="resigned")return;
       var company=props.companies.find(function(c){return c.id===emp.companyId;});
@@ -1247,38 +1249,69 @@ function DdayAlerts(props){
       if(!emp.startDate||!program)return;
       (emp.rounds||[]).forEach(function(r,ri){
         if(r.isPaid)return;
-        var eligDate=addMo(emp.startDate,r.month);
-        var dday=getDday(eligDate);
-        if(dday!==null&&dday<=ddayLimit){list.push({id:emp.id+"-"+ri,empName:emp.name,companyName:company?company.name:"",companyId:emp.companyId,dday:dday,roundLabel:r.label||""});}
+        var dday=getDday(addMo(emp.startDate,r.month));
+        if(dday===null||dday>ddayLimit)return;
+        // 승인·지급중 상태에서 기한 도래 → 입금 확인 업무, 그 외 → 신청 업무
+        var paying=emp.status==="approved"||emp.status==="inprogress";
+        list.push({
+          id:emp.id+"-"+ri,
+          kind:dday<0?(paying?"지급 확인":"신청 지연"):(paying?"지급 예정":"신청 임박"),
+          kindColor:dday<0?"#DC2626":(paying?"#059669":"#2563EB"),
+          title:emp.name,
+          sub:(company?company.name:"")+(r.label?" · "+r.label:""),
+          dday:dday,companyId:emp.companyId,
+          pri:dday<0?0:1,sort:dday
+        });
       });
     });
-    return list.sort(function(a,b){return a.dday-b.dday;});
+    // 2) 서류 미완료 (업체 단위 집계)
+    props.companies.forEach(function(c){
+      var miss=0;
+      (c.companyDocs||[]).forEach(function(d){if(!d.done)miss++;});
+      props.employees.forEach(function(e){if(e.companyId!==c.id||e.status==="resigned")return;(e.employeeDocs||[]).forEach(function(d){if(!d.done)miss++;});});
+      if(miss>0)list.push({id:"doc-"+c.id,kind:"서류",kindColor:"#475569",title:c.name,sub:"미완료 서류 "+miss+"건 보완 필요",dday:null,companyId:c.id,pri:2,sort:-miss});
+    });
+    // 3) 급여일 미입력 (급여 증빙 서류 일정 계산에 필요)
+    props.companies.forEach(function(c){
+      var hasEmp=props.employees.some(function(e){return e.companyId===c.id&&e.status!=="resigned";});
+      if(hasEmp&&!c.payday)list.push({id:"pay-"+c.id,kind:"정보 누락",kindColor:"#B45309",title:c.name,sub:"급여일 미입력 — 급여 증빙 요청 시점 계산에 필요",dday:null,companyId:c.id,pri:3,sort:0});
+    });
+    return list.sort(function(a,b){return a.pri-b.pri||a.sort-b.sort;});
   },[props.employees,props.companies,props.programs,ddayLimit]);
-  if(alerts.length===0)return null;
-  var overdueCount=alerts.filter(function(a){return a.dday<0;}).length;
+  if(tasks.length===0)return null;
+  var overdueCount=tasks.filter(function(t){return t.pri===0;}).length;
+  var LIMIT=7;
+  var shown=stAll[0]?tasks:tasks.slice(0,LIMIT);
   return(
-    <Card style={{marginBottom:16,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:"3px solid #DC2626"}}>
-      <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+    <Card style={{marginBottom:16,overflow:"hidden",border:"1px solid #E2E8F0",borderLeft:"3px solid "+(overdueCount>0?"#DC2626":"#2563EB")}}>
+      <div style={{padding:"13px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <span style={{fontSize:18}}>🔔</span>
-        <span style={{fontSize:17,fontWeight:700,color:"#0F172A"}}>오늘 바로 해야 할 일</span>
+        <span style={{fontSize:17,fontWeight:800,color:"#0F172A"}}>오늘 바로 해야 할 일</span>
         {overdueCount>0&&<span style={{...dangerBadge()}}>기한 초과 {overdueCount}건</span>}
-        <span style={{...neutralBadge(),marginLeft:overdueCount>0?0:"auto"}}>총 {alerts.length}건</span>
+        <span style={{...neutralBadge(),marginLeft:"auto"}}>총 {tasks.length}건</span>
       </div>
-      <div className="dday-grid" style={{padding:"6px 8px",maxHeight:230,overflow:"auto"}}>
-        {alerts.map(function(a){
-          var isOverdue=a.dday<0;
+      <div style={{padding:"6px 8px"}}>
+        {shown.map(function(t){
+          var isOverdue=t.pri===0;
           return(
-            <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",background:isOverdue?"#FFF5F5":"transparent"}}
-              onClick={function(){props.goCompany(a.companyId);}}>
-              <div style={{minWidth:0,overflow:"hidden"}}>
-                <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:isOverdue?"#DC2626":"#0F172A"}}>{a.empName}</span>
-                <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginLeft:6}}>{a.companyName}</span>
-                {a.roundLabel&&<span style={{fontSize:"var(--fs-meta)",color:"#CBD5E1",marginLeft:4}}>· {a.roundLabel}</span>}
+            <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,background:isOverdue?"#FFF5F5":"transparent"}}>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                  <span style={{fontSize:11.5,fontWeight:800,color:"#fff",background:t.kindColor,borderRadius:6,padding:"2px 8px",whiteSpace:"nowrap"}}>{t.kind}</span>
+                  <span style={{fontSize:"var(--fs-name)",fontWeight:700,color:isOverdue?"#DC2626":"#0F172A"}}>{t.title}</span>
+                  {t.dday!==null&&<DdayBadge dday={t.dday}/>}
+                </div>
+                <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:2}}>{t.sub}</div>
               </div>
-              <DdayBadge dday={a.dday}/>
+              <button onClick={function(){props.goCompany(t.companyId);}} style={{flexShrink:0,background:isOverdue?"#DC2626":"#F1F5F9",color:isOverdue?"#fff":"#475569",border:"none",borderRadius:8,padding:"7px 14px",fontSize:"var(--fs-btn)",fontWeight:700,cursor:"pointer",fontFamily:FF}}>처리 →</button>
             </div>
           );
         })}
+        {tasks.length>LIMIT&&(
+          <button onClick={function(){stAll[1](!stAll[0]);}} style={{width:"100%",padding:"9px 0",marginTop:2,background:"#F8FAFC",border:"1px solid #F1F5F9",borderRadius:8,fontSize:"var(--fs-btn)",fontWeight:600,color:"#475569",cursor:"pointer",fontFamily:FF}}>
+            {stAll[0]?"접기 ⌃":"전체 "+tasks.length+"건 보기 ⌄"}
+          </button>
+        )}
       </div>
     </Card>
   );
@@ -1346,6 +1379,55 @@ function ProgramPipeline(props){
   );
 }
 
+// ── 업체별 위험도 랭킹 (지연·임박·서류·수령예정액 종합) ──────
+function CompanyRiskRanking(props){
+  var rows=useMemo(function(){
+    return props.companies.map(function(c){
+      var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
+      var overdue=0,next7=0,remaining=0,docMiss=0,nextDday=null;
+      emps.forEach(function(e){
+        (e.rounds||[]).forEach(function(r){
+          if(r.isPaid)return; remaining+=r.expectedAmount||r.amount||0;
+          if(e.startDate){var dd=getDday(addMo(e.startDate,r.month));if(dd!==null){if(dd<0)overdue++;else if(dd<=7)next7++;if(dd>=0&&(nextDday===null||dd<nextDday))nextDday=dd;}}
+        });
+        (e.employeeDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
+      });
+      (c.companyDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
+      var level=emps.length===0?{t:"대기",c:"#94A3B8",bg:"#F1F5F9"}:overdue>0?{t:"지연",c:"#DC2626",bg:"#FEF2F2"}:next7>0?{t:"임박",c:"#2563EB",bg:"#EFF6FF"}:docMiss>0?{t:"서류 미비",c:"#475569",bg:"#E2E8F0"}:remaining>=10000000?{t:"고액 관리",c:"#2563EB",bg:"#DBEAFE"}:remaining>0?{t:"정상",c:"#059669",bg:"#ECFDF5"}:{t:"완료",c:"#059669",bg:"#ECFDF5"};
+      return{c:c,empCount:emps.length,overdue:overdue,next7:next7,remaining:remaining,docMiss:docMiss,nextDday:nextDday,level:level,score:overdue*1e6+next7*1e4+docMiss*100+remaining/1e6};
+    }).sort(function(a,b){return b.score-a.score;}).slice(0,6);
+  },[props.companies,props.employees]);
+  if(rows.length===0)return null;
+  return(
+    <Card style={{padding:"20px 22px",marginTop:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <h4 style={{margin:0,fontSize:20,fontWeight:700}}>🛡️ 업체별 위험도</h4>
+        <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>지연·임박·서류·수령예정액 종합</span>
+      </div>
+      <div style={{display:"grid",gap:8}}>
+        {rows.map(function(r){return(
+          <div key={r.c.id} className="hover-card" onClick={function(){props.goCompany(r.c.id);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid #E2E8F0",borderLeft:r.overdue>0?"3px solid #DC2626":"1px solid #E2E8F0",background:"#fff",cursor:"pointer",flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:140}}>
+              <div style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#1E293B"}}>{r.c.name}</div>
+              <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:2}}>대상자 {r.empCount}명{r.nextDday!==null?" · 다음 신청 "+formatDday(r.nextDday):""}</div>
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+              {r.overdue>0&&<span style={dangerBadge()}>지연 {r.overdue}</span>}
+              {r.next7>0&&<span style={primaryBadge()}>임박 {r.next7}</span>}
+              {r.docMiss>0&&<span style={neutralBadge()}>서류 {r.docMiss}</span>}
+            </div>
+            <div style={{textAlign:"right",minWidth:96}}>
+              <div style={{fontSize:"var(--fs-row)",fontWeight:800,color:"#0F172A"}}>{fMan(r.remaining)}</div>
+              <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>수령 예정</div>
+            </div>
+            <span style={{fontSize:"var(--fs-badge)",fontWeight:700,padding:"4px 12px",borderRadius:20,background:r.level.bg,color:r.level.c,flexShrink:0}}>{r.level.t}</span>
+          </div>
+        );})}
+      </div>
+    </Card>
+  );
+}
+
 // ── Dashboard: Empty State ────────────────────────────────
 function EmptyState(props){
   return(<Card className="fade-in-up" style={{padding:"56px 32px",textAlign:"center",border:"2px dashed #E2E8F0",background:"linear-gradient(180deg,#FFFFFF,#F8FAFC)"}}>
@@ -1395,6 +1477,29 @@ function DashSection(props){
     <div className="card" style={{marginBottom:14,overflow:"hidden"}}>
       {header}
       {open&&<div className="dash-sec-body" style={{padding:"0 18px 18px"}}>{props.children}</div>}
+    </div>
+  );
+}
+
+// ── 접기/펼치기 그룹 (PC·모바일 공통 · 기본 접힘 · localStorage 상태 저장) ──
+// 대시보드 정보 과밀을 줄이기 위해 보조 정보를 카드형 버튼 안에 접어둔다.
+function DashGroup(props){
+  var lsKey="hrsp_dashGroup_"+props.id;
+  var st=useState(function(){try{return localStorage.getItem(lsKey)==="1";}catch(e){return false;}});
+  var open=st[0];
+  function toggle(){var v=!st[0];st[1](v);try{localStorage.setItem(lsKey,v?"1":"0");}catch(e){}}
+  return(
+    <div className="card" style={{marginBottom:14,overflow:"hidden",border:"1px solid #E2E8F0",background:"#fff",borderRadius:14}}>
+      <button onClick={toggle}
+        style={{width:"100%",display:"flex",alignItems:"center",gap:11,padding:"16px 18px",background:open?"#FAFBFC":"none",border:"none",cursor:"pointer",fontFamily:FF,textAlign:"left"}}>
+        <span style={{width:28,height:28,borderRadius:9,background:open?"#EFF6FF":"#F1F5F9",color:open?"#2563EB":"#64748B",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:800,flexShrink:0,lineHeight:1}}>{open?"−":"+"}</span>
+        <span style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",minWidth:0,flex:1}}>
+          <span style={{fontSize:17,fontWeight:700,color:"#0F172A",whiteSpace:"nowrap"}}>{props.icon&&<span style={{marginRight:6}}>{props.icon}</span>}{props.title}</span>
+          {props.summary&&<span style={{fontSize:14,color:"#64748B",fontWeight:500}}>· {props.summary}</span>}
+        </span>
+        <span style={{fontSize:15,color:"#94A3B8",transition:"transform .2s ease",transform:open?"rotate(180deg)":"none",display:"inline-block",lineHeight:1,flexShrink:0}}>⌄</span>
+      </button>
+      {open&&<div style={{padding:"4px 18px 18px"}}>{props.children}</div>}
     </div>
   );
 }
@@ -1575,10 +1680,9 @@ function Dashboard(props){
 
     {props.mode!=="list"&&props.companies.length>0&&<div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}><select style={Object.assign({},inp,{width:"auto",minWidth:180,fontSize:19,fontWeight:600})} value={st1[0]} onChange={function(e){st1[1](e.target.value);}}><option value="all">📊 전체 업체</option>{props.companies.map(function(c){return <option key={c.id} value={c.id}>🏢 {c.name}</option>;})}</select><button onClick={handleExcelCopy} className="hover-lift" style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"})}>📋 엑셀용 데이터 복사</button>{st2[0]&&<span style={{fontSize:17,color:"#059669"}}>✅ 복사됨</span>}</div>}
 
-    {/* KPI 보조 지표 */}
+    {/* [+] 보조 지표 — 기본 접힘 (클릭 시 펼침) */}
     {props.mode!=="list"&&props.companies.length>0&&(
-      <div style={{marginBottom:22}}>
-        <div style={{fontSize:14,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:10}}>보조 지표</div>
+      <DashGroup id="aux" icon="📊" title="보조 지표" summary={"지표 "+(cards.length+((props.tier&&props.tier.feat.commission)?4:0))+"개"}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
           {cards.map(function(c,i){return(
           <Card key={i} className="kpi-card" style={{padding:"16px 18px",border:"1px solid #F1F5F9"}}>
@@ -1593,73 +1697,26 @@ function Dashboard(props){
             {c.extra==="bar"&&<div style={{height:5,background:"#F1F5F9",borderRadius:3,overflow:"hidden",marginTop:10}}><div style={{height:"100%",width:c.v+"%",background:c.bar||"#2563EB",borderRadius:3,transition:"width 0.5s ease"}}/></div>}
           </Card>);})}
         </div>
-      </div>
-    )}
-
-    {/* 수수료 요약 (stats, 프로 플랜) — 모바일 기본 접힘 */}
-    {props.mode!=="list"&&props.companies.length>0&&props.tier&&props.tier.feat.commission&&(
-      <DashSection icon="🧾" title="수수료 현황" openMobile={false}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
-          {[
-            {l:"이번 달 예상 수수료",v:fMan(commSummary.thisMonthFee),c:"#1D4ED8",accent:null},
-            {l:"미청구 수수료",v:fMan(commSummary.unbilled),c:commSummary.unbilled>0?"#0F172A":"#94A3B8",accent:null},
-            {l:"미입금 수수료",v:fMan(commSummary.unpaid),c:commSummary.unpaid>0?"#DC2626":"#94A3B8",accent:commSummary.unpaid>0?"#DC2626":null},
-            {l:"누적 수수료",v:fMan(commSummary.collected),c:"#059669",accent:null}
-          ].map(function(c,i){return(
-            <div key={i} className="kpi-card" style={{background:"#F8FAFC",borderRadius:14,padding:"15px 16px",border:"1px solid #E5EAF0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E5EAF0"}}>
-              <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
-              <div style={{fontSize:22,fontWeight:800,color:c.c}}>{c.v}</div>
+        {props.tier&&props.tier.feat.commission&&(
+          <div style={{marginTop:18}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#0F172A",marginBottom:10}}>🧾 수수료 현황</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
+              {[
+                {l:"이번 달 예상 수수료",v:fMan(commSummary.thisMonthFee),c:"#1D4ED8",accent:null},
+                {l:"미청구 수수료",v:fMan(commSummary.unbilled),c:commSummary.unbilled>0?"#0F172A":"#94A3B8",accent:null},
+                {l:"미입금 수수료",v:fMan(commSummary.unpaid),c:commSummary.unpaid>0?"#DC2626":"#94A3B8",accent:commSummary.unpaid>0?"#DC2626":null},
+                {l:"누적 수수료",v:fMan(commSummary.collected),c:"#059669",accent:null}
+              ].map(function(c,i){return(
+                <div key={i} className="kpi-card" style={{background:"#F8FAFC",borderRadius:14,padding:"15px 16px",border:"1px solid #E5EAF0",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #E5EAF0"}}>
+                  <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:c.c}}>{c.v}</div>
+                </div>
+              );})}
             </div>
-          );})}
-        </div>
-      </DashSection>
+          </div>
+        )}
+      </DashGroup>
     )}
-
-    {/* 업체별 위험도 랭킹 (stats, 전체 보기) */}
-    {props.mode!=="list"&&st1[0]==="all"&&props.companies.length>=2&&(function(){
-      var rows=props.companies.map(function(c){
-        var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
-        var overdue=0,next7=0,remaining=0,docMiss=0,nextDday=null;
-        emps.forEach(function(e){
-          (e.rounds||[]).forEach(function(r){
-            if(r.isPaid)return; remaining+=r.expectedAmount||r.amount||0;
-            if(e.startDate){var dd=getDday(addMo(e.startDate,r.month));if(dd!==null){if(dd<0)overdue++;else if(dd<=7)next7++;if(dd>=0&&(nextDday===null||dd<nextDday))nextDday=dd;}}
-          });
-          (e.employeeDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
-        });
-        (c.companyDocs||[]).forEach(function(d){if(!d.done)docMiss++;});
-        var level=emps.length===0?{t:"대기",c:"#94A3B8",bg:"#F1F5F9"}:overdue>0?{t:"지연",c:"#DC2626",bg:"#FEF2F2"}:next7>0?{t:"임박",c:"#2563EB",bg:"#EFF6FF"}:docMiss>0?{t:"서류 미비",c:"#475569",bg:"#E2E8F0"}:remaining>=10000000?{t:"고액 관리",c:"#2563EB",bg:"#DBEAFE"}:remaining>0?{t:"정상",c:"#059669",bg:"#ECFDF5"}:{t:"완료",c:"#059669",bg:"#ECFDF5"};
-        return{c:c,empCount:emps.length,overdue:overdue,next7:next7,remaining:remaining,docMiss:docMiss,nextDday:nextDday,level:level,score:overdue*1e6+next7*1e4+docMiss*100+remaining/1e6};
-      }).sort(function(a,b){return b.score-a.score;}).slice(0,6);
-      return(
-        <Card style={{padding:"20px 22px",marginBottom:20}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h4 style={{margin:0,fontSize:20,fontWeight:700}}>🛡️ 업체별 위험도</h4>
-            <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>지연·임박·서류·수령예정액 종합</span>
-          </div>
-          <div style={{display:"grid",gap:8}}>
-            {rows.map(function(r){return(
-              <div key={r.c.id} className="hover-card" onClick={function(){props.goCompany(r.c.id);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid #E2E8F0",borderLeft:r.overdue>0?"3px solid #DC2626":"1px solid #E2E8F0",background:"#fff",cursor:"pointer",flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}>
-                  <div style={{fontSize:"var(--fs-name)",fontWeight:700,color:"#1E293B"}}>{r.c.name}</div>
-                  <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:2}}>대상자 {r.empCount}명{r.nextDday!==null?" · 다음 신청 "+formatDday(r.nextDday):""}</div>
-                </div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-                  {r.overdue>0&&<span style={dangerBadge()}>지연 {r.overdue}</span>}
-                  {r.next7>0&&<span style={primaryBadge()}>임박 {r.next7}</span>}
-                  {r.docMiss>0&&<span style={neutralBadge()}>서류 {r.docMiss}</span>}
-                </div>
-                <div style={{textAlign:"right",minWidth:96}}>
-                  <div style={{fontSize:"var(--fs-row)",fontWeight:800,color:"#0F172A"}}>{fMan(r.remaining)}</div>
-                  <div style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>수령 예정</div>
-                </div>
-                <span style={{fontSize:"var(--fs-badge)",fontWeight:700,padding:"4px 12px",borderRadius:20,background:r.level.bg,color:r.level.c,flexShrink:0}}>{r.level.t}</span>
-              </div>
-            );})}
-          </div>
-        </Card>
-      );
-    })()}
 
     {/* 업체 목록 (list 모드) */}
     {props.mode!=="stats"&&(props.companies.length===0?(
@@ -1672,22 +1729,24 @@ function Dashboard(props){
       <EmptyState icon="📊" title="대시보드가 곧 채워집니다" desc="업체와 직원을 등록하면 이곳에 이번 달 신청 가능 지원금, 월별 수령 추이, 신청 일정 캘린더가 자동으로 표시됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
     )}
 
+    {/* [+] 월별 수령 캘린더 — 기본 접힘 */}
     {props.mode!=="list"&&props.companies.length>0&&(
-      <DashSection bare icon="📅" title="월별 수령 · 캘린더" openMobile={false}>
+      <DashGroup id="calendar" icon="📅" title="월별 수령 캘린더" summary={"이번 달 "+fMan(metrics.thisMonthExpected)+" 예정"}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}} className="grid-2-mobile"><div><MonthlyReport employees={props.employees}/><CompanyRanking companies={props.companies} employees={props.employees} goCompany={props.goCompany}/></div><div><CalendarView employees={props.employees} companies={props.companies} programs={props.programs} goCompany={props.goCompany} calendarMemos={props.calendarMemos} onSaveMemo={props.onSaveMemo}/></div></div>
-      </DashSection>
+      </DashGroup>
     )}
 
+    {/* [+] 상태별 현황 및 지원금별 파이프라인 — 기본 접힘 */}
     {props.mode!=="list"&&props.companies.length>0&&(
-      <DashSection icon="📋" title="상태별 현황" openMobile={false}>
-        {STS.map(function(s){var cnt=stats.sc[s.key]||0;var total=fE.length||1;var done=s.key==="completed"||s.key==="approved";var barCol=done?"#059669":s.key==="resigned"?"#CBD5E1":"#94A3B8";return(<div key={s.key} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:16,color:"#475569"}}><span style={{display:"inline-block",width:8,height:8,borderRadius:4,background:barCol,marginRight:7}}/>{s.label}</span><span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>{cnt}명</span></div><div style={{height:6,background:"#F1F5F9",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:(cnt/total*100)+"%",background:barCol,borderRadius:3,transition:"width 0.5s ease"}}/></div></div>);})}
-      </DashSection>
-    )}
-
-    {props.mode!=="list"&&props.companies.length>0&&(
-      <DashSection bare icon="📊" title="지원금별 파이프라인" openMobile={false}>
+      <DashGroup id="pipeline" icon="📋" title="상태별 현황 및 파이프라인"
+        summary={(function(){var n=fE.filter(function(e){return e.status!=="resigned"&&e.status!=="completed";}).length;return "진행 중 "+n+"건"+(metrics.overdueCount>0?" · 지연 "+metrics.overdueCount+"건":"");})()}>
+        <div style={{marginBottom:18}}>
+          <div style={{fontSize:15,fontWeight:700,color:"#0F172A",marginBottom:10}}>📋 상태별 현황</div>
+          {STS.map(function(s){var cnt=stats.sc[s.key]||0;var total=fE.length||1;var done=s.key==="completed"||s.key==="approved";var barCol=done?"#059669":s.key==="resigned"?"#CBD5E1":"#94A3B8";return(<div key={s.key} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:16,color:"#475569"}}><span style={{display:"inline-block",width:8,height:8,borderRadius:4,background:barCol,marginRight:7}}/>{s.label}</span><span style={{fontSize:16,fontWeight:700,color:"#0F172A"}}>{cnt}명</span></div><div style={{height:6,background:"#F1F5F9",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:(cnt/total*100)+"%",background:barCol,borderRadius:3,transition:"width 0.5s ease"}}/></div></div>);})}
+        </div>
         <ProgramPipeline employees={fE} programs={props.programs}/>
-      </DashSection>
+        {st1[0]==="all"&&props.companies.length>=2&&<CompanyRiskRanking companies={props.companies} employees={props.employees} goCompany={props.goCompany}/>}
+      </DashGroup>
     )}
   </div>); }
 
