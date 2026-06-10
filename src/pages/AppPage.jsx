@@ -140,7 +140,11 @@ export default function AppPage() {
   // 무료체험 중(trialing)·유료(active)면 그대로 대시보드 진입.
   // 체험까지 끝난 만료 상태(isExpired)에서만 결제 화면을 강제하고,
   // 그 외에는 사용자가 사이드바 "구독" 버튼을 눌러 명시적으로 열 때만 표시한다.
-  if (isExpired || showBilling) return <BillingPage onBack={!isExpired ? () => setShowBilling(false) : null} />;
+  // 관리자(운영자) 계정은 결제 대상이 아니므로 구독 상태와 무관하게 강제 이동에서 제외.
+  const isAdminUser = (session?.user?.email || "").trim().toLowerCase() === "ksh90813@naver.com";
+  if ((isExpired && !isAdminUser) || showBilling) {
+    return <BillingPage onBack={(!isExpired || isAdminUser) ? () => setShowBilling(false) : null} />;
+  }
 
   return (
     <SubsidyApp

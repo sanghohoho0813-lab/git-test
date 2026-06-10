@@ -10,9 +10,18 @@ const FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacS
 // 추후 실제 결제 연동 시 monthly.planId / annual.planId 에 결제 PriceId 만 채우면 됩니다.
 // VIP 플랜은 isConsult:true 로 구분 (가격 표시 방식 다름, 상담 CTA).
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 기간 한정 프로모션 (표시 전용 — 결제 연동 시 프로모션 PriceId 는 별도 설정) ──
+// ── 런칭가 정책 (표시 전용) ──────────────────────────────────
+// 정책: 6월 30일까지 결제를 시작한 고객은 "현재 플랜을 유지하는 동안" 런칭가가
+//       계속 적용된다 (launch_price_locked). 기간 후 가입자는 정상가.
+// 실제 청구액은 서버(Edge Function)가 plan_key + launch_price_locked 기준으로만
+// 결정한다 — 프론트가 보내는 금액은 신뢰하지 않음 (010_toss_billing.sql 참고).
 // active:false 로 바꾸면 정가 표시로 즉시 복귀합니다.
-const PROMO = { active: true, label: "초기 베타 고객 한정", until: "6월 30일까지" };
+const PROMO = {
+  active: true,
+  label: "런칭 초기 고객 한정",
+  until: "6월 30일까지",
+  lockNote: "현재 플랜 유지 시 런칭가 계속 적용",
+};
 
 const PLAN_CONFIG = [
   {
@@ -345,8 +354,10 @@ function MiniExample({ kind }) {
 function Frag({ children }) { return <>{children}</>; }
 
 export default function BillingPage({ onBack }) {
-  const { org, profile, signOut } = useAuth();
+  const { org, profile, signOut, session } = useAuth();
   const { sub, trialDaysLeft, isTrialing } = useSub(org);
+  // 관리자(운영자) 계정은 결제 대상이 아님 — Auth user.email 기준으로만 판별
+  const isAdminUser = (session?.user?.email || "").trim().toLowerCase() === "ksh90813@naver.com";
   const [period, setPeriod] = useState("monthly");
   const [textScale, setTextScale] = useState("default"); // default | large — 요금제 페이지 전용 UI 상태
   const [toastMsg, showToast] = useLocalToast();
@@ -360,7 +371,7 @@ export default function BillingPage({ onBack }) {
   const scale = textScale === "large" ? 1.16 : 1;
   const fs = (n) => Math.round(n * scale);
   const headH = Math.round(106 * scale);
-  const priceH = Math.round(102 * scale);
+  const priceH = Math.round(116 * scale);
 
   function handleCta(plan) {
     if (plan.isConsult) {
@@ -495,10 +506,15 @@ export default function BillingPage({ onBack }) {
           </div>
         </div>
 
-        {/* 기간 한정 안내 (B2B 톤 — 과한 세일 광고 지양) */}
+        {/* 런칭가 안내 (B2B 톤 — 과한 세일 광고 지양) */}
         {PROMO.active && (
-          <div style={{ textAlign: "center", marginBottom: 22, fontSize: fs(13.5), color: "#92400E", fontWeight: 600, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 16px", maxWidth: 640, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
-            {PROMO.label} · {PROMO.until} 적용되는 특별 이용가입니다. 기존 가격 대비 할인된 금액으로 시작할 수 있습니다.
+          <div style={{ marginBottom: 22, maxWidth: 680, marginLeft: "auto", marginRight: "auto" }}>
+            <div style={{ textAlign: "center", fontSize: fs(13.5), color: "#92400E", fontWeight: 600, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "11px 16px", lineHeight: 1.65 }}>
+              {PROMO.label} — 6월 30일까지 가입하면, 현재 플랜을 유지하는 동안 런칭가로 계속 이용할 수 있습니다.
+            </div>
+            <div style={{ textAlign: "center", fontSize: fs(11.5), color: "#94A3B8", marginTop: 8, lineHeight: 1.7 }}>
+              해지 후 재가입 시 런칭가가 적용되지 않을 수 있습니다 · 플랜 변경 시 변경 시점의 가격이 적용될 수 있습니다 · 장기 미납 또는 결제 실패가 지속되면 혜택이 종료될 수 있습니다
+            </div>
           </div>
         )}
 
@@ -552,7 +568,7 @@ export default function BillingPage({ onBack }) {
                     <div style={{ fontSize: fs(17), fontWeight: 800, color: "#1E293B", letterSpacing: "-0.3px", lineHeight: 1.5, whiteSpace: "pre-line" }}>{plan.priceDisplay}</div>
                   ) : promoPrice ? (
                     <>
-                      {/* 기간 한정 가격: 정가 취소선 + 할인가 강조 */}
+                      {/* 런칭가: 정가 취소선 + 런칭가 강조 + 유지 적용 안내 */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                         <span style={{ fontSize: fs(15), color: "#94A3B8", textDecoration: "line-through", fontWeight: 600 }}>₩{(price || 0).toLocaleString()}</span>
                         <span style={{ fontSize: fs(11), fontWeight: 700, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>{PROMO.until}</span>
@@ -563,7 +579,8 @@ export default function BillingPage({ onBack }) {
                         </span>
                         <span style={{ fontSize: fs(16), color: "#94A3B8", paddingBottom: 3, fontWeight: 600 }}>/{period === "annual" ? "년" : "월"}</span>
                       </div>
-                      <div style={{ fontSize: fs(12.5), color: "#B45309", marginTop: 8, fontWeight: 600 }}>{PROMO.label} 특별 이용가</div>
+                      <div style={{ fontSize: fs(12.5), color: "#B45309", marginTop: 8, fontWeight: 700 }}>{PROMO.label} 런칭가</div>
+                      <div style={{ fontSize: fs(11.5), color: "#92400E", marginTop: 3, fontWeight: 500 }}>{PROMO.lockNote}</div>
                     </>
                   ) : (
                     <>
@@ -610,7 +627,12 @@ export default function BillingPage({ onBack }) {
                   )}
                 </div>
 
-                {/* 5) CTA (하단 정렬) */}
+                {/* 5) CTA (하단 정렬) — 관리자 계정에는 결제 CTA 미노출 */}
+                {isAdminUser ? (
+                  <div style={{ width: "100%", padding: "13px 0", borderRadius: 11, background: "#F8FAFC", border: "1px dashed #E2E8F0", textAlign: "center", fontSize: fs(13), color: "#94A3B8", fontWeight: 600 }}>
+                    관리자 계정 — 결제 대상이 아닙니다
+                  </div>
+                ) : (
                 <button onClick={() => handleCta(plan)}
                   style={{
                     width: "100%",
@@ -633,6 +655,7 @@ export default function BillingPage({ onBack }) {
                   }}>
                   {plan.ctaText}
                 </button>
+                )}
               </div>
             );
           })}
