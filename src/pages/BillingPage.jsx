@@ -10,6 +10,10 @@ const FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacS
 // 추후 실제 결제 연동 시 monthly.planId / annual.planId 에 결제 PriceId 만 채우면 됩니다.
 // VIP 플랜은 isConsult:true 로 구분 (가격 표시 방식 다름, 상담 CTA).
 // ─────────────────────────────────────────────────────────────────────────────
+// ── 기간 한정 프로모션 (표시 전용 — 결제 연동 시 프로모션 PriceId 는 별도 설정) ──
+// active:false 로 바꾸면 정가 표시로 즉시 복귀합니다.
+const PROMO = { active: true, label: "초기 베타 고객 한정", until: "6월 30일까지" };
+
 const PLAN_CONFIG = [
   {
     planKey: "starter",
@@ -24,6 +28,8 @@ const PLAN_CONFIG = [
     isConsult: false,
     monthlyPrice: 39000,
     annualPrice: 390000,
+    promoMonthlyPrice: 29000,
+    promoAnnualPrice: 290000,
     monthly: { planId: "" },
     annual: { planId: "" },
     ctaText: "스타터로 시작하기",
@@ -51,6 +57,8 @@ const PLAN_CONFIG = [
     isConsult: false,
     monthlyPrice: 79000,
     annualPrice: 790000,
+    promoMonthlyPrice: 59000,
+    promoAnnualPrice: 590000,
     monthly: { planId: "" },
     annual: { planId: "" },
     ctaText: "프로 시작하기",
@@ -79,6 +87,8 @@ const PLAN_CONFIG = [
     isConsult: false,
     monthlyPrice: 129000,
     annualPrice: 1290000,
+    promoMonthlyPrice: 99000,
+    promoAnnualPrice: 990000,
     monthly: { planId: "" },
     annual: { planId: "" },
     ctaText: "팀 플랜 시작하기",
@@ -350,7 +360,7 @@ export default function BillingPage({ onBack }) {
   const scale = textScale === "large" ? 1.16 : 1;
   const fs = (n) => Math.round(n * scale);
   const headH = Math.round(106 * scale);
-  const priceH = Math.round(78 * scale);
+  const priceH = Math.round(102 * scale);
 
   function handleCta(plan) {
     if (plan.isConsult) {
@@ -485,10 +495,18 @@ export default function BillingPage({ onBack }) {
           </div>
         </div>
 
+        {/* 기간 한정 안내 (B2B 톤 — 과한 세일 광고 지양) */}
+        {PROMO.active && (
+          <div style={{ textAlign: "center", marginBottom: 22, fontSize: fs(13.5), color: "#92400E", fontWeight: 600, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 16px", maxWidth: 640, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
+            {PROMO.label} · {PROMO.until} 적용되는 특별 이용가입니다. 기존 가격 대비 할인된 금액으로 시작할 수 있습니다.
+          </div>
+        )}
+
         {/* ── 플랜 카드 4개 (구조·높이 통일) ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18, marginBottom: 44, alignItems: "stretch" }} className="plan-grid">
           {PLAN_CONFIG.map((plan) => {
             const price = period === "annual" ? plan.annualPrice : plan.monthlyPrice;
+            const promoPrice = PROMO.active ? (period === "annual" ? plan.promoAnnualPrice : plan.promoMonthlyPrice) : null;
             const hl = plan.highlight;
             const isVip = plan.isConsult;
 
@@ -532,6 +550,21 @@ export default function BillingPage({ onBack }) {
                 <div style={{ height: priceH, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
                   {isVip ? (
                     <div style={{ fontSize: fs(17), fontWeight: 800, color: "#1E293B", letterSpacing: "-0.3px", lineHeight: 1.5, whiteSpace: "pre-line" }}>{plan.priceDisplay}</div>
+                  ) : promoPrice ? (
+                    <>
+                      {/* 기간 한정 가격: 정가 취소선 + 할인가 강조 */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                        <span style={{ fontSize: fs(15), color: "#94A3B8", textDecoration: "line-through", fontWeight: 600 }}>₩{(price || 0).toLocaleString()}</span>
+                        <span style={{ fontSize: fs(11), fontWeight: 700, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>{PROMO.until}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
+                        <span style={{ fontSize: fs(34), fontWeight: 800, color: "#0F172A", letterSpacing: "-1.5px", lineHeight: 1 }}>
+                          ₩{promoPrice.toLocaleString()}
+                        </span>
+                        <span style={{ fontSize: fs(16), color: "#94A3B8", paddingBottom: 3, fontWeight: 600 }}>/{period === "annual" ? "년" : "월"}</span>
+                      </div>
+                      <div style={{ fontSize: fs(12.5), color: "#B45309", marginTop: 8, fontWeight: 600 }}>{PROMO.label} 특별 이용가</div>
+                    </>
                   ) : (
                     <>
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
@@ -619,7 +652,7 @@ export default function BillingPage({ onBack }) {
                   <th key={plan.planKey} style={{ padding: "14px 14px", textAlign: "center", minWidth: 100, background: plan.highlight ? plan.colorBg : "transparent" }}>
                     <div style={{ color: plan.color, fontWeight: 800, fontSize: fs(14) }}>{plan.icon} {plan.label}</div>
                     <div style={{ color: "#94A3B8", fontSize: fs(12.5), fontWeight: 500, marginTop: 3 }}>
-                      {plan.monthlyPrice ? `₩${plan.monthlyPrice.toLocaleString()}/월` : "상담"}
+                      {plan.monthlyPrice ? `₩${((PROMO.active && plan.promoMonthlyPrice) || plan.monthlyPrice).toLocaleString()}/월` : "상담"}
                     </div>
                   </th>
                 ))}
