@@ -1567,6 +1567,47 @@ function companyProgramShorts(emps,programs){
 
 function Dashboard(props){
   var st1=useState("all"),st2=useState(false); var selectedCompanyId=st1[0];
+  // ── 업체 목록 검색·정렬·필터 (컴팩트 리스트) ──────────────
+  var stCoQ=useState(""),stCoSort=useState("name"),stCoFilter=useState("all");
+  // 업체별 파생 지표를 한 번만 계산해 정렬/필터/렌더에서 재사용 (수십~수백 개 대비)
+  var companyRows=useMemo(function(){
+    return props.companies.map(function(c){
+      var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});
+      var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);
+      var upcoming=0;
+      emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcoming++;});});
+      var yrs=companyYears(c);
+      return{c:c,targetCount:emps.length,rcv:rcv,upcoming:upcoming,
+        totalEmp:Number(c.empCount)||0,
+        progShorts:companyProgramShorts(emps,props.programs),
+        yearsNum:(typeof yrs==="number")?yrs:-1,
+        yearsText:yrs===null?"업력 미입력":yrs==="invalid"?"업력 확인 필요":"업력 "+yrs+"년차",
+        region:shortAddr(c.addr)};
+    });
+  },[props.companies,props.employees,props.programs]);
+  var companyRowsView=useMemo(function(){
+    var rows=companyRows;
+    var q=stCoQ[0].trim().toLowerCase();
+    if(q)rows=rows.filter(function(r){return String(r.c.name||"").toLowerCase().indexOf(q)>=0||String(r.c.bizNo||"").indexOf(q)>=0||String(r.c.ceoName||"").toLowerCase().indexOf(q)>=0;});
+    var f=stCoFilter[0];
+    if(f==="corp")rows=rows.filter(function(r){return r.c.corpType==="법인";});
+    else if(f==="indiv")rows=rows.filter(function(r){return r.c.corpType==="개인";});
+    else if(f==="upcoming")rows=rows.filter(function(r){return r.upcoming>0;});
+    else if(f==="noprog")rows=rows.filter(function(r){return r.progShorts.length===0;});
+    else if(f==="zero")rows=rows.filter(function(r){return r.targetCount===0;});
+    else if(f==="sample")rows=rows.filter(function(r){return !!r.c.isSample;});
+    var s=stCoSort[0];
+    var out=rows.slice();
+    function byName(a,b){return byCompanyName(a.c,b.c);}
+    if(s==="targets")out.sort(function(a,b){return b.targetCount-a.targetCount||byName(a,b);});
+    else if(s==="emps")out.sort(function(a,b){return b.totalEmp-a.totalEmp||byName(a,b);});
+    else if(s==="received")out.sort(function(a,b){return b.rcv-a.rcv||byName(a,b);});
+    else if(s==="upcoming")out.sort(function(a,b){return b.upcoming-a.upcoming||byName(a,b);});
+    else if(s==="newest")out.sort(function(a,b){return String(b.c.createdAt||"").localeCompare(String(a.c.createdAt||""))||byName(a,b);});
+    else if(s==="yearsDesc")out.sort(function(a,b){return b.yearsNum-a.yearsNum||byName(a,b);});
+    else out.sort(byName);
+    return out;
+  },[companyRows,stCoQ[0],stCoSort[0],stCoFilter[0]]);
   // 보기 밀도 토글 제거 — PC는 항상 '넓게(가독성 우선)' 기준. 폰트 스케일은 CSS 변수로 처리.
   var fE=useMemo(function(){return st1[0]==="all"?props.employees:props.employees.filter(function(e){return e.companyId===st1[0];});},[props.employees,st1[0]]);
   var stats=useMemo(function(){var tE=0,tR=0,dT=0,dD=0,sc={};STS.forEach(function(s){sc[s.key]=0;});fE.forEach(function(e){if(sc[e.status]!==undefined)sc[e.status]++;var p=props.programs[e.programId];if(p)tE+=p.totalAmount||0;(e.rounds||[]).forEach(function(r){if(r.isPaid)tR+=r.received||0;});(e.employeeDocs||[]).forEach(function(d){dT++;if(d.done)dD++;});});(st1[0]==="all"?props.companies:props.companies.filter(function(c){return c.id===st1[0];})).forEach(function(c){(c.companyDocs||[]).forEach(function(d){dT++;if(d.done)dD++;});});return{tE:tE,tR:tR,pct:dT>0?Math.round(dD/dT*100):0,sc:sc};},[props.companies,fE,props.programs,st1[0]]);
@@ -1798,38 +1839,67 @@ function Dashboard(props){
     {/* 업체 목록 (list 모드) */}
     {props.mode!=="stats"&&(props.companies.length===0?(
       <EmptyState icon="🏢" title="아직 등록된 업체가 없습니다" desc="첫 번째 거래처를 등록하고 직원·지원금·서류를 한 곳에서 관리해보세요. 등록 즉시 D-Day 알림과 수령 현황이 자동 집계됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
-    ):(<div style={{marginBottom:16}}>{props.companies.slice().sort(byCompanyName).map(function(c,ci){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});var coYears=companyYears(c);var coRegion=shortAddr(c.addr);var coYearsText=coYears===null?"업력 미입력":coYears==="invalid"?"업력 확인 필요":"업력 "+coYears+"년차";var totalEmpCount=Number(c.empCount)||0;var progShorts=companyProgramShorts(emps,props.programs);return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"16px 20px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-      {/* 번호 (가나다순 표시 순서 기준) */}
-      <span style={{width:34,height:34,borderRadius:10,background:"#F1F5F9",color:"#64748B",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{String(ci+1).padStart(2,"0")}</span>
-      {/* 좌측: 업체명·태그 + 사업자번호·관리 인원 */}
-      <div style={{flex:"1.3 1 220px",minWidth:200}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}>
-          <span style={{fontSize:21,fontWeight:700,color:"#1E293B"}}>{c.name}</span>
-          {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
-          {upcomingCount>0&&<Badge color="#DC2626" bg="#FEE2E2">🔔 {upcomingCount}건 임박</Badge>}
+    ):(<div style={{marginBottom:16}}>
+      {/* 검색 · 정렬 · 필터 바 */}
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",margin:"0 2px 10px"}}>
+        <input value={stCoQ[0]} onChange={function(e){stCoQ[1](e.target.value);}} placeholder="업체명·사업자번호·대표자 검색"
+          style={Object.assign({},inp,{flex:"1 1 200px",minWidth:170,maxWidth:320,margin:0,fontSize:14,padding:"9px 12px"})}/>
+        <select value={stCoSort[0]} onChange={function(e){stCoSort[1](e.target.value);}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:13.5,fontWeight:600,padding:"9px 10px"})}>
+          <option value="name">정렬: 가나다순</option>
+          <option value="targets">대상자 많은 순</option>
+          <option value="emps">직원 수 많은 순</option>
+          <option value="received">수령완료 높은 순</option>
+          <option value="upcoming">임박 건 많은 순</option>
+          <option value="newest">최신 등록순</option>
+          <option value="yearsDesc">업력 높은 순</option>
+        </select>
+        <select value={stCoFilter[0]} onChange={function(e){stCoFilter[1](e.target.value);}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:13.5,fontWeight:600,padding:"9px 10px"})}>
+          <option value="all">필터: 전체</option>
+          <option value="corp">법인</option>
+          <option value="indiv">개인</option>
+          <option value="upcoming">임박 있음</option>
+          <option value="noprog">지원금 미지정</option>
+          <option value="zero">대상자 0명</option>
+          <option value="sample">샘플 데이터</option>
+        </select>
+        <span style={{fontSize:12.5,color:"#94A3B8",fontWeight:600,marginLeft:"auto"}}>{companyRowsView.length}개 업체</span>
+      </div>
+      {companyRowsView.length===0&&<div style={{padding:"26px 0",textAlign:"center",fontSize:14,color:"#94A3B8"}}>조건에 맞는 업체가 없습니다.</div>}
+      {companyRowsView.map(function(r,ci){var c=r.c;return(
+      <Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"9px 14px",marginBottom:6,cursor:"pointer",border:"1px solid #F1F5F9"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          {/* 번호 (현재 정렬 순서 기준) */}
+          <span style={{width:26,height:26,borderRadius:8,background:"#F1F5F9",color:"#64748B",fontWeight:800,fontSize:11.5,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{String(ci+1).padStart(2,"0")}</span>
+          <div style={{flex:"1 1 340px",minWidth:240}}>
+            {/* 1행: 업체명 · 태그 · 임박 */}
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <span style={{fontSize:16.5,fontWeight:700,color:"#1E293B"}}>{c.name}</span>
+              {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <span key={tid} style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:tag.bg,color:tag.color,whiteSpace:"nowrap"}}>{tag.label}</span>;})}
+              {r.upcoming>0&&<span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FEE2E2",color:"#DC2626",whiteSpace:"nowrap"}}>🔔 {r.upcoming}건 임박</span>}
+            </div>
+            {/* 2행: 식별 정보 · 인원 · 지원금 배지 (가로 압축) */}
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:3}}>
+              <span style={{fontSize:12.5,color:"#64748B"}}>
+                {[c.bizNo,c.corpType,c.ceoName?"대표 "+c.ceoName:null,r.region,r.yearsText].filter(Boolean).join(" · ")}
+              </span>
+              <span style={{fontSize:12.5,fontWeight:700,color:"#334155",whiteSpace:"nowrap"}}>{r.totalEmp>0?"직원 "+r.totalEmp+"명":"직원 수 미입력"}</span>
+              <span style={{fontSize:12.5,fontWeight:700,color:r.targetCount>0?"#1D4ED8":"#94A3B8",whiteSpace:"nowrap"}}>대상자 {r.targetCount}명</span>
+              {r.progShorts.length===0?(
+                <span style={{fontSize:11,fontWeight:600,padding:"2px 7px",borderRadius:10,background:"#F1F5F9",color:"#94A3B8",whiteSpace:"nowrap"}}>지원금 미지정</span>
+              ):(r.progShorts.length>=3?r.progShorts.slice(0,1):r.progShorts).map(function(pn){return(
+                <span key={pn} style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:10,background:"#EFF6FF",color:"#2563EB",whiteSpace:"nowrap"}}>{pn}</span>
+              );})}
+              {r.progShorts.length>=3&&<span style={{fontSize:11,fontWeight:600,color:"#64748B",whiteSpace:"nowrap"}}>외 {r.progShorts.length-1}개</span>}
+            </div>
+          </div>
+          {/* 우측: 수령완료 금액 */}
+          <div style={{textAlign:"right",flexShrink:0,minWidth:92,marginLeft:"auto"}}>
+            <div style={{fontSize:15.5,fontWeight:800,color:r.rcv>0?"#059669":"#94A3B8",lineHeight:1.2}}>{fMan(r.rcv)}</div>
+            <div style={{fontSize:11,color:"#94A3B8",marginTop:1}}>수령완료</div>
+          </div>
         </div>
-        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{totalEmpCount>0?"직원 "+totalEmpCount+"명":"직원 수 미입력"} · 대상자 {emps.length}명 관리 중</div>
-        {/* 관리 중인 지원금 종류 (중복 제거 · 3종 이상이면 "외 N개"로 축약) */}
-        <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:6}}>
-          {progShorts.length===0?(
-            <span style={{fontSize:12.5,fontWeight:600,padding:"3px 9px",borderRadius:12,background:"#F1F5F9",color:"#94A3B8",whiteSpace:"nowrap"}}>지원금 미지정</span>
-          ):(progShorts.length>=3?progShorts.slice(0,1):progShorts).map(function(pn){return(
-            <span key={pn} style={{fontSize:12.5,fontWeight:700,padding:"3px 9px",borderRadius:12,background:"#EFF6FF",color:"#2563EB",whiteSpace:"nowrap"}}>{pn}</span>
-          );})}
-          {progShorts.length>=3&&<span style={{fontSize:12.5,fontWeight:600,color:"#64748B",whiteSpace:"nowrap"}}>외 {progShorts.length-1}개</span>}
-        </div>
-      </div>
-      {/* 가운데: 업력 · 지역 · 대표 · 법인구분 */}
-      <div style={{flex:"1 1 190px",minWidth:175}}>
-        <div style={{fontSize:14,color:"#475569",fontWeight:600}}>{coYearsText} · {coRegion||"지역 미입력"}</div>
-        <div style={{fontSize:14,color:"#475569",fontWeight:600,marginTop:4}}>{c.ceoName?"대표: "+c.ceoName:"대표 미입력"}{c.corpType?" · "+c.corpType:""}</div>
-      </div>
-      {/* 우측: 수령완료 금액 */}
-      <div style={{textAlign:"right",flexShrink:0,minWidth:110,paddingRight:8}}>
-        <div style={{fontSize:21,fontWeight:700,color:"#059669",lineHeight:1.2}}>{fMan(rcv)}</div>
-        <div style={{fontSize:13,color:"#94A3B8",marginTop:2}}>수령완료</div>
-      </div>
-    </div></Card>);})}</div>))}
+      </Card>);})}
+    </div>))}
 
     {props.mode!=="stats"&&selectedCompanyId!=="all"&&(<div><PendingPaymentsList employees={props.employees} programs={props.programs} goCompany={props.goCompany} selectedCompanyId={selectedCompanyId}/></div>)}
 
@@ -3299,34 +3369,36 @@ function ProgramsList(props){
         if(!items.length)return null;
         var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];
         return(
-          <div key={grp} style={{marginBottom:22}}>
-            <div style={{fontSize:FS_CARD_TITLE,fontWeight:700,color:gp.dark,marginBottom:10,padding:"6px 12px",borderRadius:8,background:gp.badge,display:"inline-block"}}>{gp.icon} {grp} <span style={{fontWeight:400,opacity:0.7}}>({items.length}개)</span></div>
-            <div style={{display:"grid",gap:10}}>
+          <div key={grp} style={{marginBottom:16}}>
+            <div style={{fontSize:FS_CARD_TITLE,fontWeight:700,color:gp.dark,marginBottom:8,padding:"5px 11px",borderRadius:8,background:gp.badge,display:"inline-block"}}>{gp.icon} {grp} <span style={{fontWeight:400,opacity:0.7}}>({items.length}개)</span></div>
+            <div style={{display:"grid",gap:7}}>
               {items.map(function(p){
                 var isCustom=!DEFAULT_PROGRAMS[p.id];
                 var isEnabled=p.enabled!==false;
                 var isYouth=p.id==="youth_jump";
+                var pill=function(color,bg){return{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
                 return(
-                  <Card key={p.id} className="hover-card" style={{padding:"16px 18px",border:"1.5px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.65}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}>
-                      <div style={{flex:1,minWidth:180}}>
-                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6,flexWrap:"wrap"}}>
-                          <span style={{fontSize:FS_CARD_TITLE,fontWeight:700,wordBreak:"keep-all"}}>{p.name}</span>
-                          {p.year&&<Badge color="#475569" bg="#F1F5F9">{p.year}년</Badge>}
-                          {isYouth&&<Badge color="#D97706" bg="#FEF3C7">⭐ 추천</Badge>}
-                          {isCustom&&<Badge color={gp.text} bg={gp.badge}>커스텀</Badge>}
-                          <Badge color={gp.dark} bg={gp.light}>{fMan(p.totalAmount||0)}</Badge>
-                          {!isEnabled&&<Badge color="#94A3B8" bg="#F1F5F9">비활성</Badge>}
+                  <Card key={p.id} className="hover-card" style={{padding:"10px 14px",border:"1px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.6}}>
+                    {/* 가로 압축형: 좌측 이름·배지 + 메타 한 줄 / 우측 ON·OFF·편집 가로 정렬 */}
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      <div style={{flex:"1 1 300px",minWidth:230}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                          <span style={{fontSize:15,fontWeight:700,wordBreak:"keep-all"}}>{p.name}</span>
+                          {p.year&&<span style={pill("#475569","#F1F5F9")}>{p.year}년</span>}
+                          {isYouth&&<span style={pill("#D97706","#FEF3C7")}>⭐ 추천</span>}
+                          {isCustom&&<span style={pill(gp.text,gp.badge)}>커스텀</span>}
+                          <span style={pill(gp.dark,gp.light)}>{fMan(p.totalAmount||0)}</span>
+                          {!isEnabled&&<span style={pill("#94A3B8","#F1F5F9")}>비활성</span>}
                         </div>
-                        {p.desc&&<div style={{fontSize:FS_BODY,color:"#64748B",marginBottom:8,lineHeight:1.5}}>{p.desc}</div>}
-                        <div style={{display:"flex",gap:12,fontSize:FS_BODY,color:"#475569",flexWrap:"wrap"}}>
+                        <div style={{display:"flex",gap:10,fontSize:12.5,color:"#475569",flexWrap:"wrap",marginTop:3}}>
                           <span>🔢 {(p.rounds||[]).length}회차</span>
-                          <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join(", ")}</span>
+                          <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join("/")}</span>
                           {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                         </div>
+                        {p.desc&&<div style={{fontSize:12,color:"#94A3B8",marginTop:2,lineHeight:1.45}}>{p.desc}</div>}
                       </div>
-                      <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
-                        <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"6px 14px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
+                      <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center",marginLeft:"auto"}}>
+                        <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"5px 13px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
                           {isEnabled?"ON":"OFF"}
                         </button>
                         <button style={btnSm} onClick={function(){openEdit(p);}}>편집</button>
@@ -4572,6 +4644,10 @@ export default function SubsidyApp(props){
   var onSaveEmployee=props.onSaveEmployee||function(){};
   var onPatchEmployee=props.onPatchEmployee||function(){};
   var onDeleteEmployee=props.onDeleteEmployee||function(){};
+  // 샘플 전용 bulk 작업 (useData.addCompaniesBulk / addEmployeesBulk / deleteSampleRows)
+  var onBulkSaveCompanies=props.onBulkSaveCompanies||function(){return Promise.reject(new Error("bulk 저장 미지원"));};
+  var onBulkSaveEmployees=props.onBulkSaveEmployees||function(){return Promise.reject(new Error("bulk 저장 미지원"));};
+  var onDeleteSampleRows=props.onDeleteSampleRows||function(){return Promise.reject(new Error("bulk 삭제 미지원"));};
   var onSavePrograms=props.onSavePrograms||function(){};
   var onSaveMemo=props.onSaveMemo||function(){};
   var onSignOut=props.onSignOut||function(){};
@@ -4608,83 +4684,93 @@ export default function SubsidyApp(props){
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
 
+  // 샘플 불러오기/삭제 진행 중 여부 — 버튼 비활성화 및 중복 실행 방지
+  var stSampleBusy=useState(false);
+  var sampleBusy=stSampleBusy[0];
+
   async function loadSampleData(){
+    if(stSampleBusy[0])return;
     // startOff(개월)·ds(일) → 실행 시점 기준 실제 날짜로 변환 (데모 긴박감 항상 유지)
     function rel(monthsAgo,dayShift){var d=new Date();d.setMonth(d.getMonth()-(monthsAgo||0));if(dayShift)d.setDate(d.getDate()+dayShift);return d.toISOString().split("T")[0];}
     function wait(ms){return new Promise(function(res){setTimeout(res,ms);});}
-    // insert 1건을 최대 3회 재시도. 이미 저장된 행(중복 키)은 성공으로 간주.
-    async function insistInsert(fn){
+    // bulk insert 1회(원자적)를 최대 3회 재시도. 중복 키(이미 저장됨)는 성공으로 간주.
+    async function tryBulk(fn){
       var lastErr=null;
       for(var a=0;a<3;a++){
         try{ await fn(); return null; }
         catch(e){
           if(e&&(e.code==="23505"||String(e.message||"").indexOf("duplicate key")>=0))return null;
-          lastErr=e; if(a<2)await wait(400*(a+1));
+          lastErr=e; if(a<2)await wait(500*(a+1));
         }
       }
       return lastErr||new Error("insert 실패");
     }
-    var okComp=0,okEmp=0,failures=[];
-    for(var i=0;i<SAMPLE_DATA.length;i++){
-      var item=SAMPLE_DATA[i];
-      var compName=item.company.name;
-      var cId=ruuid();
-      var comp=Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()});
-      // employees.company_id 는 companies.id FK — 회사 insert "완료" 후에만 직원 insert
-      var cErr=await insistInsert(function(){return onSaveCompany(comp);});
-      if(cErr){
-        failures.push(compName+" (업체 등록 실패: "+(cErr.message||"오류")+")");
-        console.error("[샘플] 업체 insert 실패:",compName,cErr);
-        continue;
-      }
-      okComp++;
-      // 직원 1명 실패가 같은 업체의 나머지 직원 insert 를 막지 않도록 개별 처리
-      var okHere=0;
-      for(var j=0;j<item.employees.length;j++){
-        var emp=item.employees[j];
-        var startDate=rel(emp.startOff,emp.ds);
-        var rounds=(emp.rounds||[]).map(function(r){
-          var nr=Object.assign({},r,{id:uid()});
-          if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
-          delete nr.paidOff;
-          return nr;
+    stSampleBusy[1](true);
+    try{
+      // 1) payload 일괄 구성 — 회사 id(cId)를 먼저 확정해 직원 payload 에 주입
+      var comps=[],empsAll=[];
+      SAMPLE_DATA.forEach(function(item){
+        var cId=ruuid();
+        comps.push(Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()}));
+        item.employees.forEach(function(emp){
+          var startDate=rel(emp.startOff,emp.ds);
+          var rounds=(emp.rounds||[]).map(function(r){
+            var nr=Object.assign({},r,{id:uid()});
+            if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
+            delete nr.paidOff;
+            return nr;
+          });
+          var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
+          var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
+          empsAll.push(Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs}));
         });
-        var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
-        var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
-        var payload=Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs});
-        var eErr=await insistInsert(function(){return onSaveEmployee(payload);});
-        if(eErr){
-          failures.push(compName+" / "+emp.name+" ("+(eErr.message||"오류")+")");
-          console.error("[샘플] 대상자 insert 실패:",compName,emp.name,eErr);
-        }else{ okEmp++; okHere++; }
+      });
+      // 2) 사전 검증: 대상자 0명 샘플 업체가 있으면 시작하지 않음
+      var zero=comps.filter(function(cc){return empsAll.filter(function(e){return e.companyId===cc.id;}).length===0;});
+      if(zero.length>0){
+        toast("샘플 데이터 오류: 대상자 0명 업체 — "+zero.map(function(z){return z.name;}).join(", "),"error");
+        return;
       }
-      console.log("[샘플] "+compName+": 대상자 "+okHere+"/"+item.employees.length+"명 저장");
-      if(okHere===0)failures.push(compName+" (대상자 0명 — 전원 저장 실패)");
-    }
-    // 업체별 기대 인원 검증: 0명 업체나 누락이 있으면 성공 처리하지 않음
-    var expEmp=SAMPLE_DATA.reduce(function(s,it){return s+it.employees.length;},0);
-    console.log("[샘플] 불러오기 결과: 업체 "+okComp+"/"+SAMPLE_DATA.length+"개 · 대상자 "+okEmp+"/"+expEmp+"명");
-    if(failures.length===0&&okComp===SAMPLE_DATA.length&&okEmp===expEmp){
-      toast("샘플 데이터 "+okComp+"개 업체, "+okEmp+"명 대상자 불러오기 완료","success");
-    }else{
-      toast("샘플 불러오기 일부 실패 (대상자 "+okEmp+"/"+expEmp+"명 저장) — "+failures.slice(0,3).join(", ")+(failures.length>3?" 외 "+(failures.length-3)+"건":"")+". 샘플 삭제 후 다시 시도해주세요.","error");
+      // 3) 회사 10개 bulk INSERT 가 커밋된 뒤 직원 bulk INSERT (FK 안전 · 왕복 2회)
+      var cErr=await tryBulk(function(){return onBulkSaveCompanies(comps);});
+      if(cErr){
+        console.error("[샘플] 업체 bulk insert 실패:",cErr);
+        toast("샘플 업체 저장 실패: "+(cErr.message||"오류")+" — 다시 시도해주세요.","error");
+        return;
+      }
+      var eErr=await tryBulk(function(){return onBulkSaveEmployees(empsAll);});
+      if(eErr){
+        console.error("[샘플] 대상자 bulk insert 실패:",eErr);
+        toast("샘플 대상자 저장 실패: "+(eErr.message||"오류")+" — 샘플 삭제 후 다시 시도해주세요.","error");
+        return;
+      }
+      // 4) bulk INSERT 는 원자적 — 성공이면 전 행 저장 완료. 업체별 인원 로그만 남김.
+      comps.forEach(function(cc){
+        console.log("[샘플] "+cc.name+": 대상자 "+empsAll.filter(function(e){return e.companyId===cc.id;}).length+"명 저장");
+      });
+      console.log("[샘플] 불러오기 완료: 업체 "+comps.length+"개 · 대상자 "+empsAll.length+"명");
+      toast("샘플 데이터 "+comps.length+"개 업체, "+empsAll.length+"명 대상자 불러오기 완료","success");
+    }finally{
+      stSampleBusy[1](false);
     }
   }
 
   async function deleteSampleData(){
+    if(stSampleBusy[0])return;
     var sampleEmps=employees.filter(function(e){return e.isSample;});
     var sampleComps=companies.filter(function(c){return c.isSample;});
     if(sampleComps.length===0&&sampleEmps.length===0){toast("삭제할 샘플 데이터가 없습니다.","info");return;}
     if(!window.confirm("샘플 데이터(고객사 "+sampleComps.length+"개·대상자 "+sampleEmps.length+"명)만 삭제합니다.\n직접 등록하신 실제 고객 데이터는 삭제되지 않습니다.\n\n진행할까요?"))return;
-    // isSample=true 인 데이터만 삭제 — 실제 고객 데이터는 절대 건드리지 않음
-    // DB 삭제 완료를 기다린 뒤 알림 — 삭제가 끝나기 전 다시 불러오기와 겹치는 것 방지
+    stSampleBusy[1](true);
+    // isSample=true 인 행의 id 만 모아 일괄 삭제(왕복 2회) — 실제 고객 데이터는 절대 건드리지 않음
     try{
-      for(var i=0;i<sampleEmps.length;i++){await onDeleteEmployee(sampleEmps[i].id);}
-      for(var j=0;j<sampleComps.length;j++){await onDeleteCompany(sampleComps[j].id);}
+      await onDeleteSampleRows(sampleEmps.map(function(e){return e.id;}),sampleComps.map(function(c){return c.id;}));
       toast("샘플 데이터가 삭제되었습니다.","success");
     }catch(e){
       console.error("[샘플] 삭제 실패:",e);
       toast("샘플 삭제 중 오류: "+(e.message||"오류")+" — 다시 시도해주세요.","error");
+    }finally{
+      stSampleBusy[1](false);
     }
   }
 
@@ -4907,9 +4993,9 @@ export default function SubsidyApp(props){
           <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"11px 48px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
             <span style={{...neutralBadge(),flexShrink:0}}>샘플</span>
             <div style={{flex:1,minWidth:200}}>
-              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(10개 고객사·27명)이며, 언제든 삭제할 수 있습니다.</span>
+              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(10개 고객사·26명)이며, 언제든 삭제할 수 있습니다.</span>
             </div>
-            <button onClick={function(){if(!requirePlan())return;deleteSampleData();}} style={{background:"#fff",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>샘플 데이터 삭제</button>
+            <button disabled={sampleBusy} onClick={function(){if(!requirePlan())return;deleteSampleData();}} style={{background:"#fff",color:sampleBusy?"#94A3B8":"#DC2626",border:"1px solid "+(sampleBusy?"#E2E8F0":"#FECACA"),borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:sampleBusy?"default":"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap",opacity:sampleBusy?0.7:1}}>{sampleBusy?"처리 중…":"샘플 데이터 삭제"}</button>
           </div>
         )}
 
@@ -4934,10 +5020,10 @@ export default function SubsidyApp(props){
             <div style={{background:"#F8FAFC",border:"2px dashed #BFDBFE",borderRadius:20,padding:"44px 32px",marginBottom:32,textAlign:"center"}}>
               <div style={{fontSize:52,marginBottom:16}}>✨</div>
               <h3 style={{margin:"0 0 10px",fontSize:24,fontWeight:800,color:"#0F172A"}}>처음이신가요?</h3>
-              <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>실제 컨설팅 현장과 똑같은 <strong>10개 고객사·27명 대상자</strong> 데이터로 먼저 둘러보세요.<br/>지연 신청 건, 신청 임박 알림, 수령 현황, 고객 보고서까지 한 번에 확인할 수 있어요.</p>
+              <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>실제 컨설팅 현장과 똑같은 <strong>10개 고객사·26명 대상자</strong> 데이터로 먼저 둘러보세요.<br/>지연 신청 건, 신청 임박 알림, 수령 현황, 고객 보고서까지 한 번에 확인할 수 있어요.</p>
               <p style={{margin:"0 0 28px",fontSize:14,color:"#94A3B8"}}>둘러본 뒤 "샘플 데이터 삭제" 버튼 한 번이면 깔끔하게 초기화됩니다.</p>
-              <button onClick={function(){if(!requirePlan())return;loadSampleData();}} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 38px",fontSize:17,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.20)",display:"inline-flex",alignItems:"center",gap:8}}>
-                <span>샘플 데이터로 둘러보기</span>
+              <button disabled={sampleBusy} onClick={function(){if(!requirePlan())return;loadSampleData();}} style={{background:sampleBusy?"#93C5FD":"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 38px",fontSize:17,fontWeight:700,cursor:sampleBusy?"default":"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.20)",display:"inline-flex",alignItems:"center",gap:8}}>
+                <span>{sampleBusy?"불러오는 중…":"샘플 데이터로 둘러보기"}</span>
               </button>
             </div>
           )}

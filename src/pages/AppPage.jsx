@@ -175,6 +175,9 @@ export default function AppPage() {
       onSaveEmployee={data.addEmployee}
       onPatchEmployee={data.patchEmployee}
       onDeleteEmployee={data.deleteEmployee}
+      onBulkSaveCompanies={data.addCompaniesBulk}
+      onBulkSaveEmployees={data.addEmployeesBulk}
+      onDeleteSampleRows={data.deleteSampleRows}
       programs={profile?.settings?.customPrograms}
       onSavePrograms={(map) => updateProfile({ settings: { ...(profile?.settings || {}), customPrograms: map } })}
       onSaveMemo={data.saveCalendarMemo}

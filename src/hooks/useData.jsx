@@ -67,19 +67,27 @@ export function useData(orgId) {
     setLoading(false);
   }, [orgId]);
 
+  // Realtime 이벤트가 연달아 올 때(샘플 일괄 저장 등) 행마다 전체 refetch 하지 않도록 디바운스
+  const reloadTimerRef = useRef(null);
+
   useEffect(() => {
     load();
 
     // Realtime: 팀원 변경사항 실시간 반영 (silent — no loading screen)
     if (orgId) {
+      const scheduleReload = () => {
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = setTimeout(() => load(false), 400);
+      };
       const channel = supabase
         .channel(`org-${orgId}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "companies", filter: `org_id=eq.${orgId}` }, () => load(false))
-        .on("postgres_changes", { event: "*", schema: "public", table: "employees", filter: `org_id=eq.${orgId}` }, () => load(false))
+        .on("postgres_changes", { event: "*", schema: "public", table: "companies", filter: `org_id=eq.${orgId}` }, scheduleReload)
+        .on("postgres_changes", { event: "*", schema: "public", table: "employees", filter: `org_id=eq.${orgId}` }, scheduleReload)
         .subscribe();
       channelRef.current = channel;
     }
     return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [orgId, load]);
@@ -259,6 +267,39 @@ export function useData(orgId) {
     setEmployees((prev) => prev.filter((e) => e.id !== empId));
   }
 
+  // ── 샘플 데이터 전용 bulk 작업 ────────────────────────────
+  // 샘플 불러오기를 단건 insert 반복 대신 INSERT 한 번(왕복 2회)으로 처리.
+  // 반드시 회사 → 직원 순서로 호출해야 employees.company_id FK 를 만족한다.
+
+  async function addCompaniesBulk(companyList) {
+    const rows = companyList.map((c) => ({ id: c.id, org_id: orgId, data: c }));
+    const { error } = await supabase.from("companies").insert(rows);
+    if (error) throw error;
+    setCompanies((prev) => [...prev, ...companyList]);
+  }
+
+  async function addEmployeesBulk(empList) {
+    const rows = empList.map((e) => ({ id: e.id, org_id: orgId, company_id: e.companyId, data: e }));
+    const { error } = await supabase.from("employees").insert(rows);
+    if (error) throw error;
+    setEmployees((prev) => [...prev, ...empList]);
+  }
+
+  // 샘플 일괄 삭제(hard delete) — 호출부에서 isSample=true 인 행의 id 만 전달한다.
+  // org_id 조건을 함께 걸어 다른 조직 데이터에 닿지 않게 이중 방어.
+  async function deleteSampleRows(empIds, compIds) {
+    if (empIds.length > 0) {
+      const { error } = await supabase.from("employees").delete().in("id", empIds).eq("org_id", orgId);
+      if (error) throw error;
+    }
+    if (compIds.length > 0) {
+      const { error } = await supabase.from("companies").delete().in("id", compIds).eq("org_id", orgId);
+      if (error) throw error;
+    }
+    setEmployees((prev) => prev.filter((e) => empIds.indexOf(e.id) === -1));
+    setCompanies((prev) => prev.filter((c) => compIds.indexOf(c.id) === -1));
+  }
+
   // ── Calendar Memos ────────────────────────────────────────
 
   async function saveCalendarMemo(dateKey, memos) {
@@ -304,6 +345,7 @@ export function useData(orgId) {
     companies, employees, calendarMemos, loading,
     addCompany, updateCompany, patchCompany, deleteCompany,
     addEmployee, updateEmployee, patchEmployee, deleteEmployee,
+    addCompaniesBulk, addEmployeesBulk, deleteSampleRows,
     saveCalendarMemo,
     uploadFile, getFileUrl, deleteFile,
     logActivity,
