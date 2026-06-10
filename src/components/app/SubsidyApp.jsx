@@ -1538,6 +1538,32 @@ function shortAddr(addr){
   if(parts.length===0||!parts[0])return null;
   return parts.slice(0,2).join(" ");
 }
+// 지원금명 → 업체 카드 배지용 짧은 이름 ("청년일자리도약장려금" → "청년일자리도약")
+var PROG_SHORT_NAMES={
+  "청년일자리도약장려금":"청년일자리도약",
+  "고령자 계속고용 장려금":"고령자 계속고용",
+  "고령자 계속고용장려금":"고령자 계속고용",
+  "새일여성인턴제":"새일여성인턴제",
+  "정규직 전환 지원금":"정규직 전환",
+  "고용촉진장려금":"고용촉진",
+  "시니어 인턴십":"시니어 인턴십"
+};
+function shortProgName(name){
+  if(!name)return "";
+  if(PROG_SHORT_NAMES[name])return PROG_SHORT_NAMES[name];
+  var s=String(name).replace(/\s*(장려금|지원금)?\s*(\(사업주\))?\s*$/,"").trim();
+  return s||String(name);
+}
+// 업체 소속 대상자들의 지원금 종류를 중복 제거해 짧은 이름 목록으로 반환
+function companyProgramShorts(emps,programs){
+  var seen={},out=[];
+  emps.forEach(function(e){
+    var p=programs[e.programId]; if(!p||!p.name)return;
+    var sn=shortProgName(p.name);
+    if(!seen[sn]){seen[sn]=true;out.push(sn);}
+  });
+  return out;
+}
 
 function Dashboard(props){
   var st1=useState("all"),st2=useState(false); var selectedCompanyId=st1[0];
@@ -1772,7 +1798,7 @@ function Dashboard(props){
     {/* 업체 목록 (list 모드) */}
     {props.mode!=="stats"&&(props.companies.length===0?(
       <EmptyState icon="🏢" title="아직 등록된 업체가 없습니다" desc="첫 번째 거래처를 등록하고 직원·지원금·서류를 한 곳에서 관리해보세요. 등록 즉시 D-Day 알림과 수령 현황이 자동 집계됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
-    ):(<div style={{marginBottom:16}}>{props.companies.slice().sort(byCompanyName).map(function(c,ci){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});var coYears=companyYears(c);var coRegion=shortAddr(c.addr);var coYearsText=coYears===null?"업력 미입력":coYears==="invalid"?"업력 확인 필요":"업력 "+coYears+"년차";return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"16px 20px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+    ):(<div style={{marginBottom:16}}>{props.companies.slice().sort(byCompanyName).map(function(c,ci){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});var coYears=companyYears(c);var coRegion=shortAddr(c.addr);var coYearsText=coYears===null?"업력 미입력":coYears==="invalid"?"업력 확인 필요":"업력 "+coYears+"년차";var totalEmpCount=Number(c.empCount)||0;var progShorts=companyProgramShorts(emps,props.programs);return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"16px 20px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
       {/* 번호 (가나다순 표시 순서 기준) */}
       <span style={{width:34,height:34,borderRadius:10,background:"#F1F5F9",color:"#64748B",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{String(ci+1).padStart(2,"0")}</span>
       {/* 좌측: 업체명·태그 + 사업자번호·관리 인원 */}
@@ -1782,7 +1808,16 @@ function Dashboard(props){
           {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
           {upcomingCount>0&&<Badge color="#DC2626" bg="#FEE2E2">🔔 {upcomingCount}건 임박</Badge>}
         </div>
-        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{emps.length}명 관리 중</div>
+        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{totalEmpCount>0&&"직원 "+totalEmpCount+"명 · "}대상자 {emps.length}명 관리 중</div>
+        {/* 관리 중인 지원금 종류 (중복 제거 · 3종 이상이면 "외 N개"로 축약) */}
+        <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:6}}>
+          {progShorts.length===0?(
+            <span style={{fontSize:12.5,fontWeight:600,padding:"3px 9px",borderRadius:12,background:"#F1F5F9",color:"#94A3B8",whiteSpace:"nowrap"}}>지원금 미지정</span>
+          ):(progShorts.length>=3?progShorts.slice(0,1):progShorts).map(function(pn){return(
+            <span key={pn} style={{fontSize:12.5,fontWeight:700,padding:"3px 9px",borderRadius:12,background:"#EFF6FF",color:"#2563EB",whiteSpace:"nowrap"}}>{pn}</span>
+          );})}
+          {progShorts.length>=3&&<span style={{fontSize:12.5,fontWeight:600,color:"#64748B",whiteSpace:"nowrap"}}>외 {progShorts.length-1}개</span>}
+        </div>
       </div>
       {/* 가운데: 업력 · 지역 · 대표 · 법인구분 */}
       <div style={{flex:"1 1 190px",minWidth:175}}>
@@ -3522,15 +3557,12 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"헤든디자인",bizNo:"214-09-55178",ceoName:"서지안",addr:"서울 성동구 성수이로 66, 4층",region:"수도권",corpType:"개인",establishedDate:"2022-02-07",bizType:"디자인·브랜딩 스튜디오",empCount:4,phone:"02-462-7090",email:"studio@haedeun.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
-      notes:[],companyDocs:[]},
+    company:{isSample:true,name:"해든디자인",bizNo:"214-09-55178",ceoName:"서지안(1997년생 청년대표)",addr:"서울 성동구 성수이로 66, 4층",region:"수도권",corpType:"개인",establishedDate:"2022-02-07",bizType:"디자인·브랜딩 스튜디오",empCount:4,phone:"02-462-7090",email:"studio@haedeun.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
+      notes:[{id:"sn7",text:"1997년생 청년 대표가 운영하는 4인 사업장. 5인 미만이라 새일여성인턴제·정규직 전환 등 주요 지원금 요건 제한 — 청년일자리도약 중심으로 관리 중.",at:"2026-05-20T04:00:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"최유진",birthDate:"2000-08-21",gender:"female",programId:"youth_jump",status:"submitted",totalExpected:7200000,startOff:4,ds:0,
         rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
-        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"급여이체확인서류",done:false,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]},
-      {isSample:true,name:"백지아",birthDate:"2002-11-30",gender:"female",programId:"youth_jump",status:"preparing",totalExpected:7200000,startOff:1,ds:0,
-        rounds:[{month:6,amount:3600000,label:"1차(6개월)"},{month:9,amount:1800000,label:"2차(9개월)"},{month:12,amount:1800000,label:"3차(12개월)"}],
-        employeeDocs:[{label:"근로계약서",done:false,files:[]},{label:"임금대장(6개월)",done:false,files:[]}]}
+        employeeDocs:[{label:"근로계약서",done:true,files:[]},{label:"임금대장(6개월)",done:false,files:[]},{label:"급여이체확인서류",done:false,files:[]},{label:"개인정보동의서(근로자)",done:false,files:[]}]}
     ]
   },
   {
@@ -3580,7 +3612,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"바른유통",bizNo:"220-15-88301",ceoName:"문바른",addr:"서울 송파구 충민로 66, 가든파이브툴",region:"수도권",corpType:"개인",establishedDate:"2023-05-10",bizType:"생활용품 도소매",empCount:4,phone:"02-449-3360",email:"barun@barundist.kr",
+    company:{isSample:true,name:"바른유통",bizNo:"220-15-88301",ceoName:"문바른",addr:"서울 송파구 충민로 66, 가든파이브툴",region:"수도권",corpType:"개인",establishedDate:"2023-05-10",bizType:"생활용품 도소매",empCount:6,phone:"02-449-3360",email:"barun@barundist.kr",
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"오세훈",birthDate:"2002-02-14",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:8,ds:6,
