@@ -4611,45 +4611,81 @@ export default function SubsidyApp(props){
   async function loadSampleData(){
     // startOff(개월)·ds(일) → 실행 시점 기준 실제 날짜로 변환 (데모 긴박감 항상 유지)
     function rel(monthsAgo,dayShift){var d=new Date();d.setMonth(d.getMonth()-(monthsAgo||0));if(dayShift)d.setDate(d.getDate()+dayShift);return d.toISOString().split("T")[0];}
-    // employees.company_id 는 companies.id FK — 회사 insert 완료를 기다린 뒤 직원을 넣어야
-    // FK 위반으로 일부 업체가 "0명 관리 중"이 되는 문제가 생기지 않음 (순차 await 필수)
-    var failed=0;
+    function wait(ms){return new Promise(function(res){setTimeout(res,ms);});}
+    // insert 1건을 최대 3회 재시도. 이미 저장된 행(중복 키)은 성공으로 간주.
+    async function insistInsert(fn){
+      var lastErr=null;
+      for(var a=0;a<3;a++){
+        try{ await fn(); return null; }
+        catch(e){
+          if(e&&(e.code==="23505"||String(e.message||"").indexOf("duplicate key")>=0))return null;
+          lastErr=e; if(a<2)await wait(400*(a+1));
+        }
+      }
+      return lastErr||new Error("insert 실패");
+    }
+    var okComp=0,okEmp=0,failures=[];
     for(var i=0;i<SAMPLE_DATA.length;i++){
       var item=SAMPLE_DATA[i];
+      var compName=item.company.name;
       var cId=ruuid();
       var comp=Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()});
-      try{
-        await onSaveCompany(comp);
-        for(var j=0;j<item.employees.length;j++){
-          var emp=item.employees[j];
-          var startDate=rel(emp.startOff,emp.ds);
-          var rounds=(emp.rounds||[]).map(function(r){
-            var nr=Object.assign({},r,{id:uid()});
-            if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
-            delete nr.paidOff;
-            return nr;
-          });
-          var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
-          var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
-          await onSaveEmployee(Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs}));
-        }
-      }catch(err){
-        failed++;
-        if(import.meta.env.DEV)console.warn("sample load failed",err);
+      // employees.company_id 는 companies.id FK — 회사 insert "완료" 후에만 직원 insert
+      var cErr=await insistInsert(function(){return onSaveCompany(comp);});
+      if(cErr){
+        failures.push(compName+" (업체 등록 실패: "+(cErr.message||"오류")+")");
+        console.error("[샘플] 업체 insert 실패:",compName,cErr);
+        continue;
       }
+      okComp++;
+      // 직원 1명 실패가 같은 업체의 나머지 직원 insert 를 막지 않도록 개별 처리
+      var okHere=0;
+      for(var j=0;j<item.employees.length;j++){
+        var emp=item.employees[j];
+        var startDate=rel(emp.startOff,emp.ds);
+        var rounds=(emp.rounds||[]).map(function(r){
+          var nr=Object.assign({},r,{id:uid()});
+          if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
+          delete nr.paidOff;
+          return nr;
+        });
+        var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
+        var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
+        var payload=Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs});
+        var eErr=await insistInsert(function(){return onSaveEmployee(payload);});
+        if(eErr){
+          failures.push(compName+" / "+emp.name+" ("+(eErr.message||"오류")+")");
+          console.error("[샘플] 대상자 insert 실패:",compName,emp.name,eErr);
+        }else{ okEmp++; okHere++; }
+      }
+      console.log("[샘플] "+compName+": 대상자 "+okHere+"/"+item.employees.length+"명 저장");
+      if(okHere===0)failures.push(compName+" (대상자 0명 — 전원 저장 실패)");
     }
-    if(failed>0)toast("샘플 일부("+failed+"개 업체)를 불러오지 못했습니다. 샘플 삭제 후 다시 시도해주세요.","error");
+    // 업체별 기대 인원 검증: 0명 업체나 누락이 있으면 성공 처리하지 않음
+    var expEmp=SAMPLE_DATA.reduce(function(s,it){return s+it.employees.length;},0);
+    console.log("[샘플] 불러오기 결과: 업체 "+okComp+"/"+SAMPLE_DATA.length+"개 · 대상자 "+okEmp+"/"+expEmp+"명");
+    if(failures.length===0&&okComp===SAMPLE_DATA.length&&okEmp===expEmp){
+      toast("샘플 데이터 "+okComp+"개 업체, "+okEmp+"명 대상자 불러오기 완료","success");
+    }else{
+      toast("샘플 불러오기 일부 실패 (대상자 "+okEmp+"/"+expEmp+"명 저장) — "+failures.slice(0,3).join(", ")+(failures.length>3?" 외 "+(failures.length-3)+"건":"")+". 샘플 삭제 후 다시 시도해주세요.","error");
+    }
   }
 
-  function deleteSampleData(){
+  async function deleteSampleData(){
     var sampleEmps=employees.filter(function(e){return e.isSample;});
     var sampleComps=companies.filter(function(c){return c.isSample;});
     if(sampleComps.length===0&&sampleEmps.length===0){toast("삭제할 샘플 데이터가 없습니다.","info");return;}
     if(!window.confirm("샘플 데이터(고객사 "+sampleComps.length+"개·대상자 "+sampleEmps.length+"명)만 삭제합니다.\n직접 등록하신 실제 고객 데이터는 삭제되지 않습니다.\n\n진행할까요?"))return;
     // isSample=true 인 데이터만 삭제 — 실제 고객 데이터는 절대 건드리지 않음
-    sampleEmps.forEach(function(e){onDeleteEmployee(e.id);});
-    sampleComps.forEach(function(c){onDeleteCompany(c.id);});
-    toast("샘플 데이터가 삭제되었습니다.","success");
+    // DB 삭제 완료를 기다린 뒤 알림 — 삭제가 끝나기 전 다시 불러오기와 겹치는 것 방지
+    try{
+      for(var i=0;i<sampleEmps.length;i++){await onDeleteEmployee(sampleEmps[i].id);}
+      for(var j=0;j<sampleComps.length;j++){await onDeleteCompany(sampleComps[j].id);}
+      toast("샘플 데이터가 삭제되었습니다.","success");
+    }catch(e){
+      console.error("[샘플] 삭제 실패:",e);
+      toast("샘플 삭제 중 오류: "+(e.message||"오류")+" — 다시 시도해주세요.","error");
+    }
   }
 
   var hasSample=companies.some(function(c){return c.isSample;});
