@@ -1808,7 +1808,7 @@ function Dashboard(props){
           {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
           {upcomingCount>0&&<Badge color="#DC2626" bg="#FEE2E2">🔔 {upcomingCount}건 임박</Badge>}
         </div>
-        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{totalEmpCount>0&&"직원 "+totalEmpCount+"명 · "}대상자 {emps.length}명 관리 중</div>
+        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{totalEmpCount>0?"직원 "+totalEmpCount+"명":"직원 수 미입력"} · 대상자 {emps.length}명 관리 중</div>
         {/* 관리 중인 지원금 종류 (중복 제거 · 3종 이상이면 "외 N개"로 축약) */}
         <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:6}}>
           {progShorts.length===0?(
@@ -4608,26 +4608,37 @@ export default function SubsidyApp(props){
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
 
-  function loadSampleData(){
+  async function loadSampleData(){
     // startOff(개월)·ds(일) → 실행 시점 기준 실제 날짜로 변환 (데모 긴박감 항상 유지)
     function rel(monthsAgo,dayShift){var d=new Date();d.setMonth(d.getMonth()-(monthsAgo||0));if(dayShift)d.setDate(d.getDate()+dayShift);return d.toISOString().split("T")[0];}
-    SAMPLE_DATA.forEach(function(item){
+    // employees.company_id 는 companies.id FK — 회사 insert 완료를 기다린 뒤 직원을 넣어야
+    // FK 위반으로 일부 업체가 "0명 관리 중"이 되는 문제가 생기지 않음 (순차 await 필수)
+    var failed=0;
+    for(var i=0;i<SAMPLE_DATA.length;i++){
+      var item=SAMPLE_DATA[i];
       var cId=ruuid();
       var comp=Object.assign({},item.company,{id:cId,createdAt:new Date().toISOString()});
-      onSaveCompany(comp);
-      item.employees.forEach(function(emp){
-        var startDate=rel(emp.startOff,emp.ds);
-        var rounds=(emp.rounds||[]).map(function(r){
-          var nr=Object.assign({},r,{id:uid()});
-          if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
-          delete nr.paidOff;
-          return nr;
-        });
-        var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
-        var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
-        onSaveEmployee(Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs}));
-      });
-    });
+      try{
+        await onSaveCompany(comp);
+        for(var j=0;j<item.employees.length;j++){
+          var emp=item.employees[j];
+          var startDate=rel(emp.startOff,emp.ds);
+          var rounds=(emp.rounds||[]).map(function(r){
+            var nr=Object.assign({},r,{id:uid()});
+            if(r.isPaid){nr.paidDate=rel(r.paidOff,0);nr.received=r.received||r.amount;}
+            delete nr.paidOff;
+            return nr;
+          });
+          var empDocs=(emp.employeeDocs||[]).map(function(d){return Object.assign({},d,{id:uid()});});
+          var clean=Object.assign({},emp); delete clean.startOff; delete clean.ds;
+          await onSaveEmployee(Object.assign(clean,{id:ruuid(),companyId:cId,startDate:startDate,rounds:rounds,employeeDocs:empDocs}));
+        }
+      }catch(err){
+        failed++;
+        if(import.meta.env.DEV)console.warn("sample load failed",err);
+      }
+    }
+    if(failed>0)toast("샘플 일부("+failed+"개 업체)를 불러오지 못했습니다. 샘플 삭제 후 다시 시도해주세요.","error");
   }
 
   function deleteSampleData(){
