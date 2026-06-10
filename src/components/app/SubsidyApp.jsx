@@ -1510,6 +1510,32 @@ function DashGroup(props){
   );
 }
 
+// ── 업체 리스트 표시 헬퍼 (정렬·업력·지역 요약 — 화면 표시용, DB 순서 불변) ──
+// 가나다 정렬용 이름: 주식회사/(주)/㈜/유한회사 표기는 무시하고 비교
+function coSortName(name){
+  return String(name||"")
+    .replace(/^\s*(주식회사|\(주\)|㈜|유한회사|\(유\))\s*/,"")
+    .replace(/\s*(주식회사|\(주\)|㈜|\(유\))\s*$/,"")
+    .trim();
+}
+function byCompanyName(a,b){return coSortName(a.name).localeCompare(coSortName(b.name),"ko");}
+// 업력(N년차): 설립일 계열 필드 → 없으면 고용보험 성립일로 계산 (설립 연도=1년차)
+function companyYears(c){
+  var d=c.foundedDate||c.foundedAt||c.establishedAt||c.insuranceDate;
+  if(!d)return null;
+  var dt=new Date(d);
+  if(isNaN(dt.getTime()))return null;
+  var y=new Date().getFullYear()-dt.getFullYear()+1;
+  return y<1?1:y;
+}
+// 주소 요약: "충북 청주시 흥덕구 오송읍 …" → "충북 청주시" (도/광역시 + 시/군/구)
+function shortAddr(addr){
+  if(!addr)return null;
+  var parts=String(addr).trim().split(/\s+/);
+  if(parts.length===0||!parts[0])return null;
+  return parts.slice(0,2).join(" ");
+}
+
 function Dashboard(props){
   var st1=useState("all"),st2=useState(false); var selectedCompanyId=st1[0];
   // 보기 밀도 토글 제거 — PC는 항상 '넓게(가독성 우선)' 기준. 폰트 스케일은 CSS 변수로 처리.
@@ -1743,7 +1769,26 @@ function Dashboard(props){
     {/* 업체 목록 (list 모드) */}
     {props.mode!=="stats"&&(props.companies.length===0?(
       <EmptyState icon="🏢" title="아직 등록된 업체가 없습니다" desc="첫 번째 거래처를 등록하고 직원·지원금·서류를 한 곳에서 관리해보세요. 등록 즉시 D-Day 알림과 수령 현황이 자동 집계됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
-    ):(<div style={{marginBottom:16}}>{props.companies.map(function(c){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"18px 22px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1,minWidth:0}}><div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}><span style={{fontSize:22,fontWeight:700,color:"#1E293B"}}>{c.name}</span>{(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}{upcomingCount>0&&<Badge color="#DC2626" bg="#FEE2E2">🔔 {upcomingCount}건 임박</Badge>}</div><div style={{fontSize:18,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{c.ceoName&&c.ceoName+" · "}{emps.length}명 관리 중</div></div><div style={{textAlign:"right",flexShrink:0,marginLeft:10}}><div style={{fontSize:21,fontWeight:700,color:"#059669"}}>{fMan(rcv)}</div><div style={{fontSize:15,color:"#94A3B8"}}>수령완료</div></div></div></Card>);})}</div>))}
+    ):(<div style={{marginBottom:16}}>{props.companies.slice().sort(byCompanyName).map(function(c,ci){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});var coYears=companyYears(c);var coRegion=shortAddr(c.addr);return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"16px 20px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+      {/* 번호 (가나다순 표시 순서 기준) */}
+      <span style={{width:34,height:34,borderRadius:10,background:"#F1F5F9",color:"#64748B",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{String(ci+1).padStart(2,"0")}</span>
+      {/* 좌측: 업체명·태그 + 기본 정보 */}
+      <div style={{flex:1,minWidth:200}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}>
+          <span style={{fontSize:21,fontWeight:700,color:"#1E293B"}}>{c.name}</span>
+          {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
+          {upcomingCount>0&&<Badge color="#DC2626" bg="#FEE2E2">🔔 {upcomingCount}건 임박</Badge>}
+        </div>
+        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{c.ceoName&&"대표 "+c.ceoName+" · "}{emps.length}명 관리 중</div>
+      </div>
+      {/* 우측: 수령완료 + 업력/지역/대표 요약 */}
+      <div style={{textAlign:"right",flexShrink:0,marginLeft:"auto"}}>
+        <div style={{fontSize:21,fontWeight:700,color:"#059669",lineHeight:1.2}}>{fMan(rcv)}</div>
+        <div style={{fontSize:13,color:"#94A3B8"}}>수령완료</div>
+        <div style={{fontSize:13.5,color:"#475569",fontWeight:600,marginTop:6,whiteSpace:"nowrap"}}>{coYears!==null?"업력 "+coYears+"년차":"업력 미입력"} · {coRegion||"지역 미입력"}</div>
+        <div style={{fontSize:13.5,color:"#475569",fontWeight:600,marginTop:2}}>{c.ceoName?"대표: "+c.ceoName:"대표 미입력"}</div>
+      </div>
+    </div></Card>);})}</div>))}
 
     {props.mode!=="stats"&&selectedCompanyId!=="all"&&(<div><PendingPaymentsList employees={props.employees} programs={props.programs} goCompany={props.goCompany} selectedCompanyId={selectedCompanyId}/></div>)}
 
