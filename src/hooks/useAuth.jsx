@@ -3,18 +3,37 @@ import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
 
+// 비밀번호 재설정(recovery) 진입 여부를 "모듈 로드 시점"에 한 번 캡처한다.
+// supabase 클라이언트가 URL 해시의 recovery 토큰을 비동기로 소비·정리하기 전에
+// 값을 읽어두어야, 이후 라우팅이 기존 세션으로 대시보드에 들어가는 것을 막을 수 있다.
+const INITIAL_RECOVERY = (() => {
+  try {
+    if (typeof window === "undefined") return false;
+    if (window.location.pathname === "/reset-password") return true;
+    const h = window.location.hash || "";
+    const s = window.location.search || "";
+    return /type=recovery/.test(h) || /type=recovery/.test(s);
+  } catch (e) { return false; }
+})();
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = loading
   const [profile, setProfile] = useState(null);
   const [org, setOrg] = useState(null);
   const [orgRole, setOrgRole] = useState(null);
   const [loadedFor, setLoadedFor] = useState(null); // org/profile 을 확정한 user id
+  // recovery(비밀번호 재설정) 모드. 이 값이 true면 라우터가 기존 세션과 무관하게
+  // 무조건 비밀번호 재설정 화면을 우선 렌더링한다(대시보드 자동 진입 차단).
+  const [recoveryMode, setRecoveryMode] = useState(INITIAL_RECOVERY);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // 비밀번호 재설정 링크로 들어온 경우 Supabase 가 PASSWORD_RECOVERY 이벤트를 발생시킨다.
+      // 이때는 절대 대시보드로 보내지 않고 재설정 화면을 유지한다.
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(session);
     });
     return () => subscription.unsubscribe();
@@ -104,6 +123,8 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   }
 
+  function endRecovery() { setRecoveryMode(false); }
+
   async function updateProfile(updates) {
     if (!session) return;
     const { error } = await supabase
@@ -129,7 +150,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, org, orgRole, authLoading, signUp, signIn, signOut, updateProfile, refreshOrg, ensureWorkspace }}>
+    <AuthContext.Provider value={{ session, profile, org, orgRole, authLoading, signUp, signIn, signOut, updateProfile, refreshOrg, ensureWorkspace, recoveryMode, endRecovery }}>
       {children}
     </AuthContext.Provider>
   );

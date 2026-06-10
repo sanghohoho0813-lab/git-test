@@ -4461,12 +4461,17 @@ export default function SubsidyApp(props){
           <div style={SB.brandTitle} className="sb-brand-title">🏛 고용지원금 Pro</div>
           <div className="sb-brand-sub" style={{fontSize:13,color:"#64748B",marginTop:6,lineHeight:1.45,fontWeight:500}}>컨설턴트를 위한 고용지원금 운영관리 시스템</div>
           {orgName&&<div className="sb-org" style={{fontSize:14,color:"#93C5FD",marginTop:8,fontWeight:600}}>{orgName}</div>}
-          {trialDays!==null&&trialDays!==undefined&&(
+          {isAdmin?(
+            <div className="sb-trial" style={{marginTop:10,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"rgba(251,191,36,0.15)",border:"1px solid rgba(251,191,36,0.35)"}}>
+              <span style={{fontSize:16}}>🛡️</span>
+              <span style={{fontSize:17,color:"#FCD34D",fontWeight:700}}>관리자 계정</span>
+            </div>
+          ):(trialDays!==null&&trialDays!==undefined&&(
             <div className="sb-trial" style={{marginTop:10,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.3)"}}>
               <span style={{fontSize:16}}>⏳</span>
               <span style={{fontSize:17,color:"#93C5FD",fontWeight:600}}>무료체험 {trialDays}일 남음</span>
             </div>
-          )}
+          ))}
         </div>
 
         {/* 네비 */}
@@ -4521,13 +4526,19 @@ export default function SubsidyApp(props){
             <div style={SB.avatar} className="sb-avatar">{(profile.display_name||"?").charAt(0)}</div>
             <div style={{minWidth:0}}>
               <div style={SB.userName} className="sb-username">{profile.display_name||"사용자"}</div>
-              <div style={SB.userRole} className="sb-userrole">{profile.title||"담당자"}</div>
+              <div style={SB.userRole} className="sb-userrole">{isAdmin?"총괄 관리자":(profile.title||"담당자")}</div>
             </div>
           </div>
-          <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
-            <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
-            {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
-          </div>
+          {isAdmin?(
+            <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.25)"}}>
+              <span style={{fontSize:13,color:"#FCD34D",fontWeight:700}}>🛡️ 관리자 계정 · 운영자 모드</span>
+            </div>
+          ):(
+            <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
+              <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
+              {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
+            </div>
+          )}
           {!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
             <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
             <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
@@ -4611,7 +4622,7 @@ export default function SubsidyApp(props){
               goCompany={goCompany} settings={profile.settings||{}}
               onAddCompany={function(){stAddComp[1](true);}}
               setView={function(v){stView[1](v);stCompany[1](null);}}
-              tier={tier} isTrial={isTrial} trialDaysLeft={trialDays} onOpenBilling={props.onOpenBilling}
+              tier={tier} isTrial={isAdmin?false:isTrial} trialDaysLeft={isAdmin?null:trialDays} onOpenBilling={props.onOpenBilling}
               mode="stats"
             />
           )}
