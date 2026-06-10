@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { supabase } from "../lib/supabase";
 
 const FF = "'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: FF };
 const btnP = { background: "linear-gradient(135deg,#1D4ED8,#2563EB)", color: "#fff", border: "none", borderRadius: 10, padding: "12px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FF, width: "100%" };
+const btnS = { background: "#F1F5F9", color: "#475569", border: "none", borderRadius: 10, padding: "12px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FF, width: "100%" };
 
 function Field({ label, type = "text", value, onChange, placeholder }) {
   return (
@@ -18,7 +20,7 @@ function Field({ label, type = "text", value, onChange, placeholder }) {
 export default function AuthPage() {
   const { signIn, signUp, session } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState("login"); // login | signup
+  const [mode, setMode] = useState("login"); // login | signup | forgot
 
   useEffect(() => {
     if (session) navigate("/", { replace: true });
@@ -30,13 +32,21 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      if (mode === "login") {
+      if (mode === "forgot") {
+        if (!email.trim()) { setError("이메일을 입력해주세요."); setLoading(false); return; }
+        const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin + "/reset-password",
+        });
+        if (err) throw err;
+        setForgotSent(true);
+      } else if (mode === "login") {
         await signIn(email, password);
       } else {
         if (!displayName.trim()) { setError("이름을 입력해주세요."); setLoading(false); return; }
@@ -52,6 +62,26 @@ export default function AuthPage() {
     setLoading(false);
   }
 
+  if (forgotSent) {
+    return (
+      <div style={{ fontFamily: FF, minHeight: "100vh", background: "linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: "40px 32px", maxWidth: 400, width: "100%", textAlign: "center", boxShadow: "0 25px 50px rgba(0,0,0,0.25)" }}>
+          <div style={{ fontSize: 56, marginBottom: 12 }}>📧</div>
+          <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}>재설정 링크를 보냈습니다</h2>
+          <p style={{ color: "#64748B", fontSize: 14, lineHeight: 1.7 }}>
+            <strong>{email}</strong> 메일함에서<br />
+            비밀번호 재설정 링크를 확인해주세요.<br />
+            링크는 1시간 동안 유효합니다.
+          </p>
+          <p style={{ color: "#94A3B8", fontSize: 12, marginTop: 10 }}>메일이 보이지 않으면 스팸함도 확인해주세요.</p>
+          <button style={{ ...btnS, marginTop: 20 }} onClick={() => { setMode("login"); setForgotSent(false); setEmail(""); }}>
+            로그인 화면으로
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (done) {
     return (
       <div style={{ fontFamily: FF, minHeight: "100vh", background: "linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -60,13 +90,41 @@ export default function AuthPage() {
           <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}>인증 메일을 보냈습니다</h2>
           <p style={{ color: "#64748B", fontSize: 14, lineHeight: 1.7 }}>
             <strong>{email}</strong> 메일함에서<br />
-            <strong>‘고용지원금 Pro’</strong> 인증 메일을 확인해주세요.<br />
+            <strong>'고용지원금 Pro'</strong> 인증 메일을 확인해주세요.<br />
             인증 링크를 누르면 14일 무료 체험이 시작됩니다.
           </p>
           <p style={{ color: "#94A3B8", fontSize: 12, marginTop: 10 }}>메일이 보이지 않으면 스팸함도 확인해주세요.</p>
-          <button style={{ ...btnP, marginTop: 20, background: "#F1F5F9", color: "#475569" }} onClick={() => { setMode("login"); setDone(false); }}>
+          <button style={{ ...btnS, marginTop: 20 }} onClick={() => { setMode("login"); setDone(false); }}>
             로그인 화면으로
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "forgot") {
+    return (
+      <div style={{ fontFamily: FF, minHeight: "100vh", background: "linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 25px 50px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+          <div style={{ padding: "36px 32px 24px", textAlign: "center", borderBottom: "1px solid #F1F5F9" }}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>🔑</div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1E293B" }}>비밀번호 재설정</h1>
+            <p style={{ margin: "4px 0 0", color: "#64748B", fontSize: 13 }}>가입한 이메일로 재설정 링크를 보내드립니다</p>
+          </div>
+          <form onSubmit={handleSubmit} style={{ padding: "24px 32px 32px" }}>
+            <Field label="가입한 이메일 *" type="email" value={email} onChange={setEmail} placeholder="hong@example.com" />
+            {error && (
+              <div style={{ padding: "10px 12px", background: "#FEE2E2", borderRadius: 8, color: "#DC2626", fontSize: 13, marginBottom: 14 }}>
+                {error}
+              </div>
+            )}
+            <button style={btnP} type="submit" disabled={loading}>
+              {loading ? "전송 중..." : "재설정 링크 받기"}
+            </button>
+            <button type="button" style={{ ...btnS, marginTop: 10 }} onClick={() => { setMode("login"); setError(""); }}>
+              로그인으로 돌아가기
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -111,6 +169,13 @@ export default function AuthPage() {
           <button style={btnP} type="submit" disabled={loading}>
             {loading ? "처리 중..." : mode === "login" ? "로그인" : "무료 체험 시작 (14일)"}
           </button>
+
+          {mode === "login" && (
+            <button type="button" style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginTop: 12, width: "100%", textAlign: "center", fontFamily: FF }}
+              onClick={() => { setMode("forgot"); setError(""); }}>
+              비밀번호를 잊으셨나요?
+            </button>
+          )}
 
           {mode === "signup" && (
             <p style={{ textAlign: "center", fontSize: 11, color: "#94A3B8", marginTop: 12 }}>

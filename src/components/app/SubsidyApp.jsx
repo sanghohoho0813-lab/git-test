@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { TeamSettings } from "../TeamSettings";
 import { validateUploadFile, ALLOWED_FILE_EXT, MAX_FILE_MB } from "../../hooks/useData";
+import { trackActivity } from "../../lib/activity";
 
 // ── 상수 ──────────────────────────────────────────────────
 var MIN_WAGE_2026 = 10320;
@@ -3510,6 +3511,111 @@ function FbCard(props){
   );
 }
 
+function AdminActivityView(props){
+  var stRows=useState([]);
+  var stLoading=useState(true);
+  var stErr=useState(null);
+  var allowed=isAdminEmail(props.userEmail);
+
+  function load(){
+    stLoading[1](true);stErr[1](null);
+    supabase.from("user_activity").select("*").order("last_seen_at",{ascending:false}).then(function(res){
+      if(res.error){
+        console.warn("[AdminActivity] 조회 실패:",res.error.message);
+        stErr[1](res.error);
+      }else{
+        stRows[1](res.data||[]);
+      }
+      stLoading[1](false);
+    }).catch(function(e){
+      stErr[1](e);stLoading[1](false);
+    });
+  }
+  useEffect(function(){if(allowed)load();},[allowed]);
+
+  if(!allowed){
+    return(
+      <Card style={{padding:"40px 28px",textAlign:"center",maxWidth:560}}>
+        <div style={{fontSize:42,marginBottom:10}}>🔒</div>
+        <h2 style={{margin:"0 0 8px",fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>접근 권한이 없습니다</h2>
+        <p style={{margin:0,color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}>이 화면은 관리자 전용입니다.</p>
+      </Card>
+    );
+  }
+
+  function actBadge(lastSeen){
+    if(!lastSeen)return{label:"기록없음",bg:"#F1F5F9",color:"#94A3B8"};
+    var diffMs=Date.now()-new Date(lastSeen).getTime();
+    var days=diffMs/(1000*60*60*24);
+    if(days<1)return{label:"오늘",bg:"#DCFCE7",color:"#15803D"};
+    if(days<3)return{label:"3일 이내",bg:"#DBEAFE",color:"#1D4ED8"};
+    if(days<7)return{label:"7일 이내",bg:"#FEF9C3",color:"#A16207"};
+    if(days<14)return{label:"7일+",bg:"#F1F5F9",color:"#475569"};
+    return{label:"14일+",bg:"#FEE2E2",color:"#DC2626"};
+  }
+
+  function fmtDate(iso){
+    if(!iso)return"-";
+    var d=new Date(iso);
+    return d.getFullYear()+"."+(d.getMonth()+1).toString().padStart(2,"0")+"."+d.getDate().toString().padStart(2,"0")+" "+d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");
+  }
+
+  var rows=stRows[0];
+  return(
+    <div style={{maxWidth:1100}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:8}}>
+        <div>
+          <h2 style={{margin:0,fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>📊 사용자 활동</h2>
+          <p style={{margin:"4px 0 0",color:"#64748B",fontSize:FS_BODY}}>계정별 최근 접속 현황 (관리자 전용 · 5분 단위 갱신)</p>
+        </div>
+        <button style={Object.assign({},btnS,{padding:"9px 16px",fontSize:"var(--fs-btn)"})} onClick={load}>↻ 새로고침</button>
+      </div>
+
+      {stLoading[0]?(
+        <Card style={{padding:40,textAlign:"center"}}><div className="skeleton" style={{height:18,width:"40%",margin:"0 auto 12px"}}/><div style={{color:"#94A3B8",fontSize:FS_BODY}}>불러오는 중…</div></Card>
+      ):stErr[0]?(
+        <Card style={{padding:"28px 24px",border:"1px solid #FECACA",background:"#FEF2F2"}}>
+          <div style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#DC2626",marginBottom:8}}>조회 권한 없음 (RLS)</div>
+          <p style={{fontSize:FS_BODY,color:"#7F1D1D",lineHeight:1.7,margin:"0 0 12px"}}>
+            <code>user_activity</code> SELECT 정책이 누락되어 있습니다. 아래 SQL을 Supabase SQL Editor에서 실행하세요.
+          </p>
+          <pre style={{background:"#1E293B",color:"#E2E8F0",padding:"14px 16px",borderRadius:10,fontSize:13,overflowX:"auto",lineHeight:1.6,margin:0}}>{
+"-- 이미 migration 009에 포함되어 있는 경우 불필요합니다.\nCREATE POLICY \"ua_select_self_or_admin\" ON user_activity\n  FOR SELECT TO authenticated\n  USING (\n    user_id = auth.uid()\n    OR lower(auth.jwt() ->> 'email') = 'ksh90813@naver.com'\n  );"
+          }</pre>
+        </Card>
+      ):rows.length===0?(
+        <Card style={{padding:40,textAlign:"center"}}><div style={{fontSize:40,marginBottom:8}}>📭</div><p style={{color:"#94A3B8",fontSize:FS_BODY,margin:0}}>아직 기록된 활동이 없습니다.</p></Card>
+      ):(
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:"var(--fs-body)",background:"#fff",borderRadius:14,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+            <thead>
+              <tr style={{background:"#F8FAFC",borderBottom:"2px solid #E2E8F0"}}>
+                {["이메일","조직명","마지막 접속","마지막 액션","상태"].map(function(h){return(
+                  <th key={h} style={{padding:"12px 16px",textAlign:"left",fontWeight:700,color:"#475569",fontSize:13,whiteSpace:"nowrap"}}>{h}</th>
+                );})}</tr>
+            </thead>
+            <tbody>
+              {rows.map(function(r,i){
+                var badge=actBadge(r.last_seen_at);
+                return(
+                  <tr key={r.user_id} style={{borderBottom:"1px solid #F1F5F9",background:i%2===0?"#fff":"#FAFAFA"}}>
+                    <td style={{padding:"11px 16px",color:"#1E293B",fontWeight:500,wordBreak:"break-all"}}>{r.user_email||"-"}</td>
+                    <td style={{padding:"11px 16px",color:"#475569",whiteSpace:"nowrap"}}>{r.org_name||"-"}</td>
+                    <td style={{padding:"11px 16px",color:"#64748B",whiteSpace:"nowrap"}}>{fmtDate(r.last_seen_at)}</td>
+                    <td style={{padding:"11px 16px",color:"#64748B",maxWidth:200}}><span style={{background:"#F1F5F9",borderRadius:6,padding:"2px 8px",fontSize:12,fontFamily:"monospace"}}>{r.last_active_action||"-"}</span></td>
+                    <td style={{padding:"11px 16px"}}><span style={{background:badge.bg,color:badge.color,borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{badge.label}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p style={{marginTop:10,fontSize:12,color:"#94A3B8"}}>총 {rows.length}명 · 로그인 후 앱 진입 시점 기준으로 기록됩니다.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminFeedback(props){
   var stRows=useState([]);
   var stLoading=useState(true);
@@ -4369,7 +4475,7 @@ export default function SubsidyApp(props){
             return(
               <NavItem key={n.key} icon={n.icon} label={n.label} active={activeKey===n.key}
                 tourId={"nav-"+n.key}
-                onClick={function(){stView[1](n.key);stCompany[1](null);stMobileNav[1](false);}}
+                onClick={function(){stView[1](n.key);stCompany[1](null);stMobileNav[1](false);trackActivity({userId:props.userId,userEmail:props.userEmail,orgId:props.orgId,orgName:orgName},"nav."+n.key);}}
               />
             );
           })}
@@ -4428,6 +4534,7 @@ export default function SubsidyApp(props){
           </button>)}
           <button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
+          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
           <div style={SB.actions} className="sb-actions">
             <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
             <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
@@ -4582,6 +4689,19 @@ export default function SubsidyApp(props){
             )
           )}
 
+          {stView[0]==="adminActivity"&&(
+            isAdmin?(
+              <AdminActivityView userEmail={props.userEmail}/>
+            ):(
+              <Card style={{padding:"40px 28px",textAlign:"center",maxWidth:560}}>
+                <div style={{fontSize:42,marginBottom:10}}>🔒</div>
+                <h2 style={{margin:"0 0 8px",fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>접근 권한이 없습니다</h2>
+                <p style={{margin:"0 0 20px",color:"#64748B",fontSize:FS_BODY,lineHeight:1.6}}>이 화면은 관리자 전용입니다.</p>
+                <button style={Object.assign({},btnP,{padding:"10px 22px",fontSize:"var(--fs-btn)"})} onClick={function(){stView[1]("dashboard");}}>대시보드로 돌아가기</button>
+              </Card>
+            )
+          )}
+
           </div>
         </div>
       </div>
@@ -4626,9 +4746,23 @@ export default function SubsidyApp(props){
               <li>서류 파일은 비공개 저장소에 보관되어 권한 있는 사용자만 임시 링크로 열람합니다.</li>
             </ul>
           </div>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <button style={btnS} onClick={function(){stProfileOpen[1](false);}}>취소</button>
-            <button style={Object.assign({},btnP,{padding:"11px 32px"})} onClick={saveProfile}>저장</button>
+          <div style={{padding:"13px 15px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#92400E",marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span>⚠️</span>계정 공유 안내</div>
+            <p style={{margin:0,fontSize:12.5,color:"#78350F",lineHeight:1.7}}>고객사·직원 정보 보호를 위해 계정은 1인 1계정 사용을 권장합니다. 팀원이 있으시면 초대 기능으로 별도 계정을 만들어 주세요.</p>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+            <button style={Object.assign({},btnS,{fontSize:13,padding:"9px 16px"})} onClick={function(){
+              var email=props.userEmail||"";
+              if(!email){toast("이메일 정보를 확인할 수 없습니다.","error");return;}
+              supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+"/reset-password"}).then(function(res){
+                if(res.error){toast("비밀번호 재설정 메일 발송에 실패했습니다: "+res.error.message,"error");}
+                else{toast("비밀번호 재설정 링크를 "+email+"로 발송했습니다.","success");}
+              });
+            }}>🔑 비밀번호 변경 메일 받기</button>
+            <div style={{display:"flex",gap:8}}>
+              <button style={btnS} onClick={function(){stProfileOpen[1](false);}}>취소</button>
+              <button style={Object.assign({},btnP,{padding:"11px 32px"})} onClick={saveProfile}>저장</button>
+            </div>
           </div>
         </div>
       </Modal>

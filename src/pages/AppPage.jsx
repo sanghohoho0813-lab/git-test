@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useData } from "../hooks/useData";
 import { useSub } from "../hooks/useSub";
+import { trackActivity } from "../lib/activity";
 import BillingPage from "./BillingPage";
 import SubsidyApp from "../components/app/SubsidyApp";
 
@@ -109,6 +110,16 @@ export default function AppPage() {
   const [showBilling, setShowBilling] = useState(false);
 
   const handleEnsure = useCallback(() => ensureWorkspace && ensureWorkspace(), [ensureWorkspace]);
+
+  // 앱 진입 시 마지막 활동 기록 (자동 로그아웃 없음 · 5분 throttle).
+  useEffect(() => {
+    if (session?.user?.id && org?.id) {
+      trackActivity(
+        { userId: session.user.id, userEmail: session.user.email, orgId: org.id, orgName: org.name },
+        "app.open"
+      );
+    }
+  }, [session?.user?.id, org?.id]);
 
   // 인증·구독 상태가 확정되기 전에는 절대 paywall/대시보드를 먼저 렌더링하지 않는다.
   if (authLoading) {
