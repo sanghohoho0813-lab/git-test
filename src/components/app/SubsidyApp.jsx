@@ -3511,6 +3511,30 @@ function FbCard(props){
   );
 }
 
+// 무료체험 만료 사용자가 유료 기능을 시도할 때 표시하는 모달
+function PlanRequiredModal(props){
+  if(!props.open)return null;
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.55)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:20,padding:"36px 32px",maxWidth:460,width:"100%",boxShadow:"0 25px 60px rgba(0,0,0,0.25)",fontFamily:FF}}>
+        <div style={{fontSize:48,textAlign:"center",marginBottom:12}}>🔒</div>
+        <h2 style={{margin:"0 0 10px",fontSize:22,fontWeight:800,color:"#1E293B",textAlign:"center"}}>무료체험이 종료되었습니다</h2>
+        <p style={{margin:"0 0 12px",fontSize:14,color:"#475569",lineHeight:1.8,textAlign:"center"}}>
+          기존에 등록한 업체와 직원 정보는 그대로 보관됩니다.<br/>
+          계속해서 업체 추가, 직원 관리, 서류 요청, 보고서 출력 기능을 이용하려면 유료 플랜을 선택해주세요.
+        </p>
+        <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:"10px 14px",marginBottom:20,textAlign:"center"}}>
+          <span style={{fontSize:13,fontWeight:700,color:"#15803D"}}>✅ 데이터는 삭제되지 않습니다. 구독 후 이어서 사용할 수 있습니다.</span>
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+          <button style={{flex:1,padding:"12px 0",borderRadius:10,border:"1.5px solid #E2E8F0",background:"#F8FAFC",color:"#475569",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FF}} onClick={props.onClose}>나중에 하기</button>
+          <button style={{flex:1,padding:"12px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#1D4ED8,#2563EB)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF}} onClick={function(){props.onClose&&props.onClose();if(props.onOpenBilling)props.onOpenBilling();}}>요금제 보기 →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminActivityView(props){
   var stRows=useState([]);
   var stLoading=useState(true);
@@ -4336,6 +4360,14 @@ export default function SubsidyApp(props){
   // profile.display_name·org_name·localStorage·초대/테스트 데이터로 판별하지 않음.
   // 이메일이 로딩 중이거나 없으면 isAdmin=false.
   var isAdmin=isAdminEmail(props.userEmail);
+  // 관리자 또는 유료(active)/무료체험(trialing) 상태 → 모든 기능 사용 가능.
+  // canceled/past_due/null 등 → 읽기 전용 모드.
+  var canUseFeatures=isAdmin||props.subStatus==="active"||props.subStatus==="trialing";
+  var stPaywall=useState(false);
+  // 기능 가드: 사용 불가 시 paywall 모달을 열고 false 반환
+  function requirePlan(){if(canUseFeatures)return true;stPaywall[1](true);return false;}
+  // 콜백 래퍼: 사용 불가 시 paywall 모달을 열고 원래 fn 은 호출하지 않음
+  function gated(fn){if(canUseFeatures)return fn;return function(){stPaywall[1](true);};}
   var stTour=useState(function(){try{return !localStorage.getItem("subsidy_tour_done");}catch(e){return false;}});
   function startTour(){stTour[1](true);}
   function endTour(){try{localStorage.setItem("subsidy_tour_done","1");}catch(e){}stTour[1](false);}
@@ -4539,11 +4571,11 @@ export default function SubsidyApp(props){
               {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
             </div>
           )}
-          {!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
+          {!isAdmin&&!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
             <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
             <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
           </button>)}
-          <button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>
+          {!isAdmin&&(<button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>)}
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
           <div style={SB.actions} className="sb-actions">
@@ -4582,7 +4614,7 @@ export default function SubsidyApp(props){
             </button>
             <NotifBell employees={employees} companies={companies} programs={programs} goCompany={goCompany} settings={profile.settings||{}} tier={tier}/>
             {(stView[0]==="dashboard"||stView[0]==="company")&&!selectedCompany&&(
-              <button style={btnP} className="hover-lift add-co-btn" data-tour="add-company" onClick={function(){stAddComp[1](true);}}>+<span className="hide-mobile"> 업체 추가</span></button>
+              <button style={btnP} className="hover-lift add-co-btn" data-tour="add-company" onClick={function(){if(!requirePlan())return;stAddComp[1](true);}}>+<span className="hide-mobile"> 업체 추가</span></button>
             )}
           </div>
         </div>
@@ -4594,7 +4626,19 @@ export default function SubsidyApp(props){
             <div style={{flex:1,minWidth:200}}>
               <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(10개 고객사·27명)이며, 언제든 삭제할 수 있습니다.</span>
             </div>
-            <button onClick={deleteSampleData} style={{background:"#fff",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>샘플 데이터 삭제</button>
+            <button onClick={function(){if(!requirePlan())return;deleteSampleData();}} style={{background:"#fff",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>샘플 데이터 삭제</button>
+          </div>
+        )}
+
+        {/* 무료체험 만료 읽기 전용 배너 */}
+        {!canUseFeatures&&(
+          <div style={{background:"#FFFBEB",borderBottom:"1px solid #FDE68A",padding:"10px 48px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <span style={{fontSize:16,flexShrink:0}}>⏸</span>
+            <div style={{flex:1,minWidth:200}}>
+              <span style={{fontSize:13,color:"#92400E",fontWeight:600}}>무료체험이 종료되어 읽기 전용 모드로 이용 중입니다.</span>
+              <span style={{fontSize:13,color:"#A16207",marginLeft:8}}>기존 데이터는 안전하게 보관됩니다.</span>
+            </div>
+            <button onClick={props.onOpenBilling||function(){}} style={{background:"#D97706",color:"#fff",border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap"}}>요금제 보기 →</button>
           </div>
         )}
 
@@ -4609,7 +4653,7 @@ export default function SubsidyApp(props){
               <h3 style={{margin:"0 0 10px",fontSize:24,fontWeight:800,color:"#0F172A"}}>처음이신가요?</h3>
               <p style={{margin:"0 0 8px",fontSize:16,color:"#475569",lineHeight:1.8}}>실제 컨설팅 현장과 똑같은 <strong>10개 고객사·27명 대상자</strong> 데이터로 먼저 둘러보세요.<br/>지연 신청 건, 신청 임박 알림, 수령 현황, 고객 보고서까지 한 번에 확인할 수 있어요.</p>
               <p style={{margin:"0 0 28px",fontSize:14,color:"#94A3B8"}}>둘러본 뒤 "샘플 데이터 삭제" 버튼 한 번이면 깔끔하게 초기화됩니다.</p>
-              <button onClick={loadSampleData} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 38px",fontSize:17,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.20)",display:"inline-flex",alignItems:"center",gap:8}}>
+              <button onClick={function(){if(!requirePlan())return;loadSampleData();}} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 38px",fontSize:17,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.20)",display:"inline-flex",alignItems:"center",gap:8}}>
                 <span>샘플 데이터로 둘러보기</span>
               </button>
             </div>
@@ -4620,7 +4664,7 @@ export default function SubsidyApp(props){
               companies={companies} employees={employees} programs={programs}
               calendarMemos={calendarMemos} onSaveMemo={onSaveMemo}
               goCompany={goCompany} settings={profile.settings||{}}
-              onAddCompany={function(){stAddComp[1](true);}}
+              onAddCompany={function(){if(!requirePlan())return;stAddComp[1](true);}}
               setView={function(v){stView[1](v);stCompany[1](null);}}
               tier={tier} isTrial={isAdmin?false:isTrial} trialDaysLeft={isAdmin?null:trialDays} onOpenBilling={props.onOpenBilling}
               mode="stats"
@@ -4632,7 +4676,7 @@ export default function SubsidyApp(props){
               companies={companies} employees={employees} programs={programs}
               calendarMemos={calendarMemos} onSaveMemo={onSaveMemo}
               goCompany={goCompany} settings={profile.settings||{}}
-              onAddCompany={function(){stAddComp[1](true);}}
+              onAddCompany={function(){if(!requirePlan())return;stAddComp[1](true);}}
               setView={function(v){stView[1](v);stCompany[1](null);}}
               mode="list"
             />
@@ -4641,14 +4685,14 @@ export default function SubsidyApp(props){
           {stView[0]==="company"&&selectedCompany&&(
             <CompDet
               company={selectedCompany} programs={programs} employees={employees}
-              uploadFn={uploadFn} getUrlFn={getUrlFn} profile={profile} tier={tier}
+              uploadFn={canUseFeatures?uploadFn:function(){stPaywall[1](true);return Promise.reject(new Error("구독이 필요합니다."));}} getUrlFn={getUrlFn} profile={profile} tier={tier}
               goBack={goBack}
               focusEmpId={stFocusEmp[0]} onFocusConsumed={function(){stFocusEmp[1](null);}}
-              onSaveEmployee={onSaveEmployee}
-              onPatchEmployee={onPatchEmployee}
-              onDeleteEmployee={onDeleteEmployee}
-              onPatchCompany={onPatchCompany}
-              onDeleteCompany={onDeleteCompany}
+              onSaveEmployee={gated(onSaveEmployee)}
+              onPatchEmployee={gated(onPatchEmployee)}
+              onDeleteEmployee={gated(onDeleteEmployee)}
+              onPatchCompany={gated(onPatchCompany)}
+              onDeleteCompany={gated(onDeleteCompany)}
               onLog={logToCompany}
               onOpenBilling={props.onOpenBilling}
               onOpenWage={function(){stView[1]("wage");stCompany[1](null);}}
@@ -4658,7 +4702,7 @@ export default function SubsidyApp(props){
           {stView[0]==="kanban"&&(
             <KanbanBoard
               employees={employees} companies={companies} programs={programs}
-              onPatchEmployee={onPatchEmployee} goCompany={goCompany} onProcess={goCompanyEmp} onLog={logToCompany}
+              onPatchEmployee={gated(onPatchEmployee)} goCompany={goCompany} onProcess={goCompanyEmp} onLog={logToCompany}
             />
           )}
 
@@ -4790,6 +4834,7 @@ export default function SubsidyApp(props){
         onDismiss={function(){stFbGlow[1](false);}}
       />
       <ProductTour open={stTour[0]} onClose={endTour}/>
+      <PlanRequiredModal open={stPaywall[0]} onClose={function(){stPaywall[1](false);}} onOpenBilling={props.onOpenBilling}/>
       <ToastHost/>
     </div>
   );
