@@ -1519,14 +1519,17 @@ function coSortName(name){
     .trim();
 }
 function byCompanyName(a,b){return coSortName(a.name).localeCompare(coSortName(b.name),"ko");}
-// 업력(N년차): 설립일 계열 필드 → 없으면 고용보험 성립일로 계산 (설립 연도=1년차)
+// 업력(N년차): establishedDate(설립일/개업일) 우선, 없으면 기존 설립일 계열 →
+// 고용보험 성립일 순으로 fallback. 설립 연도=1년차.
+// 반환: 숫자(N년차) | null(미입력) | "invalid"(미래 날짜·잘못된 값 → 확인 필요)
 function companyYears(c){
-  var d=c.foundedDate||c.foundedAt||c.establishedAt||c.insuranceDate;
+  var d=c.establishedDate||c.foundedDate||c.foundedAt||c.establishedAt||c.insuranceDate;
   if(!d)return null;
   var dt=new Date(d);
-  if(isNaN(dt.getTime()))return null;
+  if(isNaN(dt.getTime()))return "invalid";
+  if(dt.getTime()>Date.now())return "invalid";
   var y=new Date().getFullYear()-dt.getFullYear()+1;
-  return y<1?1:y;
+  return y<1?"invalid":y;
 }
 // 주소 요약: "충북 청주시 흥덕구 오송읍 …" → "충북 청주시" (도/광역시 + 시/군/구)
 function shortAddr(addr){
@@ -1769,24 +1772,27 @@ function Dashboard(props){
     {/* 업체 목록 (list 모드) */}
     {props.mode!=="stats"&&(props.companies.length===0?(
       <EmptyState icon="🏢" title="아직 등록된 업체가 없습니다" desc="첫 번째 거래처를 등록하고 직원·지원금·서류를 한 곳에서 관리해보세요. 등록 즉시 D-Day 알림과 수령 현황이 자동 집계됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
-    ):(<div style={{marginBottom:16}}>{props.companies.slice().sort(byCompanyName).map(function(c,ci){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});var coYears=companyYears(c);var coRegion=shortAddr(c.addr);return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"16px 20px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+    ):(<div style={{marginBottom:16}}>{props.companies.slice().sort(byCompanyName).map(function(c,ci){var emps=props.employees.filter(function(e){return e.companyId===c.id&&e.status!=="resigned";});var rcv=props.employees.filter(function(e){return e.companyId===c.id;}).reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0);var upcomingCount=0;emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcomingCount++;});});var coYears=companyYears(c);var coRegion=shortAddr(c.addr);var coYearsText=coYears===null?"업력 미입력":coYears==="invalid"?"업력 확인 필요":"업력 "+coYears+"년차";return(<Card key={c.id} className="hover-card" onClick={function(){props.goCompany(c.id);}} style={{padding:"16px 20px",marginBottom:10,cursor:"pointer",border:"1.5px solid #F1F5F9"}}><div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
       {/* 번호 (가나다순 표시 순서 기준) */}
       <span style={{width:34,height:34,borderRadius:10,background:"#F1F5F9",color:"#64748B",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{String(ci+1).padStart(2,"0")}</span>
-      {/* 좌측: 업체명·태그 + 기본 정보 */}
-      <div style={{flex:1,minWidth:200}}>
+      {/* 좌측: 업체명·태그 + 사업자번호·관리 인원 */}
+      <div style={{flex:"1.3 1 220px",minWidth:200}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}>
           <span style={{fontSize:21,fontWeight:700,color:"#1E293B"}}>{c.name}</span>
           {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <Badge key={tid} color={tag.color} bg={tag.bg}>{tag.label}</Badge>;})}
           {upcomingCount>0&&<Badge color="#DC2626" bg="#FEE2E2">🔔 {upcomingCount}건 임박</Badge>}
         </div>
-        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{c.ceoName&&"대표 "+c.ceoName+" · "}{emps.length}명 관리 중</div>
+        <div style={{fontSize:16,color:"#64748B"}}>{c.bizNo&&c.bizNo+" · "}{emps.length}명 관리 중</div>
       </div>
-      {/* 우측: 수령완료 + 업력/지역/대표 요약 */}
-      <div style={{textAlign:"right",flexShrink:0,marginLeft:"auto"}}>
+      {/* 가운데: 업력 · 지역 · 대표 · 법인구분 */}
+      <div style={{flex:"1 1 190px",minWidth:175}}>
+        <div style={{fontSize:14,color:"#475569",fontWeight:600}}>{coYearsText} · {coRegion||"지역 미입력"}</div>
+        <div style={{fontSize:14,color:"#475569",fontWeight:600,marginTop:4}}>{c.ceoName?"대표: "+c.ceoName:"대표 미입력"}{c.corpType?" · "+c.corpType:""}</div>
+      </div>
+      {/* 우측: 수령완료 금액 */}
+      <div style={{textAlign:"right",flexShrink:0,minWidth:110,paddingRight:8}}>
         <div style={{fontSize:21,fontWeight:700,color:"#059669",lineHeight:1.2}}>{fMan(rcv)}</div>
-        <div style={{fontSize:13,color:"#94A3B8"}}>수령완료</div>
-        <div style={{fontSize:13.5,color:"#475569",fontWeight:600,marginTop:6,whiteSpace:"nowrap"}}>{coYears!==null?"업력 "+coYears+"년차":"업력 미입력"} · {coRegion||"지역 미입력"}</div>
-        <div style={{fontSize:13.5,color:"#475569",fontWeight:600,marginTop:2}}>{c.ceoName?"대표: "+c.ceoName:"대표 미입력"}</div>
+        <div style={{fontSize:13,color:"#94A3B8",marginTop:2}}>수령완료</div>
       </div>
     </div></Card>);})}</div>))}
 
@@ -2963,6 +2969,7 @@ function CompanyEditModal(props){
     empCount:useState(c.empCount||""),
     bizType:useState(c.bizType||""),
     corpType:useState(c.corpType||"개인"),
+    establishedDate:useState(c.establishedDate||""),
     juPosition:useState(c.juPosition||""),
     sector:useState(c.sector||""),
     region:useState(c.region||"비수도권"),
@@ -3029,6 +3036,11 @@ function CompanyEditModal(props){
             );})}
           </div>
         </div>}
+        <div>
+          <Label>{st.corpType[0]==="법인"?"법인 설립일":"개업일"}</Label>
+          <input type="date" style={inp} value={st.establishedDate[0]} onChange={function(e){st.establishedDate[1](e.target.value);}}/>
+          <div style={{fontSize:11,color:"#94A3B8",marginTop:4}}>업체 목록의 업력(N년차) 표시에 사용됩니다. (선택 입력)</div>
+        </div>
         <div>
           <Label>주소</Label>
           <input style={inp} value={st.addr[0]} onChange={function(e){st.addr[1](e.target.value);}} placeholder="협약서·서류 원본 우편 발송에 사용됩니다"/>
@@ -3461,7 +3473,7 @@ function NotifBell(props){
 // 실행 시점 기준 실제 날짜로 변환. 항상 "지연 3건·신청 임박 5건"이 살아있는 데모가 됨.
 var SAMPLE_DATA = [
   {
-    company:{isSample:true,name:"(주)미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",bizType:"기계·정밀부품 제조업",empCount:31,phone:"043-905-3300",email:"hr@miraeprecision.co.kr",commission:{rate:20,retainer:300000,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"착수금 30만 수령 · 성공보수 20% 청구분 입금 대기"},
+    company:{isSample:true,name:"(주)미래정밀",bizNo:"301-81-90122",ceoName:"한도경",addr:"충북 청주시 흥덕구 오송읍 정밀로 22",region:"비수도권",corpType:"법인",establishedDate:"2016-04-12",bizType:"기계·정밀부품 제조업",empCount:31,phone:"043-905-3300",email:"hr@miraeprecision.co.kr",commission:{rate:20,retainer:300000,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"착수금 30만 수령 · 성공보수 20% 청구분 입금 대기"},
       notes:[{id:"sn1",text:"장우진 고령자 계속고용 2분기 신청기한 임박. 재고용 근로계약서 사본만 받으면 신청 가능.",at:"2026-05-28T06:30:00.000Z",author:"담당 컨설턴트"}],
       companyDocs:[{id:"cd1a",label:"사업자등록증",done:true,files:[]},{id:"cd1b",label:"4대보험 가입자명부",done:true,files:[]},{id:"cd1c",label:"기업통장 사본",done:false,files:[]}]},
     employees:[
@@ -3480,7 +3492,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"한라식품(주)",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",bizType:"식품 제조업",empCount:22,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:20,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"1차 수령분 성공보수 청구 · 입금 확인 필요"},
+    company:{isSample:true,name:"한라식품(주)",bizNo:"617-81-23456",ceoName:"박성준",addr:"경남 김해시 주촌면 골든루트로 80",region:"비수도권",corpType:"법인",establishedDate:"2011-09-03",bizType:"식품 제조업",empCount:22,phone:"055-321-7700",email:"hr@hanlafood.co.kr",commission:{rate:20,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"1차 수령분 성공보수 청구 · 입금 확인 필요"},
       notes:[{id:"sn2",text:"한소희 고용촉진장려금 심사중. 월별급여대장·이체증빙 보완하면 1회차 지급 예정.",at:"2026-05-22T08:10:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"박준혁",birthDate:"1999-03-15",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:5,
@@ -3495,7 +3507,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"(주)더좋은푸드",bizNo:"105-23-67891",ceoName:"오세라",addr:"서울 마포구 양화로 45, 2층",region:"수도권",corpType:"법인",bizType:"식품 도소매·외식",empCount:13,phone:"02-336-1180",email:"admin@thebetterfood.kr",commission:{rate:12,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"성공보수 12% 계약 · 세금계산서 발행 완료 (정산 마감)"},
+    company:{isSample:true,name:"(주)더좋은푸드",bizNo:"105-23-67891",ceoName:"오세라",addr:"서울 마포구 양화로 45, 2층",region:"수도권",corpType:"법인",establishedDate:"2019-06-18",bizType:"식품 도소매·외식",empCount:13,phone:"02-336-1180",email:"admin@thebetterfood.kr",commission:{rate:12,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"성공보수 12% 계약 · 세금계산서 발행 완료 (정산 마감)"},
       notes:[{id:"sn3",text:"오하린 새일여성인턴 전 회차 수령 완료. 고객 보고서 출력 후 미팅자료로 공유 예정.",at:"2026-06-02T02:00:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"오하린",birthDate:"1989-09-25",gender:"female",programId:"saeil_women",status:"completed",totalExpected:4000000,startOff:18,ds:0,
@@ -3510,7 +3522,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"헤든디자인",bizNo:"214-09-55178",ceoName:"서지안",addr:"서울 성동구 성수이로 66, 4층",region:"수도권",corpType:"개인",bizType:"디자인·브랜딩 스튜디오",empCount:4,phone:"02-462-7090",email:"studio@haedeun.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
+    company:{isSample:true,name:"헤든디자인",bizNo:"214-09-55178",ceoName:"서지안",addr:"서울 성동구 성수이로 66, 4층",region:"수도권",corpType:"개인",establishedDate:"2022-02-07",bizType:"디자인·브랜딩 스튜디오",empCount:4,phone:"02-462-7090",email:"studio@haedeun.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"최유진",birthDate:"2000-08-21",gender:"female",programId:"youth_jump",status:"submitted",totalExpected:7200000,startOff:4,ds:0,
@@ -3522,7 +3534,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"(주)해온테크",bizNo:"137-81-44820",ceoName:"노형석",addr:"충남 천안시 서북구 직산읍 4산단로 18",region:"비수도권",corpType:"법인",bizType:"전자부품 제조업",empCount:18,phone:"041-585-6600",email:"people@haeontech.co.kr",commission:{rate:20,retainer:300000,billed:false,paid:false,successFee:true},
+    company:{isSample:true,name:"(주)해온테크",bizNo:"137-81-44820",ceoName:"노형석",addr:"충남 천안시 서북구 직산읍 4산단로 18",region:"비수도권",corpType:"법인",establishedDate:"2014-11-21",bizType:"전자부품 제조업",empCount:18,phone:"041-585-6600",email:"people@haeontech.co.kr",commission:{rate:20,retainer:300000,billed:false,paid:false,successFee:true},
       notes:[{id:"sn4",text:"조현우 2차(9개월) 신청 임박. 임금대장·이체확인서 수령 완료, 신청서 제출만 남음.",at:"2026-06-03T00:40:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"조현우",birthDate:"1998-11-02",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:9,ds:1,
@@ -3537,7 +3549,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"(주)다온정밀",bizNo:"506-81-77213",ceoName:"백건우",addr:"경북 구미시 산동읍 첨단기업1로 45",region:"비수도권",corpType:"법인",bizType:"자동차부품 정밀가공",empCount:37,phone:"054-462-8800",email:"hr@daonprecision.co.kr",commission:{rate:18,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"성공보수 18% 청구 · 세금계산서 발행 대기"},
+    company:{isSample:true,name:"(주)다온정밀",bizNo:"506-81-77213",ceoName:"백건우",addr:"경북 구미시 산동읍 첨단기업1로 45",region:"비수도권",corpType:"법인",establishedDate:"2009-08-26",bizType:"자동차부품 정밀가공",empCount:37,phone:"054-462-8800",email:"hr@daonprecision.co.kr",commission:{rate:18,billed:true,paid:false,taxInvoice:false,successFee:true,memo:"성공보수 18% 청구 · 세금계산서 발행 대기"},
       notes:[{id:"sn5",text:"이서연 정규직전환 3차 지급 예정. 월별임금대장만 보완하면 신청 가능.",at:"2026-05-30T05:20:00.000Z",author:"담당 컨설턴트"}],
       companyDocs:[{id:"cd6a",label:"사업자등록증",done:true,files:[]},{id:"cd6b",label:"협약서",done:true,files:[]},{id:"cd6c",label:"고용보험 취득확인서",done:false,files:[]}]},
     employees:[
@@ -3556,7 +3568,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"(주)은성패키지",bizNo:"412-86-30157",ceoName:"조은성",addr:"경기 안산시 단원구 별망로 178",region:"수도권",corpType:"법인",bizType:"포장재 제조업",empCount:9,phone:"031-491-2020",email:"admin@eunseongpack.co.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
+    company:{isSample:true,name:"(주)은성패키지",bizNo:"412-86-30157",ceoName:"조은성",addr:"경기 안산시 단원구 별망로 178",region:"수도권",corpType:"법인",establishedDate:"2018-03-15",bizType:"포장재 제조업",empCount:9,phone:"031-491-2020",email:"admin@eunseongpack.co.kr",commission:{rate:15,billed:false,paid:false,successFee:true},
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"윤지우",birthDate:"1962-04-03",gender:"male",programId:"senior_intern",status:"inprogress",totalExpected:5500000,startOff:12,ds:0,
@@ -3568,7 +3580,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"바른유통",bizNo:"220-15-88301",ceoName:"문바른",addr:"서울 송파구 충민로 66, 가든파이브툴",region:"수도권",corpType:"개인",bizType:"생활용품 도소매",empCount:4,phone:"02-449-3360",email:"barun@barundist.kr",
+    company:{isSample:true,name:"바른유통",bizNo:"220-15-88301",ceoName:"문바른",addr:"서울 송파구 충민로 66, 가든파이브툴",region:"수도권",corpType:"개인",establishedDate:"2023-05-10",bizType:"생활용품 도소매",empCount:4,phone:"02-449-3360",email:"barun@barundist.kr",
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"오세훈",birthDate:"2002-02-14",gender:"male",programId:"youth_jump",status:"inprogress",totalExpected:7200000,startOff:8,ds:6,
@@ -3577,7 +3589,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"제이앤케어(주)",bizNo:"144-81-26694",ceoName:"정유라",addr:"서울 강서구 공항대로 217, 5층",region:"수도권",corpType:"법인",bizType:"방문요양·돌봄 서비스",empCount:16,phone:"02-2662-7140",email:"hr@jncare.co.kr",commission:{rate:15,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"분기 정산 완료 · 세금계산서 발행"},
+    company:{isSample:true,name:"제이앤케어(주)",bizNo:"144-81-26694",ceoName:"정유라",addr:"서울 강서구 공항대로 217, 5층",region:"수도권",corpType:"법인",establishedDate:"2020-10-05",bizType:"방문요양·돌봄 서비스",empCount:16,phone:"02-2662-7140",email:"hr@jncare.co.kr",commission:{rate:15,billed:true,paid:true,taxInvoice:true,successFee:true,memo:"분기 정산 완료 · 세금계산서 발행"},
       notes:[{id:"sn6",text:"배수진 새일여성인턴 인턴 3개월 수령 완료. 고용유지 1차 신청 준비 중.",at:"2026-05-26T03:15:00.000Z",author:"담당 컨설턴트"}],companyDocs:[]},
     employees:[
       {isSample:true,name:"배수진",birthDate:"1988-06-17",gender:"female",programId:"saeil_women",status:"inprogress",totalExpected:4000000,startOff:6,ds:0,
@@ -3592,7 +3604,7 @@ var SAMPLE_DATA = [
     ]
   },
   {
-    company:{isSample:true,name:"(주)지앤비물류",bizNo:"312-81-61905",ceoName:"구본승",addr:"충북 음성군 대소면 삼성로 412",region:"비수도권",corpType:"법인",bizType:"종합물류·운송",empCount:7,phone:"043-882-5500",email:"hr@gnblogis.co.kr",commission:{rate:20,billed:false,paid:false,successFee:true},
+    company:{isSample:true,name:"(주)지앤비물류",bizNo:"312-81-61905",ceoName:"구본승",addr:"충북 음성군 대소면 삼성로 412",region:"비수도권",corpType:"법인",establishedDate:"2017-12-01",bizType:"종합물류·운송",empCount:7,phone:"043-882-5500",email:"hr@gnblogis.co.kr",commission:{rate:20,billed:false,paid:false,successFee:true},
       notes:[],companyDocs:[]},
     employees:[
       {isSample:true,name:"정해성",birthDate:"1991-02-28",gender:"male",programId:"emp_promo",status:"inprogress",totalExpected:7200000,startOff:7,ds:3,
