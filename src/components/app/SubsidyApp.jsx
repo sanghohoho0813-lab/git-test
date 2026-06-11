@@ -860,6 +860,8 @@ function AgencyReport(props){
     });
     upcoming.sort(function(a,b){return a.dday-b.dday;});
     overdue.sort(function(a,b){return a.dday-b.dday;});
+    // 업체 공통 필수 정보 누락 — 급여일은 급여 증빙 요청 시점 산정에 필요
+    if(emps.length>0&&!company.payday){riskItems.push({empName:company.name+" (업체)",prog:"공통",status:"-",problem:"급여일 미입력",impact:0,action:"급여일 입력 후 급여 증빙 요청 시점 확정"});}
     riskItems.sort(function(a,b){return b.impact-a.impact;});
     var sc={}; STS.forEach(function(s){sc[s.key]=0;});
     emps.forEach(function(e){if(sc[e.status]!==undefined)sc[e.status]++;});
@@ -963,7 +965,7 @@ function AgencyReport(props){
     function shx(title){ SNO++; return '<div class="sh"><div class="sn">'+SNO+'</div><div class="st">'+title+'</div></div>'; }
     // 놓치면 손해 보는 항목
     var riskHtml=rd.riskItems.slice(0,16).map(function(it){
-      return '<tr><td style="font-weight:700;color:#0F172A">'+it.empName+'</td><td style="color:#64748B;font-size:12px">'+it.prog+'</td><td><span style="padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#FEE2E2;color:#DC2626">'+it.problem+'</span></td><td style="text-align:right;font-weight:700;color:#DC2626">'+(it.impact>0?fM2(it.impact):'-')+'</td><td style="color:#475569;font-size:12px">'+it.action+'</td></tr>';
+      return '<tr><td style="font-weight:700;color:#0F172A">'+it.empName+'</td><td style="color:#64748B;font-size:12px">'+it.prog+'</td><td style="color:#475569;font-size:12px;white-space:nowrap">'+(it.status||"-")+'</td><td><span style="padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#FEE2E2;color:#DC2626">'+it.problem+'</span></td><td style="text-align:right;font-weight:700;color:#DC2626">'+(it.impact>0?fM2(it.impact):'-')+'</td><td style="color:#475569;font-size:12px">'+it.action+'</td></tr>';
     }).join("");
     // 30일 액션 플랜
     function planList(arr){ if(!arr.length)return '<div style="font-size:13px;color:#94A3B8;padding:4px 0">예정된 작업이 없습니다.</div>'; return '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.95;color:#334155">'+arr.slice(0,7).map(function(x){return '<li>'+x+'</li>';}).join("")+'</ul>'; }
@@ -1064,7 +1066,7 @@ function AgencyReport(props){
       secRisk?[
         '<div class="page">',
           shx('🚨 놓치면 손해 보는 항목'),
-          '<table><thead><tr><th>직원명</th><th>지원금</th><th>문제 요약</th><th style="text-align:right">예상 영향</th><th>권장 조치</th></tr></thead><tbody>',riskHtml,'</tbody></table>',
+          '<table><thead><tr><th>직원명</th><th>지원금</th><th>상태</th><th>문제 요약</th><th style="text-align:right">예상 영향</th><th>권장 조치</th></tr></thead><tbody>',riskHtml,'</tbody></table>',
           '<div class="notice" style="border-left-color:#DC2626;background:#FEF2F2;color:#7F1D1D">위 항목은 신청기한·서류·필수정보를 기준으로 자동 점검된 결과입니다. 예상 영향 금액은 해당 회차 예상 수령액 기준이며, 실제 신청 가능 여부는 담당기관 심사에 따라 달라질 수 있습니다.</div>',
         '</div>'
       ].join(""):""
