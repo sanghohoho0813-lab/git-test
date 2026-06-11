@@ -1567,25 +1567,65 @@ function companyProgramShorts(emps,programs){
   return out;
 }
 
-// ── 엑셀 가져오기 (1단계: 업로드 → 파싱 → 미리보기 · DB 저장 없음) ──
-// 컬럼명 유사어 매핑 (공백 제거 후 비교)
-var XL_HEADER_ALIASES={
-  companyName:["업체명","회사명","기업명","고객사명"],
-  bizNo:["사업자등록번호","사업자번호","사업자"],
-  empName:["직원명","근로자명","성명","이름"],
-  ceoName:["대표자","대표자명","대표"],
-  corpType:["법인구분","법인/개인","구분"],
-  region:["지역","소재지"],
-  years:["업력"],
-  empCount:["전체직원수","직원수","상시근로자수"],
-  birthDate:["생년월일","생일"],
-  startDate:["입사일","채용일","고용일","입사일자"],
-  programName:["지원금명","지원사업","지원금","장려금명","프로그램명"],
-  status:["신청상태","상태","진행상태"],
-  round:["회차"],
-  payMonth:["지급월","지급개월"],
-  memo:["메모","비고"]
-};
+// ── 엑셀 가져오기 (업로드 → 컬럼 매핑 → 미리보기 · 검증 → 등록) ──
+// 시스템 필드 정의 + 컬럼명 유사어 사전 — 사무실마다 다른 양식을 자동 인식
+var XL_FIELDS=[
+  {key:"companyName",label:"업체명",required:true,aliases:["업체명","회사명","기업명","고객사명","거래처명","사업장명","법인명","상호","상호명"]},
+  {key:"bizNo",label:"사업자등록번호",required:true,aliases:["사업자등록번호","사업자번호","사업자","사업자NO","사업자No","등록번호","사업장번호"]},
+  {key:"empName",label:"직원명",required:true,aliases:["직원명","근로자명","성명","이름","대상자명","신청자명","근로자","직원","대상자"]},
+  {key:"ceoName",label:"대표자명",required:false,aliases:["대표자","대표","대표자명","사업주","대표이사","원장","사장"]},
+  {key:"corpType",label:"법인구분",required:false,aliases:["법인구분","법인/개인","구분","사업자구분","사업장구분","개인법인","유형"]},
+  {key:"region",label:"지역",required:false,aliases:["지역","소재지","주소","사업장주소","본점주소","관할지역","시군구"]},
+  {key:"empCount",label:"전체직원수",required:false,aliases:["전체직원수","직원수","상시근로자수","근로자수","총직원수","인원","총인원","고용인원"]},
+  {key:"birthDate",label:"생년월일",required:false,aliases:["생년월일","생일","생년","주민앞자리","주민번호앞자리","주민등록번호앞자리","생년월일6자리"]},
+  {key:"startDate",label:"입사일",required:false,aliases:["입사일","입사일자","채용일","채용일자","고용일","고용일자","근무시작일","입직일"]},
+  {key:"programName",label:"지원금명",required:false,aliases:["지원금명","지원금","지원사업","지원사업명","장려금명","장려금","프로그램명","제도명","사업명"]},
+  {key:"status",label:"신청상태",required:false,aliases:["신청상태","상태","진행상태","진행단계","처리상태","접수상태","신청여부","지급상태"]},
+  {key:"round",label:"회차",required:false,aliases:["회차","신청회차","지급회차","차수","몇회차"]},
+  {key:"payMonth",label:"지급월",required:false,aliases:["지급월","신청월","예정월","지급예정월","수령월","입금월","정산월"]},
+  {key:"memo",label:"메모",required:false,aliases:["메모","비고","특이사항","참고","코멘트","내용","상담메모"]}
+];
+// 헤더 정규화: 괄호 부가설명·공백·특수문자 제거 + 소문자 ("사업자 등록 번호(필수)" → "사업자등록번호")
+function xlNormHead(h){
+  return String(h==null?"":h).replace(/\(.*?\)|（.*?）/g,"").toLowerCase().replace(/[^0-9a-z가-힣]/g,"");
+}
+// 한 행을 헤더로 가정하고 자동 매핑: 완전 일치=높음 → 단독 부분 일치=보통 → 복수 후보=확인 필요
+function xlAutoMap(headerCells){
+  var norm=(headerCells||[]).map(xlNormHead);
+  var map={},conf={};
+  XL_FIELDS.forEach(function(f){
+    var exact=-1,partial=-1,partialCnt=0;
+    norm.forEach(function(h,idx){
+      if(!h)return;
+      if(f.aliases.some(function(a){return xlNormHead(a)===h;})){if(exact===-1)exact=idx;return;}
+      if(f.aliases.some(function(a){var an=xlNormHead(a);return an.length>=2&&h.length>=2&&(h.indexOf(an)>=0||an.indexOf(h)>=0);})){if(partial===-1)partial=idx;partialCnt++;}
+    });
+    if(exact>=0){map[f.key]=exact;conf[f.key]="high";}
+    else if(partial>=0){map[f.key]=partial;conf[f.key]=partialCnt>1?"low":"mid";}
+    else{map[f.key]=-1;conf[f.key]="none";}
+  });
+  // 같은 엑셀 컬럼이 두 필드에 잡히면 신뢰도 높은 쪽만 유지
+  var used={},rank={high:3,mid:2,low:1,none:0};
+  XL_FIELDS.forEach(function(f){
+    var c=map[f.key]; if(c==null||c<0)return;
+    if(used[c]!==undefined){
+      if(rank[conf[f.key]]>rank[conf[used[c]]]){map[used[c]]=-1;conf[used[c]]="none";used[c]=f.key;}
+      else{map[f.key]=-1;conf[f.key]="none";}
+    }else used[c]=f.key;
+  });
+  return{map:map,conf:conf};
+}
+// 헤더 행 자동 탐지: 첫 10행 중 핵심 필드(필수 3점·선택 1점) 매칭 점수가 가장 높은 행
+function xlDetectHeader(grid){
+  var best=0,bestScore=0;
+  for(var i=0;i<Math.min(10,grid.length);i++){
+    var r=xlAutoMap(grid[i]||[]);
+    var score=0;
+    XL_FIELDS.forEach(function(f){if(r.map[f.key]>=0)score+=f.required?3:1;});
+    if(score>bestScore){bestScore=score;best=i;}
+  }
+  return best;
+}
 // 날짜 정규화: yyyy-mm-dd / yyyy.mm.dd / yyyy/mm/dd / 20260115 / 엑셀 일련번호 / m/d/yy
 function xlNormDate(v){
   if(v==null||String(v).trim()==="")return{value:"",ok:true,empty:true};
@@ -1602,18 +1642,30 @@ function xlNormDate(v){
   }
   return{value:String(v),ok:false};
 }
-function xlBizNoOk(bizNo){ return (String(bizNo).replace(/\D/g,"")).length===10; }
+// 사업자번호 검증: 숫자 10자리 + 하이픈을 쓴 경우 123-45-67890 형태만 정상
+function xlBizNoCheck(s){
+  var raw=String(s||"").trim();
+  var d=raw.replace(/\D/g,"");
+  if(d.length!==10)return{ok:false,reason:"숫자 10자리가 아님"};
+  if(raw.indexOf("-")>=0&&!/^\d{3}-\d{2}-\d{5}$/.test(raw))return{ok:false,reason:"하이픈 위치 이상 (123-45-67890 형식 권장)"};
+  return{ok:true};
+}
 
 function ExcelImport(props){
   var stOpen=useState(false);
-  var stStep=useState(1);   // 1 업로드 → 2 미리보기 → 3 등록/결과
+  var stStep=useState(1);   // 1 업로드 → 2 컬럼 매핑 → 3 미리보기 → 4 등록/결과
   var stBusy=useState(false);
   var stSaving=useState(false);
-  var stResult=useState(null); // 저장 결과 {newComps,merged,saved,excludedErrors,noProg,dupExcluded,failedRows}
-  var stPreview=useState(null); // importPreview={companies,employees,rows,errors,warnings,duplicates}
+  var stGrid=useState(null);    // 시트 원본 (브라우저 메모리에만 보관)
+  var stHeader=useState(0);     // 헤더 행 index (0-based)
+  var stMap=useState(null);     // {fieldKey: colIndex | -1}
+  var stConf=useState(null);    // {fieldKey: "high"|"mid"|"low"|"none"}
+  var stResult=useState(null);  // 저장 결과
+  var stPreview=useState(null); // importPreview={companies,employees,rows,errors,warnings,duplicates,...}
   var fileRef=useRef(null);
 
-  function reset(){stStep[1](1);stPreview[1](null);stResult[1](null);if(fileRef.current)fileRef.current.value="";}
+  function reset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);if(fileRef.current)fileRef.current.value="";}
+  function softReset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);}
 
   // 지원금명 → programId (기존 프로그램에만 매칭 · 자동 생성 없음)
   function matchProgramId(name){
@@ -1622,7 +1674,7 @@ function ExcelImport(props){
     var n=String(name).replace(/\s+/g,"");
     var ids=Object.keys(programs);
     for(var i=0;i<ids.length;i++){var pn=String(programs[ids[i]].name||"").replace(/\s+/g,"");if(pn&&pn===n)return ids[i];}
-    var aliases={youth_jump:["청년일자리도약"],emp_promo:["고용촉진"],senior_continue:["고령자계속고용"],saeil_women:["새일여성인턴"],regular_convert:["정규직전환"],senior_intern:["시니어인턴"]};
+    var aliases={youth_jump:["청년일자리도약","청년도약"],emp_promo:["고용촉진"],senior_continue:["고령자계속고용"],saeil_women:["새일여성인턴"],regular_convert:["정규직전환"],senior_intern:["시니어인턴"]};
     var keys=Object.keys(aliases);
     for(var k=0;k<keys.length;k++){
       if(!programs[keys[k]])continue;
@@ -1638,7 +1690,139 @@ function ExcelImport(props){
     return hit?hit.key:"preparing";
   }
 
-  // 실제 등록 — 사용자가 버튼을 누르고 confirm 한 뒤에만 호출됨
+  async function handleFile(file){
+    if(!file)return;
+    var ext=(file.name.split(".").pop()||"").toLowerCase();
+    if(["xlsx","xls","csv"].indexOf(ext)===-1){toast("xlsx·xls·csv 파일만 지원합니다.","error");return;}
+    stBusy[1](true);
+    try{
+      // 파일은 브라우저 메모리에서만 읽음 — 서버·Storage 업로드 없음
+      var XLSX=await import("xlsx");
+      var buf=await file.arrayBuffer();
+      var wb=XLSX.read(buf,{type:"array",cellDates:true});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var grid=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:"",dateNF:"yyyy-mm-dd"});
+      if(!grid||grid.length<2)throw new Error("데이터 행이 없습니다. 헤더 행과 데이터 행이 필요합니다.");
+      var h=xlDetectHeader(grid);
+      var am=xlAutoMap(grid[h]||[]);
+      stGrid[1](grid);stHeader[1](h);stMap[1](am.map);stConf[1](am.conf);
+      stStep[1](2);
+    }catch(e){
+      toast("파일을 읽지 못했습니다: "+(e.message||"오류"),"error");
+    }finally{
+      stBusy[1](false);
+      if(fileRef.current)fileRef.current.value="";
+    }
+  }
+
+  // 헤더 행 변경 시 자동 매핑 재계산
+  function changeHeader(idx){
+    var grid=stGrid[0]; if(!grid)return;
+    var am=xlAutoMap(grid[idx]||[]);
+    stHeader[1](idx);stMap[1](am.map);stConf[1](am.conf);
+  }
+
+  // 샘플 양식 다운로드 — 브라우저에서 xlsx 생성 (서버/DB 저장 없음)
+  async function downloadTemplate(){
+    try{
+      var XLSX=await import("xlsx");
+      var headers=["업체명","사업자등록번호","대표자","법인구분","지역","전체직원수","직원명","생년월일","입사일","지원금명","신청상태","회차","지급월","메모"];
+      var rows=[
+        ["(주)한빛테크","123-45-67890","김한빛","법인","경기 성남시","12","박청년","2000-03-15","2026-04-01","청년일자리도약장려금","진행중","1","2026-10","사전신청 완료"],
+        ["(주)한빛테크","123-45-67890","김한빛","법인","경기 성남시","12","이도약","1999-11-02","2026-05-12","청년일자리도약장려금","준비중","","",""],
+        ["바른상사","987-65-43210","최바른","개인","서울 강서구","6","정새일","1988-07-21","2026-03-02","새일여성인턴제","신청완료","1","2026-09","새일센터 연계"]
+      ];
+      var ws=XLSX.utils.aoa_to_sheet([headers].concat(rows));
+      var wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,"가져오기");
+      XLSX.writeFile(wb,"고용지원금_가져오기_샘플양식.xlsx");
+    }catch(e){toast("샘플 양식 생성에 실패했습니다: "+(e.message||"오류"),"error");}
+  }
+
+  // 현재 헤더 행·매핑 기준으로 미리보기/검증 생성 (DB 저장 없음)
+  function buildPreview(){
+    var grid=stGrid[0],hIdx=stHeader[0],colMap=stMap[0];
+    function cell(row,key){var i=colMap[key];return(i==null||i<0)?"":String(row[i]==null?"":row[i]).trim();}
+    var existingByBiz={};
+    (props.companies||[]).forEach(function(c){var d=String(c.bizNo||"").replace(/\D/g,"");if(d&&!existingByBiz[d])existingByBiz[d]=c;});
+    var rows=[],errors=[],warnings=[],duplicates=[],dupPreview=[];
+    var compMap={},empList=[],progSet={},seenPair={},seenSave={};
+    var junk=0,bizWarnCount=0;
+    for(var i=hIdx+1;i<grid.length;i++){
+      var raw=grid[i];
+      if(!raw||raw.every(function(v){return String(v==null?"":v).trim()==="";}))continue; // 완전 빈 행
+      var rowNo=i+1; // 엑셀 행 번호
+      var companyName=cell(raw,"companyName"),bizNo=cell(raw,"bizNo"),empName=cell(raw,"empName");
+      // 합계/소계/안내 문구 등 데이터가 아닌 행 자동 제외
+      if(!companyName&&!bizNo&&!empName){junk++;continue;}
+      if(/^(합계|총계|소계)$/.test(companyName)||/^(합계|총계|소계)$/.test(empName)){junk++;continue;}
+      var startD=xlNormDate(cell(raw,"startDate")),birthD=xlNormDate(cell(raw,"birthDate"));
+      var programName=cell(raw,"programName");
+      var errs=[],warns=[],bizWarn=false;
+      if(!companyName)errs.push("업체명 없음");
+      if(!bizNo)errs.push("사업자등록번호 없음");
+      if(!empName)errs.push("직원명 없음");
+      if(bizNo){
+        var bc=xlBizNoCheck(bizNo);
+        if(!bc.ok){bizWarn=true;bizWarnCount++;warns.push("사업자번호 형식 주의 — "+bc.reason);}
+      }
+      if(!startD.ok)warns.push("입사일 날짜 형식 확인 필요");
+      if(!birthD.ok)warns.push("생년월일 날짜 형식 확인 필요");
+      if(!programName)warns.push("지원금명 미입력");
+      var bizDigits=bizNo.replace(/\D/g,"");
+      var isDup=false;
+      if(bizDigits&&empName){
+        var pairKey=bizDigits+"|"+empName;
+        if(seenPair[pairKey]){isDup=true;warns.push("같은 사업자번호+직원명 중복 의심 ("+seenPair[pairKey]+"행과 동일)");}
+        else seenPair[pairKey]=rowNo;
+      }
+      var exComp=bizDigits?existingByBiz[bizDigits]:null;
+      if(exComp)warns.push("기존 업체에 직원 추가 예정 ("+exComp.name+")");
+      var pid=matchProgramId(programName);
+      var progMatchedName=pid?String((props.programs||{})[pid].name||""):"";
+      var status=errs.length>0?"오류":isDup?"중복 의심":warns.length>0?"주의":"정상";
+      var row={rowNo:rowNo,companyName:companyName,bizNo:bizNo,empName:empName,
+        startDate:startD.value,birthDate:birthD.value,programName:programName,progMatchedName:progMatchedName,
+        rawStatus:cell(raw,"status"),round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),
+        status:status,messages:errs.concat(warns),hasError:errs.length>0,isDup:isDup,bizWarn:bizWarn,
+        existing:!!exComp};
+      rows.push(row);
+      if(errs.length>0)errors.push({rowNo:rowNo,messages:errs});
+      if(warns.length>0)warnings.push({rowNo:rowNo,messages:warns});
+      if(isDup)duplicates.push({rowNo:rowNo});
+      if(programName)progSet[programName]=true;
+      // 저장용 구조 (오류 행 제외)
+      if(errs.length===0){
+        var ck=bizDigits||companyName;
+        if(!compMap[ck])compMap[ck]={name:companyName,bizNo:bizNo,ceoName:cell(raw,"ceoName"),corpType:cell(raw,"corpType"),region:cell(raw,"region"),years:cell(raw,"years"),empCount:cell(raw,"empCount"),existing:!!exComp};
+        empList.push({companyKey:ck,name:empName,birthDate:birthD.ok?birthD.value:"",startDate:startD.ok?startD.value:"",programName:programName,rawStatus:cell(raw,"status"),round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),rowNo:rowNo,isDup:isDup});
+        // 저장 시 중복 제외 예정 미리 계산 (기존 DB + 배치 내 — doImport 와 동일 기준)
+        var sd=startD.ok?startD.value:"";
+        var isDupDb=exComp?(props.employees||[]).some(function(ex){
+          if(ex.companyId!==exComp.id||String(ex.name||"").trim()!==empName)return false;
+          if(sd&&ex.startDate)return ex.startDate===sd;
+          return true;
+        }):false;
+        var sk=ck+"|"+empName+"|"+sd;
+        if(isDupDb||seenSave[sk])dupPreview.push({rowNo:rowNo,name:empName});
+        else seenSave[sk]=true;
+      }
+    }
+    if(rows.length===0)throw new Error("읽을 수 있는 데이터 행이 없습니다. 헤더 행 설정을 확인해주세요.");
+    return{companies:Object.keys(compMap).map(function(k){return compMap[k];}),employees:empList,
+      rows:rows,errors:errors,warnings:warnings,duplicates:duplicates,dupPreview:dupPreview,
+      programKinds:Object.keys(progSet),junk:junk,bizWarnCount:bizWarnCount};
+  }
+
+  function gotoPreview(){
+    var colMap=stMap[0]||{};
+    var missing=XL_FIELDS.filter(function(f){return f.required&&(colMap[f.key]==null||colMap[f.key]<0);});
+    if(missing.length>0){toast("필수 필드 매핑이 필요합니다: "+missing.map(function(f){return f.label;}).join(", "),"warn");return;}
+    try{stPreview[1](buildPreview());stStep[1](3);}
+    catch(e){toast(e.message||"미리보기 생성 실패","error");}
+  }
+
+  // 실제 등록 — 마지막 단계에서 버튼 클릭 + confirm 후에만 호출됨
   async function doImport(){
     if(stSaving[0])return;
     var io=props.io||{};
@@ -1646,7 +1830,9 @@ function ExcelImport(props){
     var pv0=stPreview[0];
     if(!pv0||pv0.employees.length===0)return;
     var msg="오류가 없는 행만 등록됩니다. 기존 업체와 사업자등록번호가 같은 경우 해당 업체에 직원이 추가됩니다."
-      +(pv0.duplicates.length>0?"\n\n⚠️ 중복 의심 행 "+pv0.duplicates.length+"건이 포함되어 있습니다.":"")
+      +(pv0.bizWarnCount>0?"\n\n⚠️ 사업자번호 형식 주의 "+pv0.bizWarnCount+"건이 포함되어 있습니다.":"")
+      +(pv0.duplicates.length>0?"\n⚠️ 중복 의심 행 "+pv0.duplicates.length+"건이 포함되어 있습니다.":"")
+      +(pv0.dupPreview.length>0?"\nℹ️ 이미 등록된 동일 직원 "+pv0.dupPreview.length+"명은 자동 제외됩니다.":"")
       +"\n\n등록을 진행할까요?";
     if(!window.confirm(msg))return;
     stSaving[1](true);
@@ -1722,7 +1908,7 @@ function ExcelImport(props){
       }
       stResult[1]({newComps:newComps.length,merged:Object.keys(mergedSet).length,
         saved:toSave.length-failedRows.length,excludedErrors:pv0.errors.length,
-        noProg:noProg,dupExcluded:dupExcluded,failedRows:failedRows});
+        noProg:noProg,dupExcluded:dupExcluded,failedRows:failedRows,bizWarn:pv0.bizWarnCount});
       if(failedRows.length===0)toast("엑셀 데이터 등록이 완료되었습니다. 신규 업체 "+newComps.length+"개, 직원 "+(toSave.length-failedRows.length)+"명이 등록되었습니다.","success");
       else toast("일부 행 저장에 실패했습니다 ("+failedRows.length+"건) — 결과 화면을 확인해주세요.","error");
     }catch(e){
@@ -1733,104 +1919,16 @@ function ExcelImport(props){
     }
   }
 
-  function buildPreview(grid){
-    if(!grid||grid.length<2)throw new Error("데이터 행이 없습니다. 첫 행은 컬럼명, 둘째 행부터 데이터를 입력해주세요.");
-    // 헤더 매핑
-    var header=grid[0].map(function(h){return String(h||"").replace(/\s+/g,"");});
-    var colMap={}; // canonical key → column index
-    header.forEach(function(h,idx){
-      Object.keys(XL_HEADER_ALIASES).forEach(function(key){
-        if(colMap[key]!==undefined)return;
-        if(XL_HEADER_ALIASES[key].some(function(a){return a.replace(/\s+/g,"")===h;}))colMap[key]=idx;
-      });
-    });
-    var missing=["companyName","bizNo","empName"].filter(function(k){return colMap[k]===undefined;});
-    if(missing.length>0){
-      var label={companyName:"업체명",bizNo:"사업자등록번호",empName:"직원명"};
-      throw new Error("필수 컬럼을 찾을 수 없습니다: "+missing.map(function(k){return label[k];}).join(", ")+" — 첫 행의 컬럼명을 확인해주세요.");
-    }
-    function cell(row,key){var i=colMap[key];return i===undefined?"":String(row[i]==null?"":row[i]).trim();}
-    var existingBizNos={};
-    (props.companies||[]).forEach(function(c){var d=String(c.bizNo||"").replace(/\D/g,"");if(d)existingBizNos[d]=c.name;});
-    var rows=[],errors=[],warnings=[],duplicates=[];
-    var compMap={},empList=[],progSet={},seenPair={};
-    for(var i=1;i<grid.length;i++){
-      var raw=grid[i];
-      if(!raw||raw.every(function(v){return String(v==null?"":v).trim()==="";}))continue; // 빈 행 무시
-      var rowNo=i+1; // 엑셀 행 번호 (헤더=1행)
-      var companyName=cell(raw,"companyName"),bizNo=cell(raw,"bizNo"),empName=cell(raw,"empName");
-      var startD=xlNormDate(cell(raw,"startDate")),birthD=xlNormDate(cell(raw,"birthDate"));
-      var programName=cell(raw,"programName");
-      var errs=[],warns=[];
-      if(!companyName)errs.push("업체명 없음");
-      if(!bizNo)errs.push("사업자등록번호 없음");
-      if(!empName)errs.push("직원명 없음");
-      if(bizNo&&!xlBizNoOk(bizNo))warns.push("사업자등록번호 형식 확인 필요");
-      if(!startD.ok)warns.push("입사일 날짜 형식 확인 필요");
-      if(!birthD.ok)warns.push("생년월일 날짜 형식 확인 필요");
-      if(!programName)warns.push("지원금명 미입력");
-      var bizDigits=bizNo.replace(/\D/g,"");
-      var isDup=false;
-      if(bizDigits&&empName){
-        var pairKey=bizDigits+"|"+empName;
-        if(seenPair[pairKey]){isDup=true;warns.push("같은 사업자번호+직원명 중복 의심 ("+seenPair[pairKey]+"행과 동일)");}
-        else seenPair[pairKey]=rowNo;
-      }
-      if(bizDigits&&existingBizNos[bizDigits])warns.push("기존 등록 업체 가능성 ("+existingBizNos[bizDigits]+")");
-      var status=errs.length>0?"오류":isDup?"중복 의심":warns.length>0?"주의":"정상";
-      var row={rowNo:rowNo,companyName:companyName,bizNo:bizNo,empName:empName,
-        startDate:startD.value,birthDate:birthD.value,programName:programName,
-        rawStatus:cell(raw,"status"),round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),
-        status:status,messages:errs.concat(warns),hasError:errs.length>0,isDup:isDup,
-        existing:!!(bizDigits&&existingBizNos[bizDigits])};
-      rows.push(row);
-      if(errs.length>0)errors.push({rowNo:rowNo,messages:errs});
-      if(warns.length>0)warnings.push({rowNo:rowNo,messages:warns});
-      if(isDup)duplicates.push({rowNo:rowNo});
-      if(programName)progSet[programName]=true;
-      // 2단계 저장용 구조 (오류 행 제외 가능하도록 hasError 보존)
-      if(errs.length===0){
-        var ck=bizDigits||companyName;
-        if(!compMap[ck])compMap[ck]={name:companyName,bizNo:bizNo,ceoName:cell(raw,"ceoName"),corpType:cell(raw,"corpType"),region:cell(raw,"region"),years:cell(raw,"years"),empCount:cell(raw,"empCount"),existing:!!(bizDigits&&existingBizNos[bizDigits])};
-        empList.push({companyKey:ck,name:empName,birthDate:birthD.ok?birthD.value:"",startDate:startD.ok?startD.value:"",programName:programName,rawStatus:cell(raw,"status"),round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),rowNo:rowNo,isDup:isDup});
-      }
-    }
-    if(rows.length===0)throw new Error("읽을 수 있는 데이터 행이 없습니다.");
-    return{companies:Object.keys(compMap).map(function(k){return compMap[k];}),employees:empList,
-      rows:rows,errors:errors,warnings:warnings,duplicates:duplicates,
-      programKinds:Object.keys(progSet)};
-  }
-
-  async function handleFile(file){
-    if(!file)return;
-    var ext=(file.name.split(".").pop()||"").toLowerCase();
-    if(["xlsx","xls","csv"].indexOf(ext)===-1){toast("xlsx·xls·csv 파일만 지원합니다.","error");return;}
-    stBusy[1](true);
-    try{
-      // 파일은 브라우저 메모리에서만 읽음 — 서버·Storage 업로드 없음
-      var XLSX=await import("xlsx");
-      var buf=await file.arrayBuffer();
-      var wb=XLSX.read(buf,{type:"array",cellDates:true});
-      var ws=wb.Sheets[wb.SheetNames[0]];
-      var grid=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:"",dateNF:"yyyy-mm-dd"});
-      stPreview[1](buildPreview(grid));
-      stStep[1](2);
-    }catch(e){
-      toast("파일을 읽지 못했습니다: "+(e.message||"오류"),"error");
-    }finally{
-      stBusy[1](false);
-      if(fileRef.current)fileRef.current.value="";
-    }
-  }
-
   var pv=stPreview[0];
   var stColor={"정상":["#059669","#ECFDF5"],"주의":["#D97706","#FFFBEB"],"오류":["#DC2626","#FEF2F2"],"중복 의심":["#7C3AED","#F5F3FF"]};
-  var steps=["파일 업로드","미리보기 · 검증","등록"];
+  var confBadge={high:["높음","#059669","#ECFDF5"],mid:["보통","#D97706","#FFFBEB"],low:["확인 필요","#DC2626","#FEF2F2"],none:["미매칭","#94A3B8","#F1F5F9"]};
+  var steps=["파일 업로드","컬럼 매핑","미리보기 · 검증","등록"];
+  var headerCells=(stGrid[0]&&stGrid[0][stHeader[0]])||[];
 
   return(
     <React.Fragment>
       <button onClick={function(){stOpen[1](true);}} style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0",whiteSpace:"nowrap"})}>📥 엑셀 가져오기</button>
-      <Modal open={stOpen[0]} onClose={function(){stOpen[1](false);reset();}} title="📥 엑셀로 업체/직원 가져오기" width={760}>
+      <Modal open={stOpen[0]} onClose={function(){stOpen[1](false);reset();}} title="📥 엑셀로 업체/직원 가져오기" width={780}>
         <div style={{display:"grid",gap:14}}>
           {/* 단계 표시 */}
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -1850,28 +1948,81 @@ function ExcelImport(props){
 
           {/* 1단계: 파일 업로드 */}
           {stStep[0]===1&&(
-            <div>
+            <div style={{display:"grid",gap:10}}>
+              <div style={{padding:"10px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:12.5,color:"#475569",lineHeight:1.6}}>
+                각 사무실마다 사용하는 엑셀 양식이 달라도, 컬럼을 자동으로 인식합니다. 자동 인식이 맞지 않으면 직접 컬럼을 선택한 뒤 미리보기를 진행하세요.
+              </div>
               <div onClick={function(){if(!stBusy[0]&&fileRef.current)fileRef.current.click();}}
-                style={{border:"2px dashed #BFDBFE",borderRadius:14,padding:"38px 20px",textAlign:"center",cursor:"pointer",background:"#F8FAFC"}}>
+                style={{border:"2px dashed #BFDBFE",borderRadius:14,padding:"34px 20px",textAlign:"center",cursor:"pointer",background:"#F8FAFC"}}>
                 <div style={{fontSize:34,marginBottom:10}}>📄</div>
                 <div style={{fontSize:15,fontWeight:700,color:"#1E293B",marginBottom:6}}>{stBusy[0]?"파일을 읽는 중…":"클릭해서 엑셀 파일 선택 (.xlsx · .xls · .csv)"}</div>
                 <div style={{fontSize:12.5,color:"#64748B"}}>권장 컬럼: 업체명, 사업자등록번호, 직원명, 입사일, 지원금명</div>
-                <div style={{fontSize:12,color:"#94A3B8",marginTop:4}}>첫 행은 컬럼명이어야 하며, 비슷한 이름(회사명·근로자명·채용일 등)도 자동 인식합니다.</div>
+                <div style={{fontSize:12,color:"#94A3B8",marginTop:4}}>제목·안내 문구가 위에 있어도 헤더 행을 자동으로 찾아냅니다.</div>
               </div>
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}}
                 onChange={function(e){handleFile(e.target.files&&e.target.files[0]);}}/>
+              <button onClick={downloadTemplate} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:13.5})}>⬇️ 샘플 양식 다운로드 (.xlsx)</button>
             </div>
           )}
 
-          {/* 2단계: 미리보기/검증 */}
-          {stStep[0]===2&&pv&&(
+          {/* 2단계: 컬럼 매핑 확인/수정 */}
+          {stStep[0]===2&&stGrid[0]&&(
             <div style={{display:"grid",gap:12}}>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                <span style={{fontSize:13,fontWeight:700,color:"#1E293B"}}>📌 {stHeader[0]+1}행을 헤더로 인식했습니다.</span>
+                <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12.5,color:"#475569"}}>
+                  헤더 행:
+                  <select value={stHeader[0]} onChange={function(e){changeHeader(Number(e.target.value));}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:12.5,padding:"6px 8px"})}>
+                    {Array.from({length:Math.min(10,stGrid[0].length)},function(_,i){return i;}).map(function(i){
+                      var preview=(stGrid[0][i]||[]).slice(0,3).map(function(v){return String(v||"").slice(0,8);}).filter(Boolean).join(" | ");
+                      return <option key={i} value={i}>{(i+1)+"행"+(preview?" — "+preview:"")}</option>;
+                    })}
+                  </select>
+                </label>
+              </div>
+              <div style={{border:"1px solid #E2E8F0",borderRadius:10,overflow:"hidden"}}>
+                <div style={{display:"grid",gridTemplateColumns:"150px 1fr 90px",gap:0,background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",padding:"8px 12px",fontSize:11,fontWeight:700,color:"#64748B"}}>
+                  <span>시스템 필드</span><span>엑셀 컬럼</span><span style={{textAlign:"center"}}>신뢰도</span>
+                </div>
+                <div style={{maxHeight:320,overflow:"auto"}}>
+                  {XL_FIELDS.map(function(f){
+                    var cIdx=(stMap[0]||{})[f.key];
+                    var cf=(stConf[0]||{})[f.key]||"none";
+                    var cb=confBadge[cf];
+                    var reqMissing=f.required&&(cIdx==null||cIdx<0);
+                    return(
+                      <div key={f.key} style={{display:"grid",gridTemplateColumns:"150px 1fr 90px",gap:0,alignItems:"center",padding:"7px 12px",borderBottom:"1px solid #F1F5F9",background:reqMissing?"#FFF8F8":"transparent"}}>
+                        <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>{f.label}{f.required&&<span style={{color:"#DC2626",marginLeft:3}}>*</span>}</span>
+                        <select value={cIdx==null?-1:cIdx} onChange={function(e){var m=Object.assign({},stMap[0]);m[f.key]=Number(e.target.value);stMap[1](m);var c2=Object.assign({},stConf[0]);c2[f.key]=Number(e.target.value)>=0?"high":"none";stConf[1](c2);}}
+                          style={Object.assign({},inp,{margin:0,fontSize:12.5,padding:"6px 8px",width:"95%"})}>
+                          <option value={-1}>— 사용 안 함 —</option>
+                          {headerCells.map(function(h,idx){return <option key={idx} value={idx}>{(idx+1)+"열: "+(String(h||"").trim()||"(빈 컬럼)")}</option>;})}
+                        </select>
+                        <span style={{textAlign:"center"}}>
+                          <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:reqMissing?"#FEF2F2":cb[2],color:reqMissing?"#DC2626":cb[1],whiteSpace:"nowrap"}}>{reqMissing?"선택 필요":cb[0]}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
+                <button style={Object.assign({},btnS,{padding:"10px 16px"})} onClick={function(){softReset();}}>← 다른 파일 선택</button>
+                <button style={Object.assign({},btnP,{padding:"10px 22px"})} onClick={gotoPreview}>이 매핑으로 미리보기 →</button>
+              </div>
+            </div>
+          )}
+
+          {/* 3단계: 미리보기/검증 */}
+          {stStep[0]===3&&pv&&(
+            <div style={{display:"grid",gap:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(105px,1fr))",gap:8}}>
                 {[["감지된 업체",pv.companies.length+"개","#2563EB","#EFF6FF"],
                   ["감지된 직원",pv.employees.length+"명","#2563EB","#EFF6FF"],
                   ["지원금 종류",pv.programKinds.length+"종","#334155","#F8FAFC"],
                   ["오류 행",pv.errors.length+"건",pv.errors.length>0?"#DC2626":"#059669",pv.errors.length>0?"#FEF2F2":"#F0FDF4"],
-                  ["중복 의심",pv.duplicates.length+"건",pv.duplicates.length>0?"#7C3AED":"#059669",pv.duplicates.length>0?"#F5F3FF":"#F0FDF4"]
+                  ["중복 의심",pv.duplicates.length+"건",pv.duplicates.length>0?"#7C3AED":"#059669",pv.duplicates.length>0?"#F5F3FF":"#F0FDF4"],
+                  ["사업자번호 주의",pv.bizWarnCount+"건",pv.bizWarnCount>0?"#DC2626":"#059669",pv.bizWarnCount>0?"#FEF2F2":"#F0FDF4"]
                 ].map(function(a,i){return(
                   <div key={i} style={{padding:"10px 12px",borderRadius:10,background:a[3],textAlign:"center"}}>
                     <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:3}}>{a[0]}</div>
@@ -1879,20 +2030,29 @@ function ExcelImport(props){
                   </div>
                 );})}
               </div>
-              <div style={{maxHeight:340,overflow:"auto",border:"1px solid #E2E8F0",borderRadius:10}}>
+              {pv.junk>0&&<div style={{fontSize:12,color:"#94A3B8"}}>합계·빈 행 등 데이터가 아닌 {pv.junk}행은 자동 제외되었습니다.</div>}
+              <div style={{maxHeight:320,overflow:"auto",border:"1px solid #E2E8F0",borderRadius:10}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
                   <thead><tr style={{background:"#F8FAFC",position:"sticky",top:0}}>
-                    {["행","업체명","사업자번호","직원명","입사일","지원금명","상태","오류/주의"].map(function(h){return <th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748B",whiteSpace:"nowrap",borderBottom:"2px solid #E2E8F0"}}>{h}</th>;})}
+                    {["행","업체명","사업자번호","직원명","입사일","지원금명 → 매칭","상태","오류/주의"].map(function(h){return <th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748B",whiteSpace:"nowrap",borderBottom:"2px solid #E2E8F0"}}>{h}</th>;})}
                   </tr></thead>
                   <tbody>
                     {pv.rows.map(function(r){var sc=stColor[r.status]||stColor["정상"];return(
                       <tr key={r.rowNo} style={{background:r.hasError?"#FFF8F8":"transparent"}}>
                         <td style={{padding:"7px 10px",color:"#94A3B8",borderBottom:"1px solid #F1F5F9"}}>{r.rowNo}</td>
-                        <td style={{padding:"7px 10px",fontWeight:600,color:"#1E293B",borderBottom:"1px solid #F1F5F9"}}>{r.companyName||"-"}{r.existing&&<span style={{marginLeft:4,fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:8,background:"#EFF6FF",color:"#2563EB",whiteSpace:"nowrap"}}>기존 업체</span>}</td>
-                        <td style={{padding:"7px 10px",color:"#475569",borderBottom:"1px solid #F1F5F9",whiteSpace:"nowrap"}}>{r.bizNo||"-"}</td>
+                        <td style={{padding:"7px 10px",fontWeight:600,color:"#1E293B",borderBottom:"1px solid #F1F5F9"}}>{r.companyName||"-"}{r.existing&&<span style={{marginLeft:4,fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:8,background:"#EFF6FF",color:"#2563EB",whiteSpace:"nowrap"}}>기존 업체에 추가</span>}</td>
+                        <td style={{padding:"7px 10px",color:r.bizWarn?"#DC2626":"#475569",fontWeight:r.bizWarn?700:400,borderBottom:"1px solid #F1F5F9",whiteSpace:"nowrap"}}>{r.bizNo||"-"}{r.bizWarn&&" ⚠️"}</td>
                         <td style={{padding:"7px 10px",fontWeight:600,color:"#1E293B",borderBottom:"1px solid #F1F5F9"}}>{r.empName||"-"}</td>
                         <td style={{padding:"7px 10px",color:"#475569",borderBottom:"1px solid #F1F5F9",whiteSpace:"nowrap"}}>{r.startDate||"-"}</td>
-                        <td style={{padding:"7px 10px",color:"#475569",borderBottom:"1px solid #F1F5F9"}}>{r.programName||"-"}</td>
+                        <td style={{padding:"7px 10px",borderBottom:"1px solid #F1F5F9"}}>
+                          {r.programName?(
+                            r.progMatchedName?(
+                              <span><span style={{color:"#475569"}}>{r.programName}</span><span style={{color:"#059669",fontWeight:700}}> → {r.progMatchedName}</span></span>
+                            ):(
+                              <span><span style={{color:"#475569"}}>{r.programName}</span><span style={{color:"#B45309",fontWeight:700}}> → 미지정 등록 예정</span></span>
+                            )
+                          ):"-"}
+                        </td>
                         <td style={{padding:"7px 10px",borderBottom:"1px solid #F1F5F9"}}><span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:sc[1],color:sc[0],whiteSpace:"nowrap"}}>{r.status}</span></td>
                         <td style={{padding:"7px 10px",fontSize:11.5,color:r.hasError?"#DC2626":"#B45309",borderBottom:"1px solid #F1F5F9"}}>{r.messages.join(" · ")||"-"}</td>
                       </tr>
@@ -1901,48 +2061,53 @@ function ExcelImport(props){
                 </table>
               </div>
               <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
-                <button style={Object.assign({},btnS,{padding:"10px 16px"})} onClick={function(){reset();}}>← 다른 파일 선택</button>
-                <button style={Object.assign({},btnP,{padding:"10px 22px"})} onClick={function(){stStep[1](3);}}>다음: 저장 안내 →</button>
+                <button style={Object.assign({},btnS,{padding:"10px 16px"})} onClick={function(){stStep[1](2);}}>← 컬럼 매핑 수정</button>
+                <button style={Object.assign({},btnP,{padding:"10px 22px"})} onClick={function(){stStep[1](4);}}>다음: 등록 →</button>
               </div>
             </div>
           )}
 
-          {/* 3단계: 등록 확인 → 저장 결과 */}
-          {stStep[0]===3&&pv&&!stResult[0]&&(function(){
+          {/* 4단계: 등록 확인 */}
+          {stStep[0]===4&&pv&&!stResult[0]&&(function(){
             var preNoProg=pv.employees.filter(function(e){return !matchProgramId(e.programName);}).length;
             var mergeCnt=pv.companies.filter(function(c){return c.existing;}).length;
-            var canSave=pv.employees.length>0&&!stSaving[0];
+            var willSave=pv.employees.length-pv.dupPreview.length;
+            var canSave=willSave>0&&!stSaving[0];
             return(
             <div style={{display:"grid",gap:12}}>
-              <div style={{padding:"16px 18px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:12,fontSize:13.5,lineHeight:1.8,color:"#334155"}}>
+              <div style={{padding:"16px 18px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:12,fontSize:13.5,lineHeight:1.9,color:"#334155"}}>
                 <div style={{fontWeight:800,color:"#0F172A",marginBottom:6}}>등록 예정 요약</div>
-                <div>업체 <strong>{pv.companies.length}개</strong> (신규 {pv.companies.length-mergeCnt}개{mergeCnt>0?" · 기존 업체에 직원 추가 "+mergeCnt+"개":""}) · 직원 <strong>{pv.employees.length}명</strong></div>
-                {pv.errors.length>0&&<div style={{color:"#DC2626"}}>오류 {pv.errors.length}건은 등록에서 제외됩니다.</div>}
-                {pv.duplicates.length>0&&<div style={{color:"#7C3AED"}}>⚠️ 중복 의심 행 {pv.duplicates.length}건이 포함되어 있습니다. (이미 등록된 동일 직원은 자동 제외)</div>}
-                {preNoProg>0&&<div style={{color:"#B45309"}}>지원금명을 매칭하지 못한 직원 {preNoProg}명은 "지원금 미지정"으로 등록됩니다.</div>}
+                <div>· 신규 업체 생성: <strong>{pv.companies.length-mergeCnt}개</strong></div>
+                <div>· 기존 업체 병합(직원 추가): <strong>{mergeCnt}개</strong></div>
+                <div>· 등록 예정 직원: <strong>{willSave}명</strong></div>
+                {pv.dupPreview.length>0&&<div style={{color:"#7C3AED"}}>· 중복 제외 예정: {pv.dupPreview.length}명 (이미 등록된 동일 직원)</div>}
+                {pv.errors.length>0&&<div style={{color:"#DC2626"}}>· 오류 제외 예정: {pv.errors.length}건</div>}
+                {preNoProg>0&&<div style={{color:"#B45309"}}>· 지원금 미지정 등록 예정: {preNoProg}명</div>}
+                {pv.bizWarnCount>0&&<div style={{color:"#DC2626"}}>· 사업자번호 형식 주의: {pv.bizWarnCount}건</div>}
               </div>
               <button disabled={!canSave} onClick={doImport}
                 style={Object.assign({},btnP,{padding:"13px",fontSize:15,opacity:canSave?1:0.45,cursor:canSave?"pointer":"not-allowed"})}>
                 {stSaving[0]?"등록 중…":"💾 검토한 데이터 등록하기"}
               </button>
-              <p style={{fontSize:11.5,color:"#94A3B8",textAlign:"center",margin:0}}>등록 버튼을 누른 뒤에는 오류가 없는 데이터만 고객사 계정에 저장됩니다. 엑셀 원본 파일은 저장되지 않습니다.</p>
-              <button disabled={stSaving[0]} style={Object.assign({},btnS,{padding:"10px 16px"})} onClick={function(){stStep[1](2);}}>← 미리보기로 돌아가기</button>
+              <p style={{fontSize:11.5,color:"#94A3B8",textAlign:"center",margin:0}}>등록 버튼을 누른 뒤에는 오류가 없는 데이터만 고객사 계정에 저장됩니다. 기존 업체와 사업자등록번호가 같은 경우 해당 업체에 직원이 추가됩니다. 엑셀 원본 파일은 저장되지 않습니다.</p>
+              <button disabled={stSaving[0]} style={Object.assign({},btnS,{padding:"10px 16px"})} onClick={function(){stStep[1](3);}}>← 미리보기로 돌아가기</button>
             </div>);
           })()}
 
-          {/* 3단계: 저장 결과 */}
-          {stStep[0]===3&&stResult[0]&&(function(){
+          {/* 4단계: 저장 결과 */}
+          {stStep[0]===4&&stResult[0]&&(function(){
             var r=stResult[0];
             return(
             <div style={{display:"grid",gap:12}}>
               <div style={{padding:"16px 18px",background:r.failedRows.length>0?"#FFFBEB":"#F0FDF4",border:"1px solid "+(r.failedRows.length>0?"#FDE68A":"#BBF7D0"),borderRadius:12,fontSize:14,fontWeight:700,color:r.failedRows.length>0?"#92400E":"#166534"}}>
                 {r.failedRows.length>0?"⚠️ 등록이 일부 실패와 함께 완료되었습니다.":"✅ 엑셀 데이터 등록이 완료되었습니다."}
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(105px,1fr))",gap:8}}>
                 {[["신규 등록 업체",r.newComps+"개","#2563EB"],["기존 업체 병합",r.merged+"개","#0891B2"],["등록된 직원",r.saved+"명","#059669"],
                   ["오류 제외",r.excludedErrors+"건",r.excludedErrors>0?"#DC2626":"#94A3B8"],
                   ["중복 제외",r.dupExcluded.length+"건",r.dupExcluded.length>0?"#7C3AED":"#94A3B8"],
                   ["지원금 미지정",r.noProg+"명",r.noProg>0?"#B45309":"#94A3B8"],
+                  ["사업자번호 주의",r.bizWarn+"건",r.bizWarn>0?"#DC2626":"#94A3B8"],
                   ["실패 행",r.failedRows.length+"건",r.failedRows.length>0?"#DC2626":"#94A3B8"]
                 ].map(function(a,i){return(
                   <div key={i} style={{padding:"10px 12px",borderRadius:10,background:"#F8FAFC",textAlign:"center"}}>
@@ -1961,7 +2126,7 @@ function ExcelImport(props){
                   저장 실패: {r.failedRows.slice(0,6).map(function(f){return f.name+" — "+f.error;}).join(" / ")}{r.failedRows.length>6?" 외 "+(r.failedRows.length-6)+"건":""}
                 </div>
               )}
-              <button style={Object.assign({},btnP,{padding:"12px",fontSize:15})} onClick={function(){stOpen[1](false);stStep[1](1);stPreview[1](null);stResult[1](null);}}>🏢 업체 목록에서 확인하기</button>
+              <button style={Object.assign({},btnP,{padding:"12px",fontSize:15})} onClick={function(){stOpen[1](false);softReset();}}>🏢 업체 목록에서 확인하기</button>
               <p style={{fontSize:11.5,color:"#94A3B8",textAlign:"center",margin:0}}>업체 목록은 자동으로 갱신되었습니다. 이 창은 닫기 전까지 결과를 계속 확인할 수 있습니다.</p>
             </div>);
           })()}
