@@ -267,8 +267,8 @@ export function useData(orgId) {
     setEmployees((prev) => prev.filter((e) => e.id !== empId));
   }
 
-  // ── 샘플 데이터 전용 bulk 작업 ────────────────────────────
-  // 샘플 불러오기를 단건 insert 반복 대신 INSERT 한 번(왕복 2회)으로 처리.
+  // ── 일괄 등록(bulk) 작업 — 샘플 불러오기·엑셀 가져오기에서 사용 ──
+  // 단건 insert 반복 대신 INSERT 한 번(왕복 2회)으로 처리.
   // 반드시 회사 → 직원 순서로 호출해야 employees.company_id FK 를 만족한다.
 
   async function addCompaniesBulk(companyList) {
