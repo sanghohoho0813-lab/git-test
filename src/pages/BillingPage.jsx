@@ -135,12 +135,14 @@ const PLAN_CONFIG = [
     ctaText: "도입 상담 문의",
     limits: { companies: "팀/사무소 플랜 포함", employees: "규모 협의", team: "담당 매니저 배정" },
     addOns: null,
-    note: null,
+    note: "고객사 구조와 업무 방식에 맞춰 내부에서 바로 쓸 수 있는 맞춤형 자동화 프로그램까지 함께 설계합니다.",
     coreFeatures: [
+      "고용지원금 Pro 전체 기능 제공",
       "기존 엑셀 데이터 이관 대행",
       "고객사 · 대상자 데이터 정리",
       "1:1 온보딩 교육",
       "내부 운영 방식 맞춤 세팅",
+      "맞춤형 내부 자동화 프로그램 제작",
       "월 1회 운영 점검",
       "VIP 전용 문의 채널",
     ],
@@ -157,14 +159,15 @@ const COMPARE_ROWS = [
   ["팀원",                   "1인",   "1인",   "3명+",   "협의"],
   ["고객 보고서",            "기본",  "고급",  "일괄",   "일괄"],
   ["수수료 정산",            "일부",  true,    "고급",   "고급"],
+  ["엑셀 가져오기",          true,    true,    true,     "대행 포함"],
   ["미수금 관리",            false,   true,    true,     true],
   ["서류 문구 자동 생성",     false,   true,    true,     true],
-  ["엑셀 가져오기",          true,    true,    true,     "대행 포함"],
   ["활동 로그",              false,   true,    "팀별",   "팀별"],
   ["월별 수령·청구 리포트",   false,   true,    true,     true],
   ["담당자 배정",            false,   false,   true,     true],
   ["보고서 일괄 생성",       false,   false,   true,     true],
   ["엑셀 이관 대행",         false,   false,   false,    true],
+  ["맞춤형 자동화 프로그램",  false,   false,   false,    "포함"],
   ["1:1 온보딩 · 세팅",      false,   false,   false,    true],
 ];
 
@@ -215,6 +218,11 @@ const FEATURE_INFO = {
     title: "보고서 일괄 생성",
     desc: "여러 고객사의 보고서를 한 번에 만들어 내려받거나 전달할 수 있는 기능입니다.",
     example: "report",
+  },
+  "맞춤형 자동화 프로그램": {
+    title: "맞춤형 내부 자동화 프로그램 제작",
+    desc: "고용지원금 관리 외에도, 고객사(사무소) 내부 업무 방식에 맞춘 자동화 프로그램을 함께 설계·제작해 드리는 VIP 전용 서비스입니다. 범위는 상담 후 확정됩니다.",
+    example: null,
   },
 };
 
@@ -608,22 +616,22 @@ export default function BillingPage({ onBack }) {
                 <div style={{ height: priceH, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
                   {isVip ? (
                     <>
-                      {/* 가격 앵커링: 다른 플랜 가격과 동일한 위계로 크게 표시 */}
-                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 6 }}>
-                        <span style={{ fontSize: fs(30), fontWeight: 800, color: "#0F172A", letterSpacing: "-1.5px", lineHeight: 1 }}>100만 원<span style={{ fontSize: fs(17), fontWeight: 700 }}>부터</span></span>
+                      {/* 가격 앵커링: 다른 플랜과 동일한 ₩ 표기·크기 위계 */}
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 7 }}>
+                        <span style={{ fontSize: fs(30), fontWeight: 800, color: "#0F172A", letterSpacing: "-1px", lineHeight: 1 }}>₩100만<span style={{ fontSize: fs(16), fontWeight: 700 }}>부터</span></span>
                         <span style={{ fontSize: fs(13), color: "#94A3B8", paddingBottom: 2, fontWeight: 600, whiteSpace: "nowrap" }}>초기 세팅비</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-                        <span style={{ fontSize: fs(23), fontWeight: 800, color: "#0F172A", letterSpacing: "-1px", lineHeight: 1 }}>월 50만 원<span style={{ fontSize: fs(14), fontWeight: 700 }}>부터</span></span>
+                        <span style={{ fontSize: fs(24), fontWeight: 800, color: "#0F172A", letterSpacing: "-0.5px", lineHeight: 1 }}>₩50만<span style={{ fontSize: fs(14), fontWeight: 700 }}>부터</span><span style={{ fontSize: fs(15), color: "#94A3B8", fontWeight: 600 }}> /월</span></span>
                         <span style={{ fontSize: fs(13), color: "#94A3B8", paddingBottom: 1, fontWeight: 600, whiteSpace: "nowrap" }}>운영 관리</span>
                       </div>
                       <div style={{ fontSize: fs(11.5), color: "#92400E", marginTop: 8, fontWeight: 600 }}>고객사 수 · 엑셀 정리 범위 · 운영 대행 범위에 따라 상담 후 견적</div>
                     </>
                   ) : promoPrice ? (
                     <>
-                      {/* 런칭가: 정가 취소선 + 런칭가 강조 + 유지 적용 안내 */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                        <span style={{ fontSize: fs(15), color: "#94A3B8", textDecoration: "line-through", fontWeight: 600 }}>₩{(price || 0).toLocaleString()}</span>
+                      {/* 런칭가: 정상가(취소선) 별도 줄 → 런칭가 최대 강조 (겹침 방지 간격) */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 9, lineHeight: 1.3 }}>
+                        <span style={{ fontSize: fs(14.5), color: "#94A3B8", fontWeight: 600, whiteSpace: "nowrap" }}>정상가 <span style={{ textDecoration: "line-through", textDecorationColor: "#CBD5E1", textDecorationThickness: "1.5px" }}>₩{(price || 0).toLocaleString()}</span></span>
                         <span style={{ fontSize: fs(11), fontWeight: 700, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>{PROMO.until}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>

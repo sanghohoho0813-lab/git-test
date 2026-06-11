@@ -1662,10 +1662,11 @@ function ExcelImport(props){
   var stConf=useState(null);    // {fieldKey: "high"|"mid"|"low"|"none"}
   var stResult=useState(null);  // 저장 결과
   var stPreview=useState(null); // importPreview={companies,employees,rows,errors,warnings,duplicates,...}
+  var stAdv=useState(false);    // 컬럼 매핑 '직접 수정하기'(고급 설정) 펼침
   var fileRef=useRef(null);
 
-  function reset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);stUndo[1](null);if(fileRef.current)fileRef.current.value="";}
-  function softReset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);stUndo[1](null);}
+  function reset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);stUndo[1](null);stAdv[1](false);if(fileRef.current)fileRef.current.value="";}
+  function softReset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);stUndo[1](null);stAdv[1](false);}
 
   // 지원금명 → programId (기존 프로그램에만 매칭 · 자동 생성 없음)
   function matchProgramId(name){
@@ -1987,7 +1988,10 @@ function ExcelImport(props){
 
   return(
     <React.Fragment>
-      <button onClick={function(){stOpen[1](true);}} style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0",whiteSpace:"nowrap"})}>📥 엑셀 가져오기</button>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2}}>
+        <button onClick={function(){stOpen[1](true);}} style={Object.assign({},btnSm,{background:"#2563EB",color:"#fff",border:"none",fontWeight:700,whiteSpace:"nowrap",boxShadow:"0 1px 6px rgba(37,99,235,0.28)"})}>📥 기존 엑셀 불러오기</button>
+        <span style={{fontSize:10.5,color:"#94A3B8",whiteSpace:"nowrap"}}>엑셀 업로드로 업체·직원 자동 등록</span>
+      </div>
       <Modal open={stOpen[0]} onClose={function(){stOpen[1](false);reset();}} title="📥 엑셀로 업체/직원 가져오기" width={780}>
         <div style={{display:"grid",gap:14}}>
           {/* 단계 표시 */}
@@ -2025,53 +2029,112 @@ function ExcelImport(props){
             </div>
           )}
 
-          {/* 2단계: 컬럼 매핑 확인/수정 */}
-          {stStep[0]===2&&stGrid[0]&&(
+          {/* 2단계: 컬럼 매핑 — 기본은 쉬운 요약, 상세 수정은 '직접 수정하기'로 펼침 */}
+          {stStep[0]===2&&stGrid[0]&&(function(){
+            var colMap=stMap[0]||{},conf=stConf[0]||{};
+            var reqFields=XL_FIELDS.filter(function(f){return f.required;});
+            var reqMissingList=reqFields.filter(function(f){return colMap[f.key]==null||colMap[f.key]<0;});
+            var optionalHit=XL_FIELDS.filter(function(f){return !f.required&&colMap[f.key]>=0;}).length;
+            var needCheck=XL_FIELDS.filter(function(f){return colMap[f.key]>=0&&conf[f.key]==="low";}).length+reqMissingList.length;
+            var showAdv=stAdv[0]||reqMissingList.length>0;
+            var keyFieldKeys=["companyName","bizNo","empName","programName"];
+            return(
             <div style={{display:"grid",gap:12}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                <span style={{fontSize:13,fontWeight:700,color:"#1E293B"}}>📌 {stHeader[0]+1}행을 헤더로 인식했습니다.</span>
-                <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12.5,color:"#475569"}}>
-                  헤더 행:
-                  <select value={stHeader[0]} onChange={function(e){changeHeader(Number(e.target.value));}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:12.5,padding:"6px 8px"})}>
-                    {Array.from({length:Math.min(10,stGrid[0].length)},function(_,i){return i;}).map(function(i){
-                      var preview=(stGrid[0][i]||[]).slice(0,3).map(function(v){return String(v||"").slice(0,8);}).filter(Boolean).join(" | ");
-                      return <option key={i} value={i}>{(i+1)+"행"+(preview?" — "+preview:"")}</option>;
-                    })}
-                  </select>
-                </label>
+              <div>
+                <div style={{fontSize:15,fontWeight:800,color:"#1E293B",marginBottom:4}}>✅ 엑셀의 컬럼을 자동으로 인식했습니다.</div>
+                <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.65}}>대부분은 그대로 진행하면 됩니다. 잘못 인식된 항목이 있으면 ‘직접 수정하기’를 눌러 바꿀 수 있습니다.<br/>아직 저장되지 않았습니다 — 다음 화면에서 오류와 중복을 확인할 수 있습니다.</div>
               </div>
-              <div style={{border:"1px solid #E2E8F0",borderRadius:10,overflow:"hidden"}}>
-                <div style={{display:"grid",gridTemplateColumns:"150px 1fr 90px",gap:0,background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",padding:"8px 12px",fontSize:11,fontWeight:700,color:"#64748B"}}>
-                  <span>시스템 필드</span><span>엑셀 컬럼</span><span style={{textAlign:"center"}}>신뢰도</span>
+              {/* 요약 카드 */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
+                <div style={{padding:"10px 12px",borderRadius:10,background:reqMissingList.length===0?"#F0FDF4":"#FEF2F2",textAlign:"center"}}>
+                  <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:3}}>필수 항목 (업체명·사업자번호·직원명)</div>
+                  <div style={{fontSize:15,fontWeight:800,color:reqMissingList.length===0?"#059669":"#DC2626"}}>{reqMissingList.length===0?"인식 완료 ✓":"미인식 "+reqMissingList.length+"개"}</div>
                 </div>
-                <div style={{maxHeight:320,overflow:"auto"}}>
-                  {XL_FIELDS.map(function(f){
-                    var cIdx=(stMap[0]||{})[f.key];
-                    var cf=(stConf[0]||{})[f.key]||"none";
-                    var cb=confBadge[cf];
-                    var reqMissing=f.required&&(cIdx==null||cIdx<0);
-                    return(
-                      <div key={f.key} style={{display:"grid",gridTemplateColumns:"150px 1fr 90px",gap:0,alignItems:"center",padding:"7px 12px",borderBottom:"1px solid #F1F5F9",background:reqMissing?"#FFF8F8":"transparent"}}>
-                        <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>{f.label}{f.required&&<span style={{color:"#DC2626",marginLeft:3}}>*</span>}</span>
-                        <select value={cIdx==null?-1:cIdx} onChange={function(e){var m=Object.assign({},stMap[0]);m[f.key]=Number(e.target.value);stMap[1](m);var c2=Object.assign({},stConf[0]);c2[f.key]=Number(e.target.value)>=0?"high":"none";stConf[1](c2);}}
-                          style={Object.assign({},inp,{margin:0,fontSize:12.5,padding:"6px 8px",width:"95%"})}>
-                          <option value={-1}>— 사용 안 함 —</option>
-                          {headerCells.map(function(h,idx){return <option key={idx} value={idx}>{(idx+1)+"열: "+(String(h||"").trim()||"(빈 컬럼)")}</option>;})}
-                        </select>
-                        <span style={{textAlign:"center"}}>
-                          <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:reqMissing?"#FEF2F2":cb[2],color:reqMissing?"#DC2626":cb[1],whiteSpace:"nowrap"}}>{reqMissing?"선택 필요":cb[0]}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div style={{padding:"10px 12px",borderRadius:10,background:"#EFF6FF",textAlign:"center"}}>
+                  <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:3}}>선택 항목 인식</div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#2563EB"}}>{optionalHit}개</div>
+                </div>
+                <div style={{padding:"10px 12px",borderRadius:10,background:needCheck>0?"#FEF3C7":"#F0FDF4",textAlign:"center"}}>
+                  <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:3}}>확인 필요</div>
+                  <div style={{fontSize:15,fontWeight:800,color:needCheck>0?"#B45309":"#059669"}}>{needCheck}개</div>
                 </div>
               </div>
-              <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
+              {/* 주요 필드 간단 확인 */}
+              <div style={{border:"1px solid #E2E8F0",borderRadius:10,padding:"11px 14px",display:"grid",gap:7}}>
+                {keyFieldKeys.map(function(k){
+                  var f=XL_FIELDS.find(function(x){return x.key===k;});
+                  var idx=colMap[k];
+                  return(
+                    <div key={k} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,flexWrap:"wrap"}}>
+                      <span style={{width:110,color:"#64748B",fontWeight:600,flexShrink:0}}>{f.label}{f.required&&<span style={{color:"#DC2626"}}> *</span>}</span>
+                      {idx!=null&&idx>=0?(
+                        <span style={{color:"#1E293B",fontWeight:600}}>엑셀의 “{String(headerCells[idx]||"").trim()||(idx+1)+"열"}”</span>
+                      ):(
+                        <span style={{color:f.required?"#DC2626":"#B45309",fontWeight:600}}>미인식{f.required?" — 직접 선택 필요":" (선택 항목)"}</span>
+                      )}
+                    </div>
+                  );
+                })}
+                <div style={{fontSize:11.5,color:"#94A3B8",borderTop:"1px solid #F1F5F9",paddingTop:7}}>컬럼 제목이 있는 줄: <strong style={{color:"#475569"}}>{stHeader[0]+1}행</strong> — 제목 줄이 다르면 ‘직접 수정하기’에서 변경할 수 있습니다.</div>
+              </div>
+              {reqMissingList.length>0&&(
+                <div style={{padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,fontSize:12.5,color:"#991B1B",lineHeight:1.6}}>
+                  필수 항목({reqMissingList.map(function(f){return f.label;}).join(", ")})을 찾지 못했습니다. 아래에서 해당 엑셀 컬럼을 직접 선택해주세요.
+                </div>
+              )}
+              <button onClick={gotoPreview} disabled={reqMissingList.length>0}
+                style={Object.assign({},btnP,{padding:"13px",fontSize:15,opacity:reqMissingList.length>0?0.45:1,cursor:reqMissingList.length>0?"not-allowed":"pointer"})}>
+                이대로 미리보기 진행 →
+              </button>
+              <button onClick={function(){stAdv[1](!stAdv[0]);}} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:13.5})}>
+                {showAdv&&reqMissingList.length===0?"상세 설정 접기 ⌃":"🔧 직접 수정하기 (컬럼·제목 줄 변경)"}
+              </button>
+              {/* 고급 설정: 제목 줄 변경 + 상세 컬럼 매핑 (기존 기능 그대로) */}
+              {showAdv&&(
+                <div style={{display:"grid",gap:10,padding:"12px 12px 4px",background:"#F8FAFC",borderRadius:12,border:"1px solid #E2E8F0"}}>
+                  <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:12.5,color:"#475569",flexWrap:"wrap"}}>
+                    컬럼 제목이 있는 줄:
+                    <select value={stHeader[0]} onChange={function(e){changeHeader(Number(e.target.value));}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:12.5,padding:"6px 8px"})}>
+                      {Array.from({length:Math.min(10,stGrid[0].length)},function(_,i){return i;}).map(function(i){
+                        var preview=(stGrid[0][i]||[]).slice(0,3).map(function(v){return String(v||"").slice(0,8);}).filter(Boolean).join(" | ");
+                        return <option key={i} value={i}>{(i+1)+"행"+(preview?" — "+preview:"")}</option>;
+                      })}
+                    </select>
+                    <span style={{fontSize:11.5,color:"#94A3B8"}}>엑셀에서 컬럼 이름(업체명·직원명 등)이 적혀 있는 줄을 선택하세요.</span>
+                  </label>
+                  <div style={{border:"1px solid #E2E8F0",borderRadius:10,overflow:"hidden",background:"#fff",marginBottom:8}}>
+                    <div style={{display:"grid",gridTemplateColumns:"150px 1fr 90px",gap:0,background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",padding:"8px 12px",fontSize:11,fontWeight:700,color:"#64748B"}}>
+                      <span>등록될 항목</span><span>엑셀 컬럼</span><span style={{textAlign:"center"}}>자동 인식</span>
+                    </div>
+                    <div style={{maxHeight:300,overflow:"auto"}}>
+                      {XL_FIELDS.map(function(f){
+                        var cIdx=(stMap[0]||{})[f.key];
+                        var cf=(stConf[0]||{})[f.key]||"none";
+                        var cb=confBadge[cf];
+                        var reqMiss=f.required&&(cIdx==null||cIdx<0);
+                        return(
+                          <div key={f.key} style={{display:"grid",gridTemplateColumns:"150px 1fr 90px",gap:0,alignItems:"center",padding:"7px 12px",borderBottom:"1px solid #F1F5F9",background:reqMiss?"#FFF8F8":"transparent"}}>
+                            <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>{f.label}{f.required&&<span style={{color:"#DC2626",marginLeft:3}}>*</span>}</span>
+                            <select value={cIdx==null?-1:cIdx} onChange={function(e){var m=Object.assign({},stMap[0]);m[f.key]=Number(e.target.value);stMap[1](m);var c2=Object.assign({},stConf[0]);c2[f.key]=Number(e.target.value)>=0?"high":"none";stConf[1](c2);}}
+                              style={Object.assign({},inp,{margin:0,fontSize:12.5,padding:"6px 8px",width:"95%"})}>
+                              <option value={-1}>— 사용 안 함 —</option>
+                              {headerCells.map(function(h,idx){return <option key={idx} value={idx}>{(idx+1)+"열: "+(String(h||"").trim()||"(빈 컬럼)")}</option>;})}
+                            </select>
+                            <span style={{textAlign:"center"}}>
+                              <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:reqMiss?"#FEF2F2":cb[2],color:reqMiss?"#DC2626":cb[1],whiteSpace:"nowrap"}}>{reqMiss?"선택 필요":cb[0]}</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div style={{display:"flex"}}>
                 <button style={Object.assign({},btnS,{padding:"10px 16px"})} onClick={function(){softReset();}}>← 다른 파일 선택</button>
-                <button style={Object.assign({},btnP,{padding:"10px 22px"})} onClick={gotoPreview}>이 매핑으로 미리보기 →</button>
               </div>
-            </div>
-          )}
+            </div>);
+          })()}
 
           {/* 3단계: 미리보기/검증 */}
           {stStep[0]===3&&pv&&(
