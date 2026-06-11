@@ -493,12 +493,11 @@ export default function BillingPage({ onBack }) {
           )}
         </div>
 
-        {/* 체험/구독 상태 배너 */}
-        {isTrialing && trialDaysLeft !== null && (
+        {/* 체험/구독 상태 배너 — 실제 무료체험 진행 중인 대상에게만 노출
+            (관리자·유료 구독 중·체험 종료 계정에는 표시하지 않음) */}
+        {isTrialing && !isAdminUser && !isActive && trialDaysLeft !== null && trialDaysLeft > 0 && (
           <div style={{ padding: "14px 22px", background: trialDaysLeft <= 3 ? "#FEF2F2" : "#F0FDF4", border: `1px solid ${trialDaysLeft <= 3 ? "#FECACA" : "#BBF7D0"}`, borderRadius: 12, marginBottom: 24, textAlign: "center", fontSize: 14, color: trialDaysLeft <= 3 ? "#DC2626" : "#166534", fontWeight: 600, lineHeight: 1.6 }}>
-            {trialDaysLeft <= 0
-              ? "⏳ 베타 기간 중입니다. 아래 요금제는 정식 출시 예정 안내입니다."
-              : `⏳ 무료체험 ${trialDaysLeft}일 남음 · 베타 기간에는 모든 기능을 무료로 이용할 수 있습니다.`}
+            {`⏳ 무료체험 ${trialDaysLeft}일 남음 · 체험 기간에는 모든 기능을 무료로 이용할 수 있습니다.`}
             <div style={{ fontSize: 12, fontWeight: 500, color: "#94A3B8", marginTop: 4 }}>입력하신 데이터는 결제와 무관하게 그대로 유지됩니다.</div>
           </div>
         )}
@@ -612,26 +611,26 @@ export default function BillingPage({ onBack }) {
                   <div style={{ fontSize: fs(13.5), color: "#64748B", lineHeight: 1.45 }}>{plan.desc}</div>
                 </div>
 
-                {/* 2) 가격 영역 (모든 카드 동일 높이·시작선, 가격 강조 + 여백 확대) */}
-                <div style={{ height: priceH, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
+                {/* 2) 가격 영역 (minHeight 로 시작선 통일 — 내용이 길면 자연스럽게 늘어나 겹침 방지) */}
+                <div style={{ minHeight: priceH, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
                   {isVip ? (
                     <>
-                      {/* 가격 앵커링: 다른 플랜과 동일한 ₩ 표기·크기 위계 */}
-                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 7 }}>
-                        <span style={{ fontSize: fs(30), fontWeight: 800, color: "#0F172A", letterSpacing: "-1px", lineHeight: 1 }}>₩100만<span style={{ fontSize: fs(16), fontWeight: 700 }}>부터</span></span>
-                        <span style={{ fontSize: fs(13), color: "#94A3B8", paddingBottom: 2, fontWeight: 600, whiteSpace: "nowrap" }}>초기 세팅비</span>
+                      {/* 가격 앵커링: 다른 플랜과 같은 ₩·천단위 표기, 가격이 먼저 보이게 */}
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 7, flexWrap: "wrap", marginBottom: 8 }}>
+                        <span style={{ fontSize: fs(26), fontWeight: 800, color: "#0F172A", letterSpacing: "-1px", lineHeight: 1, whiteSpace: "nowrap" }}>₩1,000,000~</span>
+                        <span style={{ fontSize: fs(12.5), color: "#94A3B8", paddingBottom: 1, fontWeight: 600, whiteSpace: "nowrap" }}>초기 세팅비</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-                        <span style={{ fontSize: fs(24), fontWeight: 800, color: "#0F172A", letterSpacing: "-0.5px", lineHeight: 1 }}>₩50만<span style={{ fontSize: fs(14), fontWeight: 700 }}>부터</span><span style={{ fontSize: fs(15), color: "#94A3B8", fontWeight: 600 }}> /월</span></span>
-                        <span style={{ fontSize: fs(13), color: "#94A3B8", paddingBottom: 1, fontWeight: 600, whiteSpace: "nowrap" }}>운영 관리</span>
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 7, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: fs(21), fontWeight: 800, color: "#0F172A", letterSpacing: "-0.5px", lineHeight: 1, whiteSpace: "nowrap" }}>₩500,000~<span style={{ fontSize: fs(14), color: "#94A3B8", fontWeight: 600 }}>/월</span></span>
+                        <span style={{ fontSize: fs(12.5), color: "#94A3B8", paddingBottom: 1, fontWeight: 600, whiteSpace: "nowrap" }}>운영 관리</span>
                       </div>
                       <div style={{ fontSize: fs(11.5), color: "#92400E", marginTop: 8, fontWeight: 600 }}>고객사 수 · 엑셀 정리 범위 · 운영 대행 범위에 따라 상담 후 견적</div>
                     </>
                   ) : promoPrice ? (
                     <>
-                      {/* 런칭가: 정상가(취소선) 별도 줄 → 런칭가 최대 강조 (겹침 방지 간격) */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 9, lineHeight: 1.3 }}>
-                        <span style={{ fontSize: fs(14.5), color: "#94A3B8", fontWeight: 600, whiteSpace: "nowrap" }}>정상가 <span style={{ textDecoration: "line-through", textDecorationColor: "#CBD5E1", textDecorationThickness: "1.5px" }}>₩{(price || 0).toLocaleString()}</span></span>
+                      {/* 런칭가: 정상가(취소선)+기간 배지를 독립 줄로 → 큰 런칭가 (겹침 방지: 줄 분리 + 간격) */}
+                      <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10, lineHeight: 1.4 }}>
+                        <span style={{ fontSize: fs(13.5), color: "#94A3B8", fontWeight: 600, whiteSpace: "nowrap" }}>정상가 <span style={{ textDecoration: "line-through", textDecorationColor: "#CBD5E1", textDecorationThickness: "1.5px" }}>₩{(price || 0).toLocaleString()}</span></span>
                         <span style={{ fontSize: fs(11), fontWeight: 700, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>{PROMO.until}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
@@ -665,12 +664,17 @@ export default function BillingPage({ onBack }) {
 
                 {/* 4) 핵심 기능 리스트 (flex:1 — CTA를 하단에 고정) */}
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, marginBottom: 18 }}>
-                  {/* 팀 플랜 뉘앙스 문구 */}
-                  {plan.note && (
+                  {/* 플랜 뉘앙스 문구 — VIP 는 맞춤형 자동화 메시지를 프리미엄 포인트 박스로 강조 */}
+                  {plan.note && (isVip ? (
+                    <div style={{ background: "linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)", border: "1.5px solid #F59E0B", borderLeft: "4px solid #D97706", borderRadius: 10, padding: "11px 13px", marginBottom: 2 }}>
+                      <div style={{ fontSize: fs(11), fontWeight: 800, color: "#B45309", letterSpacing: "0.05em", marginBottom: 4 }}>⚙️ VIP 전용 · 맞춤형 자동화 프로그램</div>
+                      <div style={{ fontSize: fs(13), color: "#78350F", fontWeight: 700, lineHeight: 1.55 }}>{plan.note}</div>
+                    </div>
+                  ) : (
                     <div style={{ fontSize: fs(12.5), color: plan.color, background: plan.colorBg, border: `1px solid ${plan.colorBorder}`, borderRadius: 9, padding: "9px 11px", lineHeight: 1.5, fontWeight: 600, marginBottom: 2 }}>
                       💬 {plan.note}
                     </div>
-                  )}
+                  ))}
                   {plan.coreFeatures.map((f, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: fs(14), color: "#334155" }}>
                       <span style={{ color: "#059669", flexShrink: 0, fontWeight: 700 }}>✓</span>

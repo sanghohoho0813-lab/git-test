@@ -4123,48 +4123,52 @@ function ProgramsList(props){
         var items=Object.values(programs).filter(function(p){return p.group===grp;});
         if(!items.length)return null;
         var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];
+        var grpDesc={"신규채용":"새로 채용하는 직원에게 적용되는 지원금","재직자유지":"재직 중인 직원의 고용 유지·전환에 적용","육아":"육아휴직·근로시간 단축·대체인력 관련","커스텀":"직접 추가한 지원금"}[grp]||"";
+        var grpOn=items.filter(function(p){return p.enabled!==false;}).length;
         return(
-          <div key={grp} style={{marginBottom:16}}>
-            <div style={{fontSize:FS_CARD_TITLE,fontWeight:700,color:gp.dark,marginBottom:8,padding:"5px 11px",borderRadius:8,background:gp.badge,display:"inline-block"}}>{gp.icon} {grp} <span style={{fontWeight:400,opacity:0.7}}>({items.length}개)</span></div>
-            <div style={{display:"grid",gap:7}}>
+          <Card key={grp} style={{padding:"16px 18px",marginBottom:14,border:"1.5px solid "+gp.light}}>
+            {/* 섹션 박스 헤더: 제목 + 개수 + 설명 */}
+            <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap",marginBottom:12,paddingBottom:10,borderBottom:"1px solid #F1F5F9"}}>
+              <span style={{fontSize:20}}>{gp.icon}</span>
+              <span style={{fontSize:16.5,fontWeight:800,color:gp.dark}}>{grp}</span>
+              <span style={{fontSize:11.5,fontWeight:700,padding:"2px 9px",borderRadius:10,background:gp.badge,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
+              <span style={{fontSize:12.5,color:"#94A3B8"}}>{grpDesc}</span>
+            </div>
+            {/* 2열 압축 그리드 (좁은 화면에서는 자동 1열) */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(330px,1fr))",gap:8}}>
               {items.map(function(p){
                 var isCustom=!DEFAULT_PROGRAMS[p.id];
                 var isEnabled=p.enabled!==false;
                 var isYouth=p.id==="youth_jump";
                 var pill=function(color,bg){return{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
                 return(
-                  <Card key={p.id} className="hover-card" style={{padding:"10px 14px",border:"1px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.6}}>
-                    {/* 가로 압축형: 좌측 이름·배지 + 메타 한 줄 / 우측 ON·OFF·편집 가로 정렬 */}
-                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                      <div style={{flex:"1 1 300px",minWidth:230}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                          <span style={{fontSize:15,fontWeight:700,wordBreak:"keep-all"}}>{p.name}</span>
-                          {p.year&&<span style={pill("#475569","#F1F5F9")}>{p.year}년</span>}
-                          {isYouth&&<span style={pill("#D97706","#FEF3C7")}>⭐ 추천</span>}
-                          {isCustom&&<span style={pill(gp.text,gp.badge)}>커스텀</span>}
-                          <span style={pill(gp.dark,gp.light)}>{fMan(p.totalAmount||0)}</span>
-                          {!isEnabled&&<span style={pill("#94A3B8","#F1F5F9")}>비활성</span>}
-                        </div>
-                        <div style={{display:"flex",gap:10,fontSize:12.5,color:"#475569",flexWrap:"wrap",marginTop:3}}>
-                          <span>🔢 {(p.rounds||[]).length}회차</span>
-                          <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join("/")}</span>
-                          {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
-                        </div>
-                        {p.desc&&<div style={{fontSize:12,color:"#94A3B8",marginTop:2,lineHeight:1.45}}>{p.desc}</div>}
-                      </div>
-                      <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center",marginLeft:"auto"}}>
-                        <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"5px 13px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
-                          {isEnabled?"ON":"OFF"}
-                        </button>
-                        <button style={btnSm} onClick={function(){openEdit(p);}}>편집</button>
-                        {isCustom&&<button style={Object.assign({},btnSm,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
-                      </div>
+                  <div key={p.id} className="hover-card" style={{padding:"10px 12px",borderRadius:12,background:"#fff",border:"1px solid "+(isEnabled?gp.light:"#E2E8F0"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      <span style={{fontSize:14.5,fontWeight:700,wordBreak:"keep-all"}}>{p.name}</span>
+                      {p.year&&<span style={pill("#475569","#F1F5F9")}>{p.year}년</span>}
+                      {isYouth&&<span style={pill("#D97706","#FEF3C7")}>⭐ 추천</span>}
+                      {isCustom&&<span style={pill(gp.text,gp.badge)}>커스텀</span>}
+                      <span style={pill(gp.dark,gp.light)}>{fMan(p.totalAmount||0)}</span>
+                      {!isEnabled&&<span style={pill("#94A3B8","#F1F5F9")}>비활성</span>}
                     </div>
-                  </Card>
+                    <div style={{display:"flex",gap:9,fontSize:12,color:"#475569",flexWrap:"wrap"}}>
+                      <span>🔢 {(p.rounds||[]).length}회차</span>
+                      <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join("/")}</span>
+                      {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
+                    </div>
+                    {p.desc&&<div style={{fontSize:11.5,color:"#94A3B8",lineHeight:1.45}}>{p.desc}</div>}
+                    <div style={{display:"flex",gap:6,alignItems:"center",marginTop:"auto"}}>
+                      <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"4px 12px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:44}}>
+                        {isEnabled?"ON":"OFF"}
+                      </button>
+                      <button style={btnSm} onClick={function(){openEdit(p);}}>편집</button>
+                      {isCustom&&<button style={Object.assign({},btnSm,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          </div>
+          </Card>
         );
       })}
       <Modal open={st1[0]} onClose={function(){st1[1](false);st2[1](null);}} title={(st2[0]?"지원금 편집":"커스텀 지원금 추가")} width={560}>
