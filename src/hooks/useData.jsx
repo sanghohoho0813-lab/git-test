@@ -285,7 +285,8 @@ export function useData(orgId) {
     setEmployees((prev) => [...prev, ...empList]);
   }
 
-  // 샘플 일괄 삭제(hard delete) — 호출부에서 isSample=true 인 행의 id 만 전달한다.
+  // id 목록 기반 일괄 hard delete — 호출부가 삭제 가능한 행만 전달한다.
+  // (샘플 삭제: isSample=true 행만 · 엑셀 가져오기 취소: 해당 importBatchId 로 방금 생성된 행만)
   // org_id 조건을 함께 걸어 다른 조직 데이터에 닿지 않게 이중 방어.
   async function deleteSampleRows(empIds, compIds) {
     if (empIds.length > 0) {

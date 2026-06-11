@@ -1664,8 +1664,8 @@ function ExcelImport(props){
   var stPreview=useState(null); // importPreview={companies,employees,rows,errors,warnings,duplicates,...}
   var fileRef=useRef(null);
 
-  function reset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);if(fileRef.current)fileRef.current.value="";}
-  function softReset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);}
+  function reset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);stUndo[1](null);if(fileRef.current)fileRef.current.value="";}
+  function softReset(){stStep[1](1);stGrid[1](null);stMap[1](null);stConf[1](null);stPreview[1](null);stResult[1](null);stUndo[1](null);}
 
   // 지원금명 → programId (기존 프로그램에만 매칭 · 자동 생성 없음)
   function matchProgramId(name){
@@ -1837,6 +1837,8 @@ function ExcelImport(props){
     if(!window.confirm(msg))return;
     stSaving[1](true);
     try{
+      // 이번 가져오기 배치 식별자 — 이번에 생성되는 모든 신규 행에 기록 (가져오기 취소의 삭제 조건)
+      var batchId=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():ruuid();
       // 1) 기존 업체 매핑 (사업자번호 숫자 10자리 기준 · 기존 업체 정보는 덮어쓰지 않음)
       var existing={};
       (props.companies||[]).forEach(function(c){var d=String(c.bizNo||"").replace(/\D/g,"");if(d&&!existing[d])existing[d]=c;});
@@ -1849,6 +1851,7 @@ function ExcelImport(props){
         var comp={id:id,createdAt:new Date().toISOString(),name:pc.name,bizNo:pc.bizNo,
           ceoName:pc.ceoName||"",
           corpType:String(pc.corpType||"").indexOf("법인")>=0?"법인":String(pc.corpType||"").indexOf("개인")>=0?"개인":"",
+          importedFromExcel:true,importBatchId:batchId,
           notes:[],companyDocs:[]};
         var ec=Number(String(pc.empCount||"").replace(/\D/g,""));
         if(ec>0)comp.empCount=ec;
@@ -1890,25 +1893,29 @@ function ExcelImport(props){
           totalExpected:p?p.totalAmount||0:0,
           rounds:p?JSON.parse(JSON.stringify(p.rounds||[])).map(function(r){return Object.assign({},r,{id:uid(),isPaid:false,received:0});}):[],
           employeeDocs:p?(p.employeeDocs||[]).map(function(dd){return{id:uid(),label:typeof dd==="string"?dd:dd.label||"",done:false,files:[]};}):[],
-          memo:memo,importedFromExcel:true
+          memo:memo,importedFromExcel:true,importBatchId:batchId
         });
       });
       // 3) 저장: 회사 bulk INSERT 커밋 후 직원 bulk INSERT (FK 순서) · 직원 bulk 실패 시 단건 폴백으로 실패 행 식별
       if(newComps.length>0)await io.onBulkCompanies(newComps);
-      var failedRows=[];
+      var failedRows=[],savedIds=[];
       if(toSave.length>0){
-        try{ await io.onBulkEmployees(toSave); }
+        try{ await io.onBulkEmployees(toSave); savedIds=toSave.map(function(t){return t.id;}); }
         catch(e1){
           console.error("[엑셀 가져오기] bulk 저장 실패 — 단건 저장으로 전환:",e1);
           for(var i2=0;i2<toSave.length;i2++){
-            try{ await io.onSaveEmployee(toSave[i2]); }
+            try{ await io.onSaveEmployee(toSave[i2]); savedIds.push(toSave[i2].id); }
             catch(e2){ failedRows.push({name:toSave[i2].name,error:e2.message||"오류"}); }
           }
         }
       }
+      // 취소(undo)용: importBatchId 가 이번 배치와 일치하는 행의 id 만 보관
+      var undoEmpIds=toSave.filter(function(t){return t.importBatchId===batchId&&savedIds.indexOf(t.id)>=0;}).map(function(t){return t.id;});
+      var undoCompIds=newComps.filter(function(c){return c.importBatchId===batchId;}).map(function(c){return c.id;});
       stResult[1]({newComps:newComps.length,merged:Object.keys(mergedSet).length,
         saved:toSave.length-failedRows.length,excludedErrors:pv0.errors.length,
-        noProg:noProg,dupExcluded:dupExcluded,failedRows:failedRows,bizWarn:pv0.bizWarnCount});
+        noProg:noProg,dupExcluded:dupExcluded,failedRows:failedRows,bizWarn:pv0.bizWarnCount,
+        batchId:batchId,undoEmpIds:undoEmpIds,undoCompIds:undoCompIds});
       if(failedRows.length===0)toast("엑셀 데이터 등록이 완료되었습니다. 신규 업체 "+newComps.length+"개, 직원 "+(toSave.length-failedRows.length)+"명이 등록되었습니다.","success");
       else toast("일부 행 저장에 실패했습니다 ("+failedRows.length+"건) — 결과 화면을 확인해주세요.","error");
     }catch(e){
@@ -1916,6 +1923,39 @@ function ExcelImport(props){
       toast("등록 중 오류가 발생했습니다: "+(e.message||"오류"),"error");
     }finally{
       stSaving[1](false);
+    }
+  }
+
+  // ── 이번 가져오기 취소 (방금 등록한 importBatchId 데이터만 삭제) ──
+  var stUndoBusy=useState(false);
+  var stUndo=useState(null); // {emps,comps,kept} 성공 | {error} 실패
+  async function undoImport(){
+    var r=stResult[0]; var io=props.io||{};
+    if(!r||stUndoBusy[0]||(stUndo[0]&&!stUndo[0].error))return;
+    if(!window.confirm("방금 엑셀로 등록한 업체/직원만 삭제됩니다. 기존 업체 정보는 삭제되지 않습니다. 진행할까요?"))return;
+    stUndoBusy[1](true);
+    try{
+      // 삭제 대상: 이번 배치(importBatchId)에서 생성된 행의 id 만.
+      // 기존 업체에 병합된 업체 id 는 undoCompIds 에 포함되지 않으므로 절대 삭제되지 않음.
+      var empIds=r.undoEmpIds||[],compIds=r.undoCompIds||[];
+      var failParts=[];
+      try{ if(empIds.length>0)await io.onDeleteRows(empIds,[]); }
+      catch(e1){ console.error("[엑셀 취소] 직원 삭제 실패:",e1); failParts.push("직원 삭제 실패: "+(e1.message||"오류")); }
+      var compsDeleted=0;
+      if(failParts.length===0){
+        // 직원 삭제가 끝난 뒤에만 신규 업체 삭제 (이번 배치로 새로 만든 업체만)
+        try{ if(compIds.length>0){await io.onDeleteRows([],compIds);compsDeleted=compIds.length;} }
+        catch(e2){ console.error("[엑셀 취소] 신규 업체 삭제 실패:",e2); failParts.push("신규 업체 삭제 실패: "+(e2.message||"오류")); }
+      }
+      if(failParts.length>0){
+        stUndo[1]({error:failParts.join(" / ")});
+        toast("가져오기 취소 중 일부 실패 — "+failParts.join(" / "),"error");
+      }else{
+        stUndo[1]({emps:empIds.length,comps:compsDeleted,kept:r.merged});
+        toast("이번 가져오기가 취소되었습니다. (직원 "+empIds.length+"명 · 신규 업체 "+compsDeleted+"개 삭제)","success");
+      }
+    }finally{
+      stUndoBusy[1](false);
     }
   }
 
@@ -2127,6 +2167,26 @@ function ExcelImport(props){
                 </div>
               )}
               <button style={Object.assign({},btnP,{padding:"12px",fontSize:15})} onClick={function(){stOpen[1](false);softReset();}}>🏢 업체 목록에서 확인하기</button>
+              {(function(){
+                var undone=stUndo[0]&&!stUndo[0].error;
+                var undoDisabled=stUndoBusy[0]||undone||((r.undoEmpIds||[]).length===0&&(r.undoCompIds||[]).length===0);
+                return(
+                  <button disabled={undoDisabled} onClick={undoImport}
+                    style={{background:"#fff",color:undoDisabled?"#94A3B8":"#DC2626",border:"1px solid "+(undoDisabled?"#E2E8F0":"#FECACA"),borderRadius:10,padding:"10px 16px",fontSize:13.5,fontWeight:700,cursor:undoDisabled?"default":"pointer",fontFamily:FF,opacity:undoDisabled?0.7:1}}>
+                    {stUndoBusy[0]?"취소 중…":undone?"✓ 가져오기 취소 완료":"↩️ 이번 가져오기 취소 (방금 등록한 데이터만 삭제)"}
+                  </button>
+                );
+              })()}
+              {stUndo[0]&&!stUndo[0].error&&(
+                <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,fontSize:12.5,color:"#166534",lineHeight:1.7}}>
+                  이번 가져오기가 취소되었습니다 — 삭제된 직원 <strong>{stUndo[0].emps}명</strong> · 삭제된 신규 업체 <strong>{stUndo[0].comps}개</strong> · 유지된 기존 업체 <strong>{stUndo[0].kept}개</strong> (기존 업체와 그 기존 데이터는 삭제되지 않았습니다)
+                </div>
+              )}
+              {stUndo[0]&&stUndo[0].error&&(
+                <div style={{padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,fontSize:12.5,color:"#991B1B",lineHeight:1.7}}>
+                  취소 실패: {stUndo[0].error} — 다시 시도하거나, 업체 목록에서 해당 데이터를 직접 삭제해주세요.
+                </div>
+              )}
               <p style={{fontSize:11.5,color:"#94A3B8",textAlign:"center",margin:0}}>업체 목록은 자동으로 갱신되었습니다. 이 창은 닫기 전까지 결과를 계속 확인할 수 있습니다.</p>
             </div>);
           })()}
@@ -5619,7 +5679,7 @@ export default function SubsidyApp(props){
               goCompany={goCompany} settings={profile.settings||{}}
               onAddCompany={function(){if(!requirePlan())return;stAddComp[1](true);}}
               setView={function(v){stView[1](v);stCompany[1](null);}}
-              excelImport={{onBulkCompanies:onBulkSaveCompanies,onBulkEmployees:onBulkSaveEmployees,onSaveEmployee:onSaveEmployee,requirePlan:requirePlan}}
+              excelImport={{onBulkCompanies:onBulkSaveCompanies,onBulkEmployees:onBulkSaveEmployees,onSaveEmployee:onSaveEmployee,onDeleteRows:onDeleteSampleRows,requirePlan:requirePlan}}
               mode="list"
             />
           )}
