@@ -4105,6 +4105,15 @@ function ProgramsList(props){
     onUpdate(updated);
   }
   var enabledCount=Object.values(programs).filter(function(p){return p.enabled!==false;}).length;
+  // 기본 지원금 전역 번호(1~15): 신규채용 → 재직자유지 → 육아 순서로 부여.
+  // 커스텀 지원금은 C1, C2… 로 별도 번호.
+  var progNumMap={},builtinSeq=0,customSeq=0;
+  ["신규채용","재직자유지","육아","커스텀"].forEach(function(g){
+    Object.values(programs).filter(function(p){return p.group===g;}).forEach(function(p){
+      if(DEFAULT_PROGRAMS[p.id]){builtinSeq++;progNumMap[p.id]=String(builtinSeq);}
+      else{customSeq++;progNumMap[p.id]="C"+customSeq;}
+    });
+  });
   return(
     <div className="fade-in">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
@@ -4126,45 +4135,55 @@ function ProgramsList(props){
         if(!items.length)return null;
         var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];
         var grpDesc={"신규채용":"새로 채용하는 직원에게 적용되는 지원금","재직자유지":"재직 중인 직원의 고용 유지·전환에 적용","육아":"육아휴직·근로시간 단축·대체인력 관련","커스텀":"직접 추가한 지원금"}[grp]||"";
-        // 섹션별 아주 연한 배경 (신규채용=파랑 / 재직자유지=보라 / 육아=초록)
-        var tint={"신규채용":{bg:"#F6FAFF",border:"#DBEAFE",num:"#2563EB",numBg:"#EFF6FF"},
-                  "재직자유지":{bg:"#FAF8FF",border:"#E4DEF8",num:"#7C3AED",numBg:"#F5F3FF"},
-                  "육아":{bg:"#F6FDF9",border:"#D1FAE5",num:"#059669",numBg:"#ECFDF5"},
-                  "커스텀":{bg:"#FAFAFA",border:"#E2E8F0",num:"#64748B",numBg:"#F1F5F9"}}[grp];
+        // 섹션 배경 — 계열이 즉시 느껴지는 한 단계 진한 톤 (신규채용=블루 / 재직자유지=라벤더 / 육아=민트)
+        var tint={"신규채용":{bg:"#EAF2FF",border:"#BFDBFE",num:"#2563EB"},
+                  "재직자유지":{bg:"#F1EDFB",border:"#D8CFF2",num:"#7C3AED"},
+                  "육아":{bg:"#E7F8EF",border:"#A7F3D0",num:"#059669"},
+                  "커스텀":{bg:"#F3F4F6",border:"#E2E8F0",num:"#64748B"}}[grp];
         var grpOn=items.filter(function(p){return p.enabled!==false;}).length;
         return(
-          <div key={grp} style={{background:tint.bg,border:"1.5px solid "+tint.border,borderRadius:16,padding:"18px 20px",marginBottom:16}}>
-            {/* 섹션 헤더: 번호 + 제목 + 개수 + 설명 */}
-            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:14}}>
-              <span style={{width:30,height:30,borderRadius:9,background:tint.numBg,color:tint.num,fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,letterSpacing:"0.02em"}}>{String(gi+1).padStart(2,"0")}</span>
-              <span style={{fontSize:18,fontWeight:800,color:gp.dark}}>{gp.icon} {grp}</span>
-              <span style={{fontSize:12,fontWeight:700,padding:"3px 10px",borderRadius:10,background:"#fff",border:"1px solid "+tint.border,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
-              <span style={{fontSize:13,color:"#94A3B8"}}>{grpDesc}</span>
+          <div key={grp} style={{background:tint.bg,border:"1.5px solid "+tint.border,borderRadius:18,padding:"22px 22px 20px",marginBottom:18}}>
+            {/* 섹션 헤더: 큰 제목(주 위계) + 설명(보조) — 카드 영역과 구분선으로 분리 */}
+            <div style={{marginBottom:16,paddingBottom:14,borderBottom:"1.5px solid "+tint.border}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                <span style={{width:34,height:34,borderRadius:10,background:"#fff",color:tint.num,fontWeight:800,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid "+tint.border}}>{String(gi+1).padStart(2,"0")}</span>
+                <span style={{fontSize:34,fontWeight:900,color:gp.dark,letterSpacing:"-1px",lineHeight:1.15}}>{gp.icon} {grp}</span>
+                <span style={{fontSize:12.5,fontWeight:700,padding:"4px 12px",borderRadius:12,background:"#fff",border:"1px solid "+tint.border,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
+              </div>
+              <div style={{fontSize:13,color:"#64748B",marginTop:7,marginLeft:2}}>{grpDesc}</div>
             </div>
-            {/* 지원금 카드 (여유 있는 2열 그리드 · 좁은 화면 1열) */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:10}}>
+            {/* 지원금 카드 (개별 번호 1~15 · 여유 있는 반응형 그리드) */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:12}}>
               {items.map(function(p){
                 var isCustom=!DEFAULT_PROGRAMS[p.id];
                 var isEnabled=p.enabled!==false;
                 var isYouth=p.id==="youth_jump";
+                var pNum=progNumMap[p.id]||"";
                 var pill=function(color,bg){return{fontSize:11.5,fontWeight:700,padding:"2px 9px",borderRadius:10,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
                 return(
-                  <div key={p.id} className="hover-card" style={{padding:"13px 15px",borderRadius:13,background:"#fff",border:"1px solid "+(isEnabled?tint.border:"#E2E8F0"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:8,boxShadow:"0 1px 3px rgba(15,23,42,0.04)"}}>
+                  <div key={p.id} className="hover-card" style={{padding:"14px 16px",borderRadius:14,background:"#fff",border:"1px solid "+(isEnabled?tint.border:"#E2E8F0"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:9,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
+                    {/* 위계 1·2: 번호 배지 + 지원금명 */}
+                    <div style={{display:"flex",alignItems:"flex-start",gap:9}}>
+                      <span style={{width:27,height:27,borderRadius:14,background:isCustom?"#64748B":tint.num,color:"#fff",fontWeight:800,fontSize:isCustom?10.5:12.5,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{pNum}</span>
+                      <span style={{fontSize:16.5,fontWeight:800,color:"#0F172A",wordBreak:"keep-all",lineHeight:1.4}}>{p.name}</span>
+                    </div>
+                    {/* 위계 3: 연도 · 금액 · 추천 태그 */}
                     <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                      <span style={{fontSize:15,fontWeight:700,wordBreak:"keep-all",lineHeight:1.4}}>{p.name}</span>
                       {p.year&&<span style={pill("#475569","#F1F5F9")}>{p.year}년</span>}
                       {isYouth&&<span style={pill("#D97706","#FEF3C7")}>⭐ 추천</span>}
                       {isCustom&&<span style={pill(gp.text,gp.badge)}>커스텀</span>}
                       <span style={pill(gp.dark,gp.light)}>{fMan(p.totalAmount||0)}</span>
                       {!isEnabled&&<span style={pill("#94A3B8","#F1F5F9")}>비활성</span>}
                     </div>
-                    <div style={{display:"flex",gap:11,fontSize:12.5,color:"#475569",flexWrap:"wrap",lineHeight:1.6}}>
+                    {/* 위계 4: 회차 · 지급시점 · 신청처 */}
+                    <div style={{display:"flex",gap:13,fontSize:12.5,color:"#475569",flexWrap:"wrap",lineHeight:1.75}}>
                       <span>🔢 {(p.rounds||[]).length}회차</span>
                       <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join("/")}</span>
                       {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                     </div>
-                    {p.desc&&<div style={{fontSize:12,color:"#94A3B8",lineHeight:1.55}}>{p.desc}</div>}
-                    <div style={{display:"flex",gap:7,alignItems:"center",marginTop:"auto",paddingTop:2}}>
+                    {p.desc&&<div style={{fontSize:12,color:"#94A3B8",lineHeight:1.6}}>{p.desc}</div>}
+                    {/* 위계 5: ON/OFF · 편집 */}
+                    <div style={{display:"flex",gap:7,alignItems:"center",marginTop:"auto",paddingTop:4,borderTop:"1px solid #F8FAFC"}}>
                       <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"5px 13px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
                         {isEnabled?"ON":"OFF"}
                       </button>
