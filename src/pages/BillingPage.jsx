@@ -50,7 +50,7 @@ const PLAN_CONFIG = [
       "서류 체크리스트",
       "급여 계산기 · 수령액 시뮬레이터",
       "기본 업무일지",
-      "표준 엑셀 양식 가져오기",
+      "엑셀 가져오기 (기본 컬럼 자동 인식)",
     ],
   },
   {
@@ -80,7 +80,7 @@ const PLAN_CONFIG = [
       "서류 요청 문구 자동 생성",
       "활동 로그",
       "월별 수령 · 청구 리포트",
-      "엑셀 컬럼 매핑 가져오기",
+      "엑셀 가져오기 (자동 매핑 · 중복 검사 · 수정 필요 표시)",
     ],
   },
   {
@@ -112,7 +112,7 @@ const PLAN_CONFIG = [
       "팀별 활동 로그",
       "고객사별 보고서 일괄 생성",
       "고급 수수료 정산",
-      "엑셀 컬럼 매핑 고급",
+      "엑셀 가져오기 + 가져오기 이력 · 되돌리기",
       "우선 기능 요청",
     ],
   },
@@ -159,7 +159,7 @@ const COMPARE_ROWS = [
   ["수수료 정산",            "일부",  true,    "고급",   "고급"],
   ["미수금 관리",            false,   true,    true,     true],
   ["서류 문구 자동 생성",     false,   true,    true,     true],
-  ["엑셀 컬럼 매핑",         false,   true,    "고급",   "고급"],
+  ["엑셀 가져오기",          true,    true,    true,     "대행 포함"],
   ["활동 로그",              false,   true,    "팀별",   "팀별"],
   ["월별 수령·청구 리포트",   false,   true,    true,     true],
   ["담당자 배정",            false,   false,   true,     true],
@@ -191,9 +191,9 @@ const FEATURE_INFO = {
     desc: "고객사에 보낼 '필요 서류 요청' 안내 문구를 대상자·지원금 종류에 맞게 자동으로 만들어 줍니다.",
     example: null,
   },
-  "엑셀 컬럼 매핑": {
-    title: "엑셀 컬럼 매핑 가져오기",
-    desc: "기존 엑셀의 열 이름을 시스템 항목과 연결해 한 번에 가져오는 기능입니다.",
+  "엑셀 가져오기": {
+    title: "엑셀 가져오기 (전 요금제 공통)",
+    desc: "기존에 쓰던 엑셀을 그대로 업로드하면 컬럼을 자동 인식해 업체/직원을 한 번에 등록합니다. 모든 요금제에서 사용할 수 있으며, 자동 매핑·중복 검사·수정 필요 표시가 포함됩니다. VIP는 엑셀 정리부터 등록까지 대행해 드립니다.",
     example: "mapping",
   },
   "활동 로그": {
@@ -607,7 +607,18 @@ export default function BillingPage({ onBack }) {
                 {/* 2) 가격 영역 (모든 카드 동일 높이·시작선, 가격 강조 + 여백 확대) */}
                 <div style={{ height: priceH, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
                   {isVip ? (
-                    <div style={{ fontSize: fs(17), fontWeight: 800, color: "#1E293B", letterSpacing: "-0.3px", lineHeight: 1.5, whiteSpace: "pre-line" }}>{plan.priceDisplay}</div>
+                    <>
+                      {/* 가격 앵커링: 다른 플랜 가격과 동일한 위계로 크게 표시 */}
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 6 }}>
+                        <span style={{ fontSize: fs(30), fontWeight: 800, color: "#0F172A", letterSpacing: "-1.5px", lineHeight: 1 }}>100만 원<span style={{ fontSize: fs(17), fontWeight: 700 }}>부터</span></span>
+                        <span style={{ fontSize: fs(13), color: "#94A3B8", paddingBottom: 2, fontWeight: 600, whiteSpace: "nowrap" }}>초기 세팅비</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+                        <span style={{ fontSize: fs(23), fontWeight: 800, color: "#0F172A", letterSpacing: "-1px", lineHeight: 1 }}>월 50만 원<span style={{ fontSize: fs(14), fontWeight: 700 }}>부터</span></span>
+                        <span style={{ fontSize: fs(13), color: "#94A3B8", paddingBottom: 1, fontWeight: 600, whiteSpace: "nowrap" }}>운영 관리</span>
+                      </div>
+                      <div style={{ fontSize: fs(11.5), color: "#92400E", marginTop: 8, fontWeight: 600 }}>고객사 수 · 엑셀 정리 범위 · 운영 대행 범위에 따라 상담 후 견적</div>
+                    </>
                   ) : promoPrice ? (
                     <>
                       {/* 런칭가: 정가 취소선 + 런칭가 강조 + 유지 적용 안내 */}

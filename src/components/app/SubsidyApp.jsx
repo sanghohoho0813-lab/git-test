@@ -1683,12 +1683,13 @@ function ExcelImport(props){
     for(var j=0;j<ids.length;j++){var pn2=String(programs[ids[j]].name||"").replace(/\s+/g,"");if(pn2&&n.length>=4&&(pn2.indexOf(n)>=0||n.indexOf(pn2)>=0))return ids[j];}
     return "";
   }
-  function matchStatusKey(raw){
-    if(!raw)return "preparing";
+  function findStatusKey(raw){
+    if(!raw)return null;
     var n=String(raw).replace(/\s+/g,"");
     var hit=STS.find(function(s){var l=s.label.replace(/\s+/g,"");return l===n||n.indexOf(l)>=0;});
-    return hit?hit.key:"preparing";
+    return hit?hit.key:null;
   }
+  function matchStatusKey(raw){return findStatusKey(raw)||"preparing";}
 
   async function handleFile(file){
     if(!file)return;
@@ -1747,7 +1748,7 @@ function ExcelImport(props){
     (props.companies||[]).forEach(function(c){var d=String(c.bizNo||"").replace(/\D/g,"");if(d&&!existingByBiz[d])existingByBiz[d]=c;});
     var rows=[],errors=[],warnings=[],duplicates=[],dupPreview=[];
     var compMap={},empList=[],progSet={},seenPair={},seenSave={};
-    var junk=0,bizWarnCount=0;
+    var junk=0,bizWarnCount=0,exclNoEmp=0,reviewRowCnt=0;
     for(var i=hIdx+1;i<grid.length;i++){
       var raw=grid[i];
       if(!raw||raw.every(function(v){return String(v==null?"":v).trim()==="";}))continue; // 완전 빈 행
@@ -1758,44 +1759,57 @@ function ExcelImport(props){
       if(/^(합계|총계|소계)$/.test(companyName)||/^(합계|총계|소계)$/.test(empName)){junk++;continue;}
       var startD=xlNormDate(cell(raw,"startDate")),birthD=xlNormDate(cell(raw,"birthDate"));
       var programName=cell(raw,"programName");
-      var errs=[],warns=[],bizWarn=false;
-      if(!companyName)errs.push("업체명 없음");
-      if(!bizNo)errs.push("사업자등록번호 없음");
-      if(!empName)errs.push("직원명 없음");
+      // 저장 정책: 형식 이상은 저장 허용 + reviewIssues 로 기록. 제외는 이름 누락·중복만.
+      var warns=[],compIss=[],empIss=[],bizWarn=false;
+      var excluded=null;
+      if(!companyName)excluded="업체명 없음 — 저장 제외";
+      else if(!empName){excluded="직원명 없음 — 저장 제외";exclNoEmp++;}
       if(bizNo){
         var bc=xlBizNoCheck(bizNo);
-        if(!bc.ok){bizWarn=true;bizWarnCount++;warns.push("사업자번호 형식 주의 — "+bc.reason);}
+        if(!bc.ok){bizWarn=true;bizWarnCount++;warns.push("사업자번호 확인 필요 — "+bc.reason);compIss.push({field:"bizNo",message:"사업자등록번호 형식 확인 필요",originalValue:bizNo});}
+      }else if(!excluded){
+        bizWarn=true;bizWarnCount++;warns.push("사업자번호 미입력 — 확인 필요");compIss.push({field:"bizNo",message:"사업자등록번호 미입력",originalValue:""});
       }
-      if(!startD.ok)warns.push("입사일 날짜 형식 확인 필요");
-      if(!birthD.ok)warns.push("생년월일 날짜 형식 확인 필요");
-      if(!programName)warns.push("지원금명 미입력");
+      var corpTypeVal=cell(raw,"corpType");
+      if(corpTypeVal&&corpTypeVal.indexOf("법인")<0&&corpTypeVal.indexOf("개인")<0){warns.push("법인구분 값 확인 필요");compIss.push({field:"corpType",message:"법인구분 값 확인 필요",originalValue:corpTypeVal});}
+      var empCountVal=cell(raw,"empCount");
+      if(empCountVal&&!(Number(String(empCountVal).replace(/\D/g,""))>0)){warns.push("전체직원수 숫자 확인 필요");compIss.push({field:"empCount",message:"전체직원수 숫자 확인 필요",originalValue:empCountVal});}
+      if(!startD.ok){warns.push("입사일 날짜 형식 확인 필요");empIss.push({field:"startDate",message:"입사일 형식 확인 필요",originalValue:cell(raw,"startDate")});}
+      if(!birthD.ok){warns.push("생년월일 날짜 형식 확인 필요");empIss.push({field:"birthDate",message:"생년월일 형식 확인 필요",originalValue:cell(raw,"birthDate")});}
+      var pid=matchProgramId(programName);
+      var progMatchedName=pid?String((props.programs||{})[pid].name||""):"";
+      if(programName&&!pid){warns.push("지원금명 자동 매칭 실패 — 미지정으로 등록");empIss.push({field:"programName",message:"지원금명을 자동 매칭하지 못해 지원금 미지정으로 등록됨",originalValue:programName});}
+      else if(!programName)warns.push("지원금명 미입력 — 미지정으로 등록");
+      var rawStatusVal=cell(raw,"status");
+      if(rawStatusVal&&!findStatusKey(rawStatusVal)){warns.push("신청상태 미매칭 — 준비중으로 등록");empIss.push({field:"status",message:"신청상태 '"+rawStatusVal+"' 미매칭 — 준비중으로 등록됨",originalValue:rawStatusVal});}
       var bizDigits=bizNo.replace(/\D/g,"");
       var isDup=false;
-      if(bizDigits&&empName){
-        var pairKey=bizDigits+"|"+empName;
-        if(seenPair[pairKey]){isDup=true;warns.push("같은 사업자번호+직원명 중복 의심 ("+seenPair[pairKey]+"행과 동일)");}
+      var pairBase=bizDigits||companyName;
+      if(pairBase&&empName){
+        var pairKey=pairBase+"|"+empName;
+        if(seenPair[pairKey]){isDup=true;warns.push("같은 업체+직원명 중복 의심 ("+seenPair[pairKey]+"행과 동일)");}
         else seenPair[pairKey]=rowNo;
       }
       var exComp=bizDigits?existingByBiz[bizDigits]:null;
       if(exComp)warns.push("기존 업체에 직원 추가 예정 ("+exComp.name+")");
-      var pid=matchProgramId(programName);
-      var progMatchedName=pid?String((props.programs||{})[pid].name||""):"";
-      var status=errs.length>0?"오류":isDup?"중복 의심":warns.length>0?"주의":"정상";
+      var issueCnt=compIss.length+empIss.length;
+      var status=excluded?"저장 제외":isDup?"중복 의심":warns.length>0?"주의":"정상";
       var row={rowNo:rowNo,companyName:companyName,bizNo:bizNo,empName:empName,
         startDate:startD.value,birthDate:birthD.value,programName:programName,progMatchedName:progMatchedName,
-        rawStatus:cell(raw,"status"),round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),
-        status:status,messages:errs.concat(warns),hasError:errs.length>0,isDup:isDup,bizWarn:bizWarn,
-        existing:!!exComp};
+        rawStatus:rawStatusVal,round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),
+        status:status,messages:(excluded?[excluded]:[]).concat(warns),hasError:!!excluded,isDup:isDup,bizWarn:bizWarn,
+        issueCnt:issueCnt,existing:!!exComp};
       rows.push(row);
-      if(errs.length>0)errors.push({rowNo:rowNo,messages:errs});
+      if(excluded)errors.push({rowNo:rowNo,messages:[excluded]});
       if(warns.length>0)warnings.push({rowNo:rowNo,messages:warns});
       if(isDup)duplicates.push({rowNo:rowNo});
       if(programName)progSet[programName]=true;
-      // 저장용 구조 (오류 행 제외)
-      if(errs.length===0){
+      // 저장용 구조 (이름 누락 행만 제외 — 형식 이상은 issues 와 함께 저장)
+      if(!excluded){
+        if(issueCnt>0)reviewRowCnt++;
         var ck=bizDigits||companyName;
-        if(!compMap[ck])compMap[ck]={name:companyName,bizNo:bizNo,ceoName:cell(raw,"ceoName"),corpType:cell(raw,"corpType"),region:cell(raw,"region"),years:cell(raw,"years"),empCount:cell(raw,"empCount"),existing:!!exComp};
-        empList.push({companyKey:ck,name:empName,birthDate:birthD.ok?birthD.value:"",startDate:startD.ok?startD.value:"",programName:programName,rawStatus:cell(raw,"status"),round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),rowNo:rowNo,isDup:isDup});
+        if(!compMap[ck])compMap[ck]={name:companyName,bizNo:bizNo,ceoName:cell(raw,"ceoName"),corpType:corpTypeVal,region:cell(raw,"region"),years:cell(raw,"years"),empCount:empCountVal,existing:!!exComp,issues:compIss};
+        empList.push({companyKey:ck,name:empName,birthDate:birthD.ok?birthD.value:"",startDate:startD.ok?startD.value:"",programName:programName,rawStatus:rawStatusVal,round:cell(raw,"round"),payMonth:cell(raw,"payMonth"),memo:cell(raw,"memo"),rowNo:rowNo,isDup:isDup,issues:empIss});
         // 저장 시 중복 제외 예정 미리 계산 (기존 DB + 배치 내 — doImport 와 동일 기준)
         var sd=startD.ok?startD.value:"";
         var isDupDb=exComp?(props.employees||[]).some(function(ex){
@@ -1811,7 +1825,8 @@ function ExcelImport(props){
     if(rows.length===0)throw new Error("읽을 수 있는 데이터 행이 없습니다. 헤더 행 설정을 확인해주세요.");
     return{companies:Object.keys(compMap).map(function(k){return compMap[k];}),employees:empList,
       rows:rows,errors:errors,warnings:warnings,duplicates:duplicates,dupPreview:dupPreview,
-      programKinds:Object.keys(progSet),junk:junk,bizWarnCount:bizWarnCount};
+      programKinds:Object.keys(progSet),junk:junk,bizWarnCount:bizWarnCount,
+      exclNoEmp:exclNoEmp,reviewRowCnt:reviewRowCnt};
   }
 
   function gotoPreview(){
@@ -1829,10 +1844,10 @@ function ExcelImport(props){
     if(io.requirePlan&&!io.requirePlan())return;
     var pv0=stPreview[0];
     if(!pv0||pv0.employees.length===0)return;
-    var msg="오류가 없는 행만 등록됩니다. 기존 업체와 사업자등록번호가 같은 경우 해당 업체에 직원이 추가됩니다."
-      +(pv0.bizWarnCount>0?"\n\n⚠️ 사업자번호 형식 주의 "+pv0.bizWarnCount+"건이 포함되어 있습니다.":"")
-      +(pv0.duplicates.length>0?"\n⚠️ 중복 의심 행 "+pv0.duplicates.length+"건이 포함되어 있습니다.":"")
-      +(pv0.dupPreview.length>0?"\nℹ️ 이미 등록된 동일 직원 "+pv0.dupPreview.length+"명은 자동 제외됩니다.":"")
+    var msg="중복 직원을 제외한 데이터가 등록됩니다. 사업자번호, 날짜, 지원금명 등 확인이 필요한 항목은 등록 후 '수정 필요'로 표시됩니다. 기존 업체와 사업자등록번호가 같은 경우 해당 업체에 직원이 추가됩니다."
+      +(pv0.reviewRowCnt>0?"\n\n⚠️ 수정 필요 표시 예정 "+pv0.reviewRowCnt+"건 (사업자번호 형식 주의 "+pv0.bizWarnCount+"건 포함)":"")
+      +(pv0.dupPreview.length>0?"\nℹ️ 중복 직원 "+pv0.dupPreview.length+"명은 자동 제외됩니다.":"")
+      +(pv0.errors.length>0?"\nℹ️ 업체명/직원명 없는 "+pv0.errors.length+"행은 저장에서 제외됩니다.":"")
       +"\n\n등록을 진행할까요?";
     if(!window.confirm(msg))return;
     stSaving[1](true);
@@ -1860,6 +1875,8 @@ function ExcelImport(props){
         // 업력 칸이 날짜(설립일)로 해석되는 경우에만 establishedDate 저장 — 그 외 형식은 보류
         var estD=xlNormDate(pc.years);
         if(!estD.empty&&estD.ok&&/^\d{4}-/.test(estD.value))comp.establishedDate=estD.value;
+        // 확인이 필요한 값은 저장하되 reviewIssues 로 표시 (수정 필요 배지의 근거)
+        if(pc.issues&&pc.issues.length>0){comp.reviewNeeded=true;comp.reviewIssues=pc.issues;}
         newComps.push(comp);
       });
       // 2) 직원 payload 구성 + 중복 제외 (기존 DB·배치 내: 같은 업체+이름+입사일, 입사일 없으면 업체+이름)
@@ -1893,7 +1910,9 @@ function ExcelImport(props){
           totalExpected:p?p.totalAmount||0:0,
           rounds:p?JSON.parse(JSON.stringify(p.rounds||[])).map(function(r){return Object.assign({},r,{id:uid(),isPaid:false,received:0});}):[],
           employeeDocs:p?(p.employeeDocs||[]).map(function(dd){return{id:uid(),label:typeof dd==="string"?dd:dd.label||"",done:false,files:[]};}):[],
-          memo:memo,importedFromExcel:true,importBatchId:batchId
+          memo:memo,importedFromExcel:true,importBatchId:batchId,
+          reviewNeeded:!!(pe.issues&&pe.issues.length>0),
+          reviewIssues:pe.issues&&pe.issues.length>0?pe.issues:[]
         });
       });
       // 3) 저장: 회사 bulk INSERT 커밋 후 직원 bulk INSERT (FK 순서) · 직원 bulk 실패 시 단건 폴백으로 실패 행 식별
@@ -1915,6 +1934,7 @@ function ExcelImport(props){
       stResult[1]({newComps:newComps.length,merged:Object.keys(mergedSet).length,
         saved:toSave.length-failedRows.length,excludedErrors:pv0.errors.length,
         noProg:noProg,dupExcluded:dupExcluded,failedRows:failedRows,bizWarn:pv0.bizWarnCount,
+        reviewCnt:pv0.reviewRowCnt,exclNoEmp:pv0.exclNoEmp,
         batchId:batchId,undoEmpIds:undoEmpIds,undoCompIds:undoCompIds});
       if(failedRows.length===0)toast("엑셀 데이터 등록이 완료되었습니다. 신규 업체 "+newComps.length+"개, 직원 "+(toSave.length-failedRows.length)+"명이 등록되었습니다.","success");
       else toast("일부 행 저장에 실패했습니다 ("+failedRows.length+"건) — 결과 화면을 확인해주세요.","error");
@@ -1960,7 +1980,7 @@ function ExcelImport(props){
   }
 
   var pv=stPreview[0];
-  var stColor={"정상":["#059669","#ECFDF5"],"주의":["#D97706","#FFFBEB"],"오류":["#DC2626","#FEF2F2"],"중복 의심":["#7C3AED","#F5F3FF"]};
+  var stColor={"정상":["#059669","#ECFDF5"],"주의":["#D97706","#FFFBEB"],"오류":["#DC2626","#FEF2F2"],"저장 제외":["#DC2626","#FEF2F2"],"중복 의심":["#7C3AED","#F5F3FF"]};
   var confBadge={high:["높음","#059669","#ECFDF5"],mid:["보통","#D97706","#FFFBEB"],low:["확인 필요","#DC2626","#FEF2F2"],none:["미매칭","#94A3B8","#F1F5F9"]};
   var steps=["파일 업로드","컬럼 매핑","미리보기 · 검증","등록"];
   var headerCells=(stGrid[0]&&stGrid[0][stHeader[0]])||[];
@@ -2056,11 +2076,15 @@ function ExcelImport(props){
           {/* 3단계: 미리보기/검증 */}
           {stStep[0]===3&&pv&&(
             <div style={{display:"grid",gap:12}}>
+              <div style={{padding:"9px 13px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:12,color:"#475569",lineHeight:1.6}}>
+                대부분의 데이터는 등록되며, 확인이 필요한 항목은 등록 후 <strong>수정 필요</strong>로 표시됩니다. 중복 직원과 완전한 빈 행은 제외됩니다. 사업자번호·날짜·지원금명 등 확인이 필요한 값은 저장 후에도 경고로 표시됩니다.
+              </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(105px,1fr))",gap:8}}>
                 {[["감지된 업체",pv.companies.length+"개","#2563EB","#EFF6FF"],
                   ["감지된 직원",pv.employees.length+"명","#2563EB","#EFF6FF"],
                   ["지원금 종류",pv.programKinds.length+"종","#334155","#F8FAFC"],
-                  ["오류 행",pv.errors.length+"건",pv.errors.length>0?"#DC2626":"#059669",pv.errors.length>0?"#FEF2F2":"#F0FDF4"],
+                  ["수정 필요",pv.reviewRowCnt+"건",pv.reviewRowCnt>0?"#B45309":"#059669",pv.reviewRowCnt>0?"#FEF3C7":"#F0FDF4"],
+                  ["저장 제외",pv.errors.length+"행",pv.errors.length>0?"#DC2626":"#059669",pv.errors.length>0?"#FEF2F2":"#F0FDF4"],
                   ["중복 의심",pv.duplicates.length+"건",pv.duplicates.length>0?"#7C3AED":"#059669",pv.duplicates.length>0?"#F5F3FF":"#F0FDF4"],
                   ["사업자번호 주의",pv.bizWarnCount+"건",pv.bizWarnCount>0?"#DC2626":"#059669",pv.bizWarnCount>0?"#FEF2F2":"#F0FDF4"]
                 ].map(function(a,i){return(
@@ -2120,10 +2144,10 @@ function ExcelImport(props){
                 <div>· 신규 업체 생성: <strong>{pv.companies.length-mergeCnt}개</strong></div>
                 <div>· 기존 업체 병합(직원 추가): <strong>{mergeCnt}개</strong></div>
                 <div>· 등록 예정 직원: <strong>{willSave}명</strong></div>
-                {pv.dupPreview.length>0&&<div style={{color:"#7C3AED"}}>· 중복 제외 예정: {pv.dupPreview.length}명 (이미 등록된 동일 직원)</div>}
-                {pv.errors.length>0&&<div style={{color:"#DC2626"}}>· 오류 제외 예정: {pv.errors.length}건</div>}
+                {pv.reviewRowCnt>0&&<div style={{color:"#B45309"}}>· 수정 필요 표시: {pv.reviewRowCnt}건 (등록 후 업체/직원에 ⚠️ 표시)</div>}
+                {pv.dupPreview.length>0&&<div style={{color:"#7C3AED"}}>· 중복 제외: {pv.dupPreview.length}명 (이미 등록된 동일 직원)</div>}
+                {pv.errors.length>0&&<div style={{color:"#DC2626"}}>· 저장 제외: {pv.errors.length}행{pv.exclNoEmp>0?" (직원명 없음 "+pv.exclNoEmp+"건 포함)":""}</div>}
                 {preNoProg>0&&<div style={{color:"#B45309"}}>· 지원금 미지정 등록 예정: {preNoProg}명</div>}
-                {pv.bizWarnCount>0&&<div style={{color:"#DC2626"}}>· 사업자번호 형식 주의: {pv.bizWarnCount}건</div>}
               </div>
               <button disabled={!canSave} onClick={doImport}
                 style={Object.assign({},btnP,{padding:"13px",fontSize:15,opacity:canSave?1:0.45,cursor:canSave?"pointer":"not-allowed"})}>
@@ -2144,7 +2168,8 @@ function ExcelImport(props){
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(105px,1fr))",gap:8}}>
                 {[["신규 등록 업체",r.newComps+"개","#2563EB"],["기존 업체 병합",r.merged+"개","#0891B2"],["등록된 직원",r.saved+"명","#059669"],
-                  ["오류 제외",r.excludedErrors+"건",r.excludedErrors>0?"#DC2626":"#94A3B8"],
+                  ["수정 필요 표시",(r.reviewCnt||0)+"건",(r.reviewCnt||0)>0?"#B45309":"#94A3B8"],
+                  ["저장 제외",r.excludedErrors+"행",r.excludedErrors>0?"#DC2626":"#94A3B8"],
                   ["중복 제외",r.dupExcluded.length+"건",r.dupExcluded.length>0?"#7C3AED":"#94A3B8"],
                   ["지원금 미지정",r.noProg+"명",r.noProg>0?"#B45309":"#94A3B8"],
                   ["사업자번호 주의",r.bizWarn+"건",r.bizWarn>0?"#DC2626":"#94A3B8"],
@@ -2156,6 +2181,9 @@ function ExcelImport(props){
                   </div>
                 );})}
               </div>
+              {(r.exclNoEmp||0)>0&&(
+                <div style={{fontSize:12,color:"#94A3B8"}}>직원명 없음으로 제외 {r.exclNoEmp}건 — 해당 행은 직원 등록 없이 건너뛰었습니다.</div>
+              )}
               {r.dupExcluded.length>0&&(
                 <div style={{padding:"10px 14px",background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:10,fontSize:12.5,color:"#5B21B6",lineHeight:1.6}}>
                   중복으로 제외: {r.dupExcluded.slice(0,6).map(function(d){return d.name+"("+d.rowNo+"행)";}).join(", ")}{r.dupExcluded.length>6?" 외 "+(r.dupExcluded.length-6)+"건":""}
@@ -2208,7 +2236,14 @@ function Dashboard(props){
       var upcoming=0;
       emps.forEach(function(e){var p=props.programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var d=getDday(addMo(e.startDate,r.month));if(d!==null&&d<=7)upcoming++;});});
       var yrs=companyYears(c);
-      return{c:c,targetCount:emps.length,rcv:rcv,upcoming:upcoming,
+      // 엑셀 가져오기 등에서 표시한 '확인 필요' 건수 (업체 reviewIssues + 직원 reviewIssues/지원금 미지정)
+      var reviewCnt=Array.isArray(c.reviewIssues)?c.reviewIssues.length:(c.reviewNeeded?1:0);
+      emps.forEach(function(e){
+        var n=Array.isArray(e.reviewIssues)?e.reviewIssues.length:(e.reviewNeeded?1:0);
+        if(n===0&&(!e.programId||!props.programs[e.programId]))n=1; // 지원금 미지정도 확인 대상
+        reviewCnt+=n;
+      });
+      return{c:c,targetCount:emps.length,rcv:rcv,upcoming:upcoming,reviewCnt:reviewCnt,
         totalEmp:Number(c.empCount)||0,
         progShorts:companyProgramShorts(emps,props.programs),
         yearsNum:(typeof yrs==="number")?yrs:-1,
@@ -2508,6 +2543,7 @@ function Dashboard(props){
               <span style={{fontSize:16.5,fontWeight:700,color:"#1E293B"}}>{c.name}</span>
               {(c.tags||[]).map(function(tid){var tag=TAGS.find(function(t){return t.id===tid;});if(!tag)return null;return <span key={tid} style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:tag.bg,color:tag.color,whiteSpace:"nowrap"}}>{tag.label}</span>;})}
               {r.upcoming>0&&<span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FEE2E2",color:"#DC2626",whiteSpace:"nowrap"}}>🔔 {r.upcoming}건 임박</span>}
+              {r.reviewCnt>0&&<span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FEF3C7",color:"#B45309",whiteSpace:"nowrap"}}>⚠️ 확인 필요 {r.reviewCnt}건</span>}
             </div>
             {/* 2행: 식별 정보 · 인원 · 지원금 배지 (가로 압축) */}
             <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:3}}>
@@ -3315,6 +3351,30 @@ function CompDet(props){
 
   return(
     <div className="fade-in">
+      {/* ── 엑셀 가져오기 '확인 필요' 안내 (reviewIssues 가 있을 때만) ── */}
+      {(function(){
+        var cIss=Array.isArray(company.reviewIssues)?company.reviewIssues:[];
+        var flaggedEmps=compEmps.filter(function(e){return(Array.isArray(e.reviewIssues)&&e.reviewIssues.length>0)||e.reviewNeeded;});
+        if(cIss.length===0&&!company.reviewNeeded&&flaggedEmps.length===0)return null;
+        return(
+          <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:12,padding:"12px 16px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+              <span style={{fontSize:13.5,fontWeight:800,color:"#92400E"}}>⚠️ 엑셀 가져오기에서 확인이 필요한 항목이 있습니다.</span>
+              <button onClick={function(){
+                if(!window.confirm("확인 완료로 처리할까요? 이 업체와 소속 직원의 '확인 필요' 표시가 제거됩니다.\n(데이터 자체는 변경되지 않습니다)"))return;
+                if(company.reviewNeeded||cIss.length>0)props.onPatchCompany(company.id,{reviewNeeded:false,reviewIssues:[]});
+                flaggedEmps.forEach(function(e){props.onPatchEmployee(e.id,{reviewNeeded:false,reviewIssues:[]});});
+                toast("확인 완료로 처리되었습니다.","success");
+              }} style={{marginLeft:"auto",background:"#fff",border:"1px solid #FDE68A",color:"#92400E",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"}}>✓ 확인 완료 처리</button>
+            </div>
+            <ul style={{margin:0,paddingLeft:18,fontSize:12.5,color:"#78350F",lineHeight:1.8}}>
+              {cIss.map(function(it,i){return <li key={"c"+i}>{it.message}{it.originalValue?": "+it.originalValue:""}</li>;})}
+              {flaggedEmps.map(function(e){return(Array.isArray(e.reviewIssues)?e.reviewIssues:[]).map(function(it,i){return <li key={e.id+"-"+i}>{e.name} — {it.message}{it.originalValue?": "+it.originalValue:""}</li>;});})}
+            </ul>
+            <div style={{fontSize:11.5,color:"#A16207",marginTop:6}}>업체 정보 수정 또는 직원 탭에서 해당 값을 고친 뒤 ‘확인 완료 처리’를 눌러주세요.</div>
+          </div>
+        );
+      })()}
       {/* ── 업체 핵심 정보 카드 (업체정보 + 액션 + KPI 통합) ── */}
       <Card style={{padding:"20px 22px",marginBottom:16,border:"1px solid #E2E8F0"}}>
         {/* 상단: 업체 정보 + 액션 버튼 */}
