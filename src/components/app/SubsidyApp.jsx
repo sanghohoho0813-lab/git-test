@@ -4972,19 +4972,142 @@ function StarterGuide(props){
       <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"15px 18px",marginTop:18}}>
         <div style={{fontSize:15,color:"#1E40AF",lineHeight:1.65,wordBreak:"keep-all"}}>💡 이 도구는 <strong>지원금 신청 사이트가 아니라</strong>, 컨설턴트가 <strong>고객사별 지원금 업무를 관리하고 상담 자료로 연결</strong>하는 운영 도구입니다.</div>
       </div>
+      {/* 안내 영상 자리 (추후 URL 연결) */}
+      <div style={{display:"flex",alignItems:"center",gap:10,background:"#F8FAFC",border:"1px dashed #D7DEE8",borderRadius:11,padding:"11px 14px",marginTop:10}}>
+        <span style={{fontSize:18,flexShrink:0}}>🎬</span>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:13.5,fontWeight:700,color:"#475569"}}>3분 사용법 영상 준비 중</div>
+          <div style={{fontSize:12,color:"#94A3B8",marginTop:1}}>영상이 추가되면 이곳에서 바로 확인할 수 있습니다.</div>
+        </div>
+      </div>
     </div>
   );
 }
 
 var SIDEBAR_NAV = [
-  {key:"dashboard", icon:"📊", label:"대시보드"},
-  {key:"company",   icon:"🏢", label:"업체 관리"},
-  {key:"kanban",    icon:"🗂️", label:"진행 보드"},
-  {key:"wage",      icon:"🧮", label:"급여 계산기"},
-  {key:"simulator", icon:"📈", label:"수령액 시뮬레이터"},
-  {key:"diagnosis", icon:"🎯", label:"채용 진단"},
-  {key:"programs",  icon:"⚙️", label:"지원금 관리"},
+  {key:"dashboard", icon:"📊", label:"대시보드",         hint:"오늘 할 일과 이번 달 지원금 현황"},
+  {key:"company",   icon:"🏢", label:"업체 관리",         hint:"고객사와 직원 정보 관리"},
+  {key:"kanban",    icon:"🗂️", label:"진행 보드",         hint:"신청 단계와 마감일 관리"},
+  {key:"wage",      icon:"🧮", label:"급여 계산기",        hint:"급여·사업주 부담 비용 계산"},
+  {key:"simulator", icon:"📈", label:"수령액 시뮬레이터",   hint:"예상 수령액·수수료 계산"},
+  {key:"diagnosis", icon:"🎯", label:"채용 진단",         hint:"검토 가능한 지원금 빠르게 확인"},
+  {key:"programs",  icon:"⚙️", label:"지원금 관리",        hint:"지원금 종류와 공식 사이트 관리"},
 ];
+
+// ── 메뉴별 화면 안내 (프롤로그) — 처음 쓰는 컨설턴트용 ──
+var SCREEN_GUIDES = {
+  dashboard:{icon:"📊",title:"대시보드",desc:"오늘 확인해야 할 지원금 업무와 이번 달 예상 수령액을 한눈에 보는 곳입니다.",
+    can:["이번 달 신청 가능 금액 확인","지연·임박 업무 확인","오늘 처리할 일 확인"],
+    result:"어떤 고객사부터 챙겨야 하는지 바로 알 수 있습니다.",
+    ctas:[{label:"진행 보드 보기",act:"kanban",primary:true},{label:"업체 관리 보기",act:"company"}]},
+  company:{icon:"🏢",title:"업체 관리",desc:"고객사와 직원 정보를 등록하고, 지원금 검토의 기준이 되는 정보를 관리하는 곳입니다.",
+    can:["고객사 등록 · 기존 엑셀 불러오기","직원 정보 관리","업체별 지원금 현황 확인"],
+    result:"고객사별로 어떤 지원금을 검토할 수 있는지 정리할 수 있습니다.",
+    ctas:[{label:"업체 추가",act:"addCompany",primary:true},{label:"진행 보드 보기",act:"kanban"}]},
+  kanban:{icon:"🗂️",title:"진행 보드",desc:"지원금별 신청 단계와 마감일을 관리하는 업무 보드입니다.",
+    can:["지연 업무 · 신청 임박 건 확인","서류 미완료 건 확인","지급 예정 건 관리"],
+    result:"신청 기한을 놓치지 않고, 오늘 처리할 업무를 바로 확인할 수 있습니다.",
+    ctas:[{label:"업체 관리로 이동",act:"company",primary:true}]},
+  wage:{icon:"🧮",title:"급여 계산기",desc:"직원 급여와 사업주 부담 비용을 계산해 상담 자료로 활용하는 곳입니다.",
+    can:["급여 기준 비용 계산","4대보험·사업주 부담액 확인","채용 상담 비용 설명 자료로 활용"],
+    result:"대표님에게 채용 비용과 지원금 효과를 더 쉽게 설명할 수 있습니다.",
+    ctas:[{label:"수령액 시뮬레이터",act:"simulator",primary:true},{label:"채용 진단",act:"diagnosis"}]},
+  simulator:{icon:"📈",title:"수령액 시뮬레이터",desc:"고객사가 받을 수 있는 예상 지원금과 컨설팅 수수료를 계산하는 곳입니다.",
+    can:["예상 수령액 계산","수수료 계산","상담 전 제안 금액 확인"],
+    result:"대표님에게 '얼마를 받을 수 있는지'를 숫자로 보여줄 수 있습니다.",
+    ctas:[{label:"채용 진단",act:"diagnosis",primary:true},{label:"급여 계산기",act:"wage"}]},
+  diagnosis:{icon:"🎯",title:"채용 진단",desc:"신규 채용 예정 고객사가 어떤 지원금을 검토할 수 있는지 빠르게 확인하는 곳입니다.",
+    can:["채용 조건 확인","지원금 후보 확인","상담 전 사전 진단"],
+    result:"채용 상담 전에 검토 가능한 지원금을 빠르게 좁힐 수 있습니다.",
+    ctas:[{label:"지원금 관리 보기",act:"programs",primary:true},{label:"업체 관리",act:"company"}]},
+  programs:{icon:"⚙️",title:"지원금 관리",desc:"고용지원금 종류와 공식 사이트, 운영 기준을 관리하는 곳입니다.",
+    can:["15개 지원금 확인 · ON/OFF 관리","공식 사이트 바로가기","지원금별 지급 조건 확인"],
+    result:"지원금 정보를 매번 검색하지 않고, 한곳에서 확인할 수 있습니다.",
+    ctas:[{label:"고용24 열기",act:"gov24",primary:true},{label:"대시보드",act:"dashboard"}]},
+};
+
+// 재사용 화면 안내 카드 (접기/펼치기 + localStorage 다시 보지 않기 + 영상 자리)
+function ScreenGuide(props){
+  var key=props.viewKey; var g=SCREEN_GUIDES[key];
+  var lsKey="hrSubsidyPro_hideGuide_"+key;
+  var stHidden=useState(function(){try{return localStorage.getItem(lsKey)==="1";}catch(e){return false;}});
+  var stOpen=useState(true);
+  if(!g||stHidden[0])return null;
+  function hideForever(){try{localStorage.setItem(lsKey,"1");}catch(e){}stHidden[1](true);}
+  function runCta(act){
+    if(act==="gov24"){try{window.open("https://www.work24.go.kr","_blank","noopener,noreferrer");}catch(e){}return;}
+    if(act==="addCompany"){props.onAddCompany&&props.onAddCompany();return;}
+    props.onNavigate&&props.onNavigate(act);
+  }
+  // 접힘: 한 줄 바
+  if(!stOpen[0]){
+    return(
+      <div className="fade-in" style={{display:"flex",alignItems:"center",gap:11,background:"#fff",border:"1px solid #E8EDF3",borderRadius:12,padding:"12px 16px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
+        <span style={{fontSize:20,flexShrink:0}}>{g.icon}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A"}}>{g.title} 안내</span>
+          <span style={{fontSize:13,color:"#94A3B8",marginLeft:8}} className="hide-mobile">{g.desc}</span>
+        </div>
+        <button className="prog-tap" style={Object.assign({},btnSm,{flexShrink:0})} onClick={function(){stOpen[1](true);}}>안내 펼치기 ▾</button>
+      </div>
+    );
+  }
+  // 펼침: 안내 카드
+  return(
+    <div className="fade-in-up" style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"20px 22px",marginBottom:18,boxShadow:"0 1px 3px rgba(15,23,42,0.04)"}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:11,minWidth:0}}>
+          <span style={{fontSize:30,lineHeight:1,flexShrink:0}}>{g.icon}</span>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:21,fontWeight:900,color:"#0F172A",letterSpacing:"-0.5px"}}>{g.title}</div>
+            <div style={{fontSize:14.5,color:"#64748B",marginTop:4,lineHeight:1.55,wordBreak:"keep-all"}}>{g.desc}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6,flexShrink:0}}>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 13px"})} onClick={function(){stOpen[1](false);}}>안내 접기 ▴</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 13px",color:"#94A3B8"})} onClick={hideForever}>다시 보지 않기</button>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12,marginTop:16}}>
+        {/* 이 화면에서 할 수 있는 것 */}
+        <div style={{background:"#F8FBFF",border:"1px solid #E0EBFB",borderRadius:13,padding:"14px 16px"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#1D4ED8",marginBottom:9}}>✅ 이 화면에서 할 수 있는 것</div>
+          {g.can.map(function(c,i){return(
+            <div key={i} style={{display:"flex",gap:7,alignItems:"flex-start",marginBottom:i<g.can.length-1?6:0}}>
+              <span style={{color:"#2563EB",fontWeight:800,flexShrink:0}}>·</span>
+              <span style={{fontSize:14,color:"#334155",lineHeight:1.5,wordBreak:"keep-all"}}>{c}</span>
+            </div>
+          );})}
+        </div>
+        {/* 얻는 결과 + 영상 자리 */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:13,padding:"14px 16px",flex:1}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:7}}>🎯 이 화면을 쓰면</div>
+            <div style={{fontSize:14.5,color:"#15803D",lineHeight:1.55,fontWeight:600,wordBreak:"keep-all"}}>{g.result}</div>
+          </div>
+          {/* 안내 영상 자리 (추후 URL 연결) */}
+          <div style={{display:"flex",alignItems:"center",gap:10,background:"#F8FAFC",border:"1px dashed #D7DEE8",borderRadius:11,padding:"11px 14px"}}>
+            <span style={{fontSize:18,flexShrink:0}}>🎬</span>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:13.5,fontWeight:700,color:"#475569"}}>3분 사용법 영상 준비 중</div>
+              <div style={{fontSize:12,color:"#94A3B8",marginTop:1}}>영상이 추가되면 이곳에서 바로 확인할 수 있습니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* CTA */}
+      {g.ctas&&g.ctas.length>0&&(
+        <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
+          {g.ctas.map(function(c,i){return(
+            <button key={i} className="prog-tap" onClick={function(){runCta(c.act);}}
+              style={c.primary?{background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"11px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"}
+                              :{background:"#fff",color:"#475569",border:"1px solid #E2E8F0",borderRadius:10,padding:"11px 18px",fontSize:14.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{c.label} →</button>
+          );})}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Cmd+K 글로벌 검색 팔레트 ─────────────────────────────
 function CmdKSearch(props){
@@ -5819,7 +5942,7 @@ export default function SubsidyApp(props){
 
   function NavItem(p){
     return(
-      <div data-tour={p.tourId} className="sb-item" style={SB.item(p.active)} onClick={p.onClick}
+      <div data-tour={p.tourId} className="sb-item" style={SB.item(p.active)} onClick={p.onClick} title={p.hint||p.label}
         onMouseEnter={function(e){if(!p.active)e.currentTarget.style.background="rgba(255,255,255,0.08)";}}
         onMouseLeave={function(e){if(!p.active)e.currentTarget.style.background="transparent";}}>
         <span style={SB.icon} className="sb-icon">{p.icon}</span>
@@ -5861,7 +5984,7 @@ export default function SubsidyApp(props){
         <div style={SB.nav}>
           {SIDEBAR_NAV.map(function(n){
             return(
-              <NavItem key={n.key} icon={n.icon} label={n.label} active={activeKey===n.key}
+              <NavItem key={n.key} icon={n.icon} label={n.label} hint={n.hint} active={activeKey===n.key}
                 tourId={"nav-"+n.key}
                 onClick={function(){stView[1](n.key);stCompany[1](null);stMobileNav[1](false);trackActivity({userId:props.userId,userEmail:props.userEmail,orgId:props.orgId,orgName:orgName},"nav."+n.key);}}
               />
@@ -6020,6 +6143,14 @@ export default function SubsidyApp(props){
         <div className="app-page" style={{flex:1,padding:"32px 48px",width:"100%",maxWidth:1440,margin:"0 auto",boxSizing:"border-box"}}>
 
           <div key={stView[0]+(stCompany[0]||"")} className="page-enter">
+
+          {/* 메뉴별 화면 안내 (대시보드는 StarterGuide가 담당 · 업체 상세 제외) */}
+          {stView[0]!=="dashboard"&&!selectedCompany&&SCREEN_GUIDES[stView[0]]&&(
+            <ScreenGuide key={"guide-"+stView[0]} viewKey={stView[0]}
+              onNavigate={function(v){stView[1](v);stCompany[1](null);}}
+              onAddCompany={function(){if(!requirePlan())return;stAddComp[1](true);}}
+            />
+          )}
 
           {companies.length===0&&(
             <div style={{background:"#F8FAFC",border:"2px dashed #BFDBFE",borderRadius:20,padding:"44px 32px",marginBottom:32,textAlign:"center"}}>
