@@ -2431,6 +2431,7 @@ function Dashboard(props){
       <StarterGuide
         onExcel={function(){props.setView&&props.setView("company");}}
         onPrograms={function(){props.setView&&props.setView("programs");}}
+        onKanban={function(){props.setView&&props.setView("kanban");}}
         onReport={function(){if(props.companies.length>0)props.goCompany(props.companies[0].id);else if(props.setView)props.setView("company");}}
       />
     )}
@@ -2577,10 +2578,10 @@ function Dashboard(props){
       <EmptyState icon="🏢" title="아직 등록된 업체가 없습니다" desc="첫 번째 거래처를 등록하고 직원·지원금·서류를 한 곳에서 관리해보세요. 등록 즉시 D-Day 알림과 수령 현황이 자동 집계됩니다." actionLabel="+ 첫 업체 등록하기" action={props.onAddCompany}/>
     ):(<Card style={{padding:0,marginBottom:16,border:"1px solid #E2E8F0",overflow:"hidden"}}>
       {/* 패널 헤더: 검색 · 정렬 · 필터 · 엑셀 (큰 리스트 박스 상단에 정돈) */}
-      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",padding:"13px 18px",borderBottom:"1px solid #EDF2F7",background:"#FAFBFC"}}>
-        <input value={stCoQ[0]} onChange={function(e){stCoQ[1](e.target.value);}} placeholder="업체명·사업자번호·대표자 검색"
-          style={Object.assign({},inp,{flex:"1 1 200px",minWidth:170,maxWidth:320,margin:0,fontSize:14,padding:"9px 12px"})}/>
-        <select value={stCoSort[0]} onChange={function(e){stCoSort[1](e.target.value);}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:13.5,fontWeight:600,padding:"9px 10px"})}>
+      <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",padding:"15px 20px",borderBottom:"1px solid #EDF2F7",background:"#FAFBFC"}}>
+        <input value={stCoQ[0]} onChange={function(e){stCoQ[1](e.target.value);}} placeholder="🔍 업체명·사업자번호·대표자 검색"
+          style={Object.assign({},inp,{flex:"1 1 220px",minWidth:180,maxWidth:340,margin:0,fontSize:15,padding:"11px 14px"})}/>
+        <select value={stCoSort[0]} onChange={function(e){stCoSort[1](e.target.value);}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:14.5,fontWeight:600,padding:"11px 12px"})}>
           <option value="name">정렬: 가나다순</option>
           <option value="targets">대상자 많은 순</option>
           <option value="emps">직원 수 많은 순</option>
@@ -2589,7 +2590,7 @@ function Dashboard(props){
           <option value="newest">최신 등록순</option>
           <option value="yearsDesc">업력 높은 순</option>
         </select>
-        <select value={stCoFilter[0]} onChange={function(e){stCoFilter[1](e.target.value);}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:13.5,fontWeight:600,padding:"9px 10px"})}>
+        <select value={stCoFilter[0]} onChange={function(e){stCoFilter[1](e.target.value);}} style={Object.assign({},inp,{width:"auto",margin:0,fontSize:14.5,fontWeight:600,padding:"11px 12px"})}>
           <option value="all">필터: 전체</option>
           <option value="corp">법인</option>
           <option value="indiv">개인</option>
@@ -4863,39 +4864,39 @@ function OfficialSites(props){
 
 // ── 대표 지원금 한눈에 보기 (초보자용 · 쉬운 설명) ──
 var REP_SUBSIDIES = [
-  {emoji:"⭐", name:"청년일자리도약장려금",      grp:"신규채용",  one:"청년을 새로 뽑는 회사가 가장 먼저 챙겨야 할 대표 지원금",  tip:"신규 채용 상담에서 제일 많이 활용돼요."},
-  {emoji:"🤝", name:"고용촉진장려금",          grp:"신규채용",  one:"오래 취업이 어려웠던 분을 채용할 때 검토하는 지원금",     tip:"채용 전·후 요건을 미리 확인해야 해요."},
-  {emoji:"🧓", name:"고령자 계속고용 장려금",    grp:"재직자유지", one:"정년이 지난 직원을 계속 일하게 할 때 받는 지원금",       tip:"제조업·현장직 고객사에서 자주 검토돼요."},
-  {emoji:"👵", name:"시니어 인턴십",           grp:"신규채용",  one:"나이가 많은 분을 채용할 때 검토하는 지원금",            tip:"한국노인인력개발원에서 확인이 필요해요."},
-  {emoji:"👩‍💼", name:"새일여성인턴제",         grp:"신규채용",  one:"일을 쉬었던 여성을 다시 채용할 때 받는 지원금",          tip:"여성새로일하기센터에서 확인이 필요해요."},
-  {emoji:"🤱", name:"육아휴직·대체인력 지원금",  grp:"육아",     one:"육아휴직자·대체인력·근로시간 단축과 관련된 지원금",      tip:"인사·노무 이슈와 함께 상담하기 좋아요."},
+  {emoji:"⭐", name:"청년일자리도약장려금",     grp:"신규채용",  tag:"청년 채용",      one:"청년을 새로 채용한 기업이 가장 먼저 확인할 지원금", use:"신규 채용 상담 때 우선 검토"},
+  {emoji:"🤝", name:"고용촉진장려금",         grp:"신규채용",  tag:"취약계층 채용",  one:"취업취약계층 채용 시 검토",                      use:"채용 전후 요건 확인 필요"},
+  {emoji:"🧓", name:"고령자 계속고용 장려금",   grp:"재직자유지", tag:"정년 이후 고용", one:"고령 직원을 계속 고용할 때 검토",                 use:"제조업·현장직 고객사에 유용"},
+  {emoji:"👵", name:"시니어 인턴십",          grp:"신규채용",  tag:"시니어 채용",    one:"고령 인력 채용 시 확인",                        use:"한국노인인력개발원 확인"},
+  {emoji:"👩‍💼", name:"새일여성인턴제",        grp:"신규채용",  tag:"여성 채용",      one:"경력단절여성 채용 관련",                        use:"여성새로일하기센터 확인"},
+  {emoji:"🤱", name:"육아휴직/대체인력",       grp:"육아",     tag:"육아·대체인력",  one:"육아휴직·대체인력·근로시간 단축 관련",            use:"인사노무 상담과 함께 활용"},
 ];
 
 function BeginnerSubsidyGuide(){
   var stOpen=useState(true);
-  var tintOf={"신규채용":{bg:"#F5F9FF",bd:"#DCEAFE",c:"#1D4ED8"},"재직자유지":{bg:"#F8F6FD",bd:"#E6DEF7",c:"#7C3AED"},"육아":{bg:"#F2FBF6",bd:"#CBF0DA",c:"#059669"}};
+  var tintOf={"신규채용":{bg:"#F5F9FF",bd:"#DCEAFE",c:"#1D4ED8",pill:"#DBEAFE"},"재직자유지":{bg:"#F8F6FD",bd:"#E6DEF7",c:"#7C3AED",pill:"#EDE4FB"},"육아":{bg:"#F2FBF6",bd:"#CBF0DA",c:"#059669",pill:"#D1FAE5"}};
   return(
-    <div style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"18px 20px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
+    <div style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"20px 22px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
         <div style={{minWidth:0}}>
-          <div style={{fontSize:16.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>📚 대표 지원금 한눈에 보기</div>
-          <div style={{fontSize:13,color:"#64748B",marginTop:5,lineHeight:1.6}}>지원금 이름만 봐선 감이 안 잡히죠. 어떤 상황에 쓰는지 쉽게 정리했어요.</div>
+          <div style={{fontSize:18.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.4px"}}>📚 대표 지원금 한눈에 보기</div>
+          <div style={{fontSize:14.5,color:"#64748B",marginTop:6,lineHeight:1.55}}>이름만 봐선 감이 안 잡히죠. 어떤 상황에 쓰는지 쉽게 정리했어요.</div>
         </div>
         <button className="prog-tap" style={Object.assign({},btnSm,{flexShrink:0})} onClick={function(){stOpen[1](!stOpen[0]);}}>{stOpen[0]?"접기 ▲":"펼치기 ▼"}</button>
       </div>
       {stOpen[0]&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10,marginTop:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:12,marginTop:16}}>
           {REP_SUBSIDIES.map(function(s,i){
             var t=tintOf[s.grp]||tintOf["신규채용"];
             return(
-              <div key={i} className="prog-card" style={{"--ci":i,background:t.bg,border:"1px solid "+t.bd,borderRadius:13,padding:"13px 15px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
-                  <span style={{fontSize:19,lineHeight:1}}>{s.emoji}</span>
-                  <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{s.name}</span>
-                  <span style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:t.c,background:"#fff",border:"1px solid "+t.bd,borderRadius:10,padding:"2px 9px",whiteSpace:"nowrap"}}>{s.grp}</span>
+              <div key={i} className="prog-card" style={{"--ci":i,background:t.bg,border:"1px solid "+t.bd,borderRadius:14,padding:"16px 17px",display:"flex",flexDirection:"column",gap:9}}>
+                <div style={{display:"flex",alignItems:"center",gap:9}}>
+                  <span style={{fontSize:24,lineHeight:1,flexShrink:0}}>{s.emoji}</span>
+                  <span style={{fontSize:16,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all",lineHeight:1.3}}>{s.name}</span>
                 </div>
-                <div style={{fontSize:13,color:"#334155",lineHeight:1.55}}>{s.one}</div>
-                <div style={{fontSize:12,color:"#64748B",marginTop:6,lineHeight:1.5}}>💡 {s.tip}</div>
+                <span style={{alignSelf:"flex-start",fontSize:12.5,fontWeight:700,color:t.c,background:t.pill,borderRadius:999,padding:"4px 12px",whiteSpace:"nowrap"}}>{s.tag}</span>
+                <div style={{fontSize:14.5,color:"#334155",lineHeight:1.5,wordBreak:"keep-all"}}>{s.one}</div>
+                <div style={{fontSize:13,color:"#64748B",lineHeight:1.5,paddingTop:8,borderTop:"1px dashed "+t.bd,wordBreak:"keep-all"}}>📍 활용: {s.use}</div>
               </div>
             );
           })}
@@ -4913,10 +4914,10 @@ function StarterGuide(props){
   if(stHidden[0])return null;
   function hideForever(){try{localStorage.setItem("hrSubsidyPro_starterGuideHidden","1");}catch(e){}stHidden[1](true);}
   var steps=[
-    {n:1,emoji:"📥",title:"기존 엑셀 불러오기",desc:"고객사와 직원 정보를 엑셀로 한 번에 가져옵니다. 각 사무실에서 쓰던 엑셀 양식도 자동으로 맞춰줍니다.",cta:"기존 엑셀 불러오기",on:props.onExcel},
-    {n:2,emoji:"🔍",title:"지원금 후보 확인",desc:"청년일자리도약·고용촉진·시니어 인턴십·육아휴직 관련 지원금 등을 고객사별로 정리합니다.",cta:"지원금 종류 보기",on:props.onPrograms},
-    {n:3,emoji:"📅",title:"일정·서류·D-Day 관리",desc:"신청 기한·지급 예정월·필요한 서류를 놓치지 않게 관리합니다.",cta:null,on:null},
-    {n:4,emoji:"📊",title:"고객 보고서로 상담·계약 전환",desc:"대표님에게 대상자·예상 수령액·신청 기한·필요한 서류를 한 장의 보고서로 보여줄 수 있습니다.",cta:"고객 보고서 예시 보기",on:props.onReport},
+    {n:1,emoji:"📊",title:"기존 엑셀 불러오기",desc:"기존에 관리하던 고객사·직원 엑셀을 올려 시작합니다.",cta:"기존 엑셀 불러오기",on:props.onExcel,tint:"#EFF6FF",bd:"#BFDBFE",c:"#1D4ED8"},
+    {n:2,emoji:"🎯",title:"지원금 후보 확인",desc:"직원별로 검토 가능한 지원금을 한눈에 정리합니다.",cta:"지원금 관리 보기",on:props.onPrograms,tint:"#F0EAFB",bd:"#DBCEF3",c:"#7C3AED"},
+    {n:3,emoji:"📅",title:"일정·서류 관리",desc:"신청 기한·지급월·필요한 서류를 놓치지 않게 관리합니다.",cta:"진행 보드 보기",on:props.onKanban,tint:"#FFF7ED",bd:"#FED7AA",c:"#C2410C"},
+    {n:4,emoji:"📄",title:"고객 보고서로 상담",desc:"대표님에게 보여줄 상담 자료와 보고서를 만듭니다.",cta:"고객 보고서 보기",on:props.onReport,tint:"#E5F7ED",bd:"#B6E9CA",c:"#059669"},
   ];
 
   // ── 접힘(기본): 작지만 클릭하고 싶은 CTA 카드 ──
@@ -4934,43 +4935,42 @@ function StarterGuide(props){
     );
   }
 
-  // ── 펼침: 상세 가이드 (accordion) ──
+  // ── 펼침: 그림형 사용 흐름 타임라인 ──
   return(
-    <div className="fade-in-up" style={{background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:18,padding:"20px 22px",marginBottom:18,boxShadow:"0 2px 10px rgba(37,99,235,0.06)"}}>
+    <div className="fade-in-up" style={{background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:18,padding:"24px 24px 22px",marginBottom:18,boxShadow:"0 2px 10px rgba(37,99,235,0.06)"}}>
       {/* 헤더 + 접기/숨기기 */}
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:18}}>
         <div style={{minWidth:0,flex:1}}>
-          <div style={{fontSize:19,fontWeight:900,color:"#0F172A",letterSpacing:"-0.5px",lineHeight:1.3}}>🏛️ 고용지원금 Pro는 이런 도구입니다</div>
+          <div style={{fontSize:28,fontWeight:900,color:"#0F172A",letterSpacing:"-0.7px",lineHeight:1.25}}>고용지원금 Pro 사용 흐름</div>
+          <div style={{fontSize:15,color:"#64748B",marginTop:7,lineHeight:1.6,wordBreak:"keep-all"}}>기존 엑셀을 불러오고, 지원금 후보를 확인한 뒤, 고객 보고서로 상담 자료를 만듭니다.</div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px"})} onClick={function(){stOpen[1](false);}}>가이드 접기 ▲</button>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px",color:"#94A3B8"})} onClick={hideForever}>다시 보지 않기</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 14px"})} onClick={function(){stOpen[1](false);}}>가이드 접기 ▲</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 14px",color:"#94A3B8"})} onClick={hideForever}>다시 보지 않기</button>
         </div>
       </div>
-      {/* 이 도구가 무엇인지 (가장 중요한 메시지) */}
-      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
-        <div style={{fontSize:14.5,fontWeight:800,color:"#1E3A8A",lineHeight:1.6}}>고용지원금 Pro는 지원금을 대신 신청해주는 사이트가 아닙니다.</div>
-        <div style={{fontSize:13.5,color:"#1E40AF",marginTop:5,lineHeight:1.7}}>컨설턴트가 <strong>고객사별 지원금 가능성·신청 일정·서류 요청·수수료 정산·고객 보고서</strong>를 한 곳에서 관리하는 <strong>영업·운영 도구</strong>입니다. 실제 신청과 공고 확인은 고용24 등 공식 사이트에서 진행합니다.</div>
-      </div>
-      {/* 4단계 시작 가이드 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+      {/* 4단계 흐름 — PC 가로 / 모바일 세로 타임라인 (단계 사이 화살표) */}
+      <div className="guide-flow">
         {steps.map(function(s,i){
           return(
-            <div key={s.n} className="prog-card" style={{"--ci":i,background:"#fff",border:"1px solid #E8EDF3",borderRadius:13,padding:"15px 16px",display:"flex",flexDirection:"column",gap:8,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:9}}>
-                <span style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#3B82F6,#2563EB)",color:"#fff",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 1px 3px rgba(37,99,235,0.25)"}}>{s.n}</span>
-                <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{s.emoji} {s.title}</span>
+            <React.Fragment key={s.n}>
+              <div className="guide-step prog-card" style={{"--ci":i,background:"#fff",border:"1px solid "+s.bd,borderRadius:14,padding:"18px 16px",display:"flex",flexDirection:"column",gap:9,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9}}>
+                  <span style={{width:30,height:30,borderRadius:10,background:s.tint,color:s.c,fontWeight:800,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid "+s.bd}}>{s.n}</span>
+                  <span style={{fontSize:34,lineHeight:1}}>{s.emoji}</span>
+                </div>
+                <div style={{fontSize:18,fontWeight:800,color:"#0F172A",letterSpacing:"-0.4px",lineHeight:1.3,wordBreak:"keep-all"}}>{s.title}</div>
+                <div style={{fontSize:15,color:"#475569",lineHeight:1.55,flex:1,wordBreak:"keep-all"}}>{s.desc}</div>
+                {s.cta&&s.on&&<button className="prog-tap" onClick={s.on} style={{alignSelf:"stretch",textAlign:"center",background:s.tint,color:s.c,border:"1px solid "+s.bd,borderRadius:10,padding:"10px 12px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF,marginTop:2}}>{s.cta} →</button>}
               </div>
-              <div style={{fontSize:12.5,color:"#475569",lineHeight:1.6,flex:1}}>{s.desc}</div>
-              {s.cta&&s.on&&<button className="prog-tap" onClick={s.on} style={{alignSelf:"flex-start",background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:8,padding:"7px 13px",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{s.cta} →</button>}
-            </div>
+              {i<steps.length-1&&<div className="guide-arrow" aria-hidden="true">→</div>}
+            </React.Fragment>
           );
         })}
       </div>
-      {/* 계약 도움 + 시간 절약 메시지 */}
-      <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:12,padding:"13px 16px",marginTop:16}}>
-        <div style={{fontSize:13.5,color:"#166534",lineHeight:1.7}}>💬 단순히 "지원금 받을 수 있습니다"라고 말하는 것보다, <strong>고객사별 대상자·예상 수령액·신청 기한·필요 서류를 보고서</strong>로 보여주면 상담 신뢰도가 올라갑니다.</div>
-        <div style={{fontSize:13,color:"#15803D",lineHeight:1.7,marginTop:8,paddingTop:8,borderTop:"1px solid #BBF7D0"}}>⏱️ 매번 지원금 종류를 검색하고, 직원별 일정을 따로 계산하고, 서류 요청 문구를 새로 쓰는 <strong>시간을 줄이는 것</strong>이 핵심입니다.</div>
+      {/* 하단 한 줄 핵심 문구 */}
+      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"15px 18px",marginTop:18}}>
+        <div style={{fontSize:15,color:"#1E40AF",lineHeight:1.65,wordBreak:"keep-all"}}>💡 이 도구는 <strong>지원금 신청 사이트가 아니라</strong>, 컨설턴트가 <strong>고객사별 지원금 업무를 관리하고 상담 자료로 연결</strong>하는 운영 도구입니다.</div>
       </div>
     </div>
   );
@@ -5613,6 +5613,26 @@ export default function SubsidyApp(props){
   var stView=useState("dashboard");
   var stCmdK=useState(false);
   var stCompany=useState(null);
+  // ── 브라우저 뒤로가기 지원 (history API · 라이브러리 없이 안전하게) ──
+  // 화면(view)·업체(company) 상태가 바뀔 때 history에 기록하고, 뒤로가기 시 직전 화면으로 복원.
+  var navMountedRef=useRef(false);
+  var navPopRef=useRef(false);
+  useEffect(function(){
+    function onPop(e){
+      var s=e.state;
+      navPopRef.current=true; // 이 변경은 다시 push 하지 않음
+      if(s&&s.hrnav){ stView[1](s.view||"dashboard"); stCompany[1](s.company||null); }
+      else { stView[1]("dashboard"); stCompany[1](null); }
+    }
+    window.addEventListener("popstate",onPop);
+    try{ window.history.replaceState({hrnav:true,view:stView[0],company:stCompany[0]},""); }catch(e){}
+    return function(){ window.removeEventListener("popstate",onPop); };
+  },[]);
+  useEffect(function(){
+    if(!navMountedRef.current){ navMountedRef.current=true; return; } // 초기 마운트는 skip
+    if(navPopRef.current){ navPopRef.current=false; return; }          // 뒤로가기로 인한 변경은 skip
+    try{ window.history.pushState({hrnav:true,view:stView[0],company:stCompany[0]},""); }catch(e){}
+  },[stView[0],stCompany[0]]);
   var stFocusEmp=useState(null); // 진행보드 등에서 '처리하기'로 넘어온 직원 id
   var stAddComp=useState(false);
   var stProfileOpen=useState(false);
@@ -5735,7 +5755,11 @@ export default function SubsidyApp(props){
 
   function goCompany(id){stCompany[1](id);stView[1]("company");}
   function goCompanyEmp(companyId,empId){stFocusEmp[1](empId);stCompany[1](companyId);stView[1]("company");}
-  function goBack(){stView[1]("dashboard");stCompany[1](null);}
+  function goBack(){
+    // 가능하면 브라우저 히스토리의 직전 화면으로, 아니면 대시보드로 복귀
+    try{ if(window.history.state&&window.history.state.hrnav){ window.history.back(); return; } }catch(e){}
+    stView[1]("dashboard");stCompany[1](null);
+  }
   // 업무 일지 자동 기록 (companyId, 내용, 유형)
   function logToCompany(companyId,text,type){
     var c=companies.find(function(x){return x.id===companyId;}); if(!c)return;
@@ -5905,16 +5929,16 @@ export default function SubsidyApp(props){
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
           {/* 다른 OS 바로가기 — 모든 사용자 노출, 새 탭 (보조 액션) */}
-          <div className="sb-osnav" style={{marginBottom:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#64748B",letterSpacing:"0.2px",marginBottom:7,paddingLeft:2}}>다른 OS 바로가기</div>
-            <a href="https://labcare-rnd-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn"
-               style={{display:"flex",alignItems:"center",gap:8,width:"100%",boxSizing:"border-box",marginBottom:7,padding:"10px 12px",borderRadius:8,border:"1px solid rgba(96,165,250,0.30)",background:"rgba(59,130,246,0.10)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:13.5,fontWeight:600}}>
-              <span style={{fontSize:15,lineHeight:1}}>🧪</span><span style={{flex:1}}>기업부설연구소 OS</span><span style={{opacity:0.7}}>↗</span>
+          <div className="sb-osnav" style={{marginBottom:12,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#94A3B8",letterSpacing:"0.2px",marginBottom:9,paddingLeft:2}}>다른 OS 바로가기</div>
+            <a href="https://labcare-rnd-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn prog-tap"
+               style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",marginBottom:8,padding:"12px 14px",borderRadius:10,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.14)",color:"#DBEAFE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:14.5,fontWeight:700}}>
+              <span style={{fontSize:17,lineHeight:1}}>🧪</span><span style={{flex:1}}>기업부설연구소 OS</span><span style={{opacity:0.75}}>↗</span>
             </a>
-            <button className="sb-osbtn" title="법인컨설팅 OS는 준비 중입니다." disabled
-               style={{display:"flex",alignItems:"center",gap:8,width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,0.10)",background:"rgba(255,255,255,0.04)",color:"#64748B",cursor:"not-allowed",fontFamily:FF,fontSize:13.5,fontWeight:600}}>
-              <span style={{fontSize:15,lineHeight:1}}>🏢</span><span style={{flex:1,textAlign:"left"}}>법인컨설팅 OS</span><span style={{fontSize:10.5,fontWeight:700,color:"#475569",background:"rgba(255,255,255,0.06)",borderRadius:6,padding:"2px 6px"}}>준비 중</span>
-            </button>
+            <a href="https://corp-sales-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn prog-tap"
+               style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid rgba(167,139,250,0.35)",background:"rgba(139,92,246,0.14)",color:"#E9D5FF",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:14.5,fontWeight:700}}>
+              <span style={{fontSize:17,lineHeight:1}}>🏢</span><span style={{flex:1}}>법인컨설팅 OS</span><span style={{opacity:0.75}}>↗</span>
+            </a>
           </div>
           <div style={SB.actions} className="sb-actions">
             <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
@@ -5931,16 +5955,24 @@ export default function SubsidyApp(props){
           <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0}}>
             <button className="app-hamburger" onClick={function(){stMobileNav[1](true);}} title="메뉴" style={{display:"none",alignItems:"center",justifyContent:"center",width:44,height:44,borderRadius:10,border:"1px solid #E2E8F0",background:"#F8FAFC",fontSize:22,cursor:"pointer",flexShrink:0}}>☰</button>
             {stView[0]==="company"&&selectedCompany?(
-              <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
-                <button onClick={goBack} style={{background:"none",border:"none",color:"#64748B",cursor:"pointer",fontSize:21,padding:0,whiteSpace:"nowrap"}}>← 목록</button>
-                <span style={{color:"#CBD5E1",fontSize:21}}>/</span>
-                <span style={{fontSize:24,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedCompany.name}</span>
+              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                <button onClick={goBack} className="prog-tap" style={{display:"inline-flex",alignItems:"center",gap:5,background:"#F1F5F9",border:"1px solid #E2E8F0",color:"#475569",cursor:"pointer",fontSize:14.5,fontWeight:700,padding:"8px 14px",borderRadius:10,whiteSpace:"nowrap",fontFamily:FF}}>← 이전</button>
+                <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
+                  <span style={{fontSize:14.5,color:"#94A3B8",fontWeight:600,whiteSpace:"nowrap"}} className="hide-mobile">업체 관리</span>
+                  <span style={{color:"#CBD5E1",fontSize:16}} className="hide-mobile">›</span>
+                  <span style={{fontSize:24,fontWeight:800,color:"#0F172A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.4px"}}>{selectedCompany.name}</span>
+                </div>
               </div>
             ):(
-              <span className="app-title" style={{fontSize:26,fontWeight:700,color:"#1E293B",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).icon}&nbsp;
-                {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).label}
-              </span>
+              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                {stView[0]!=="dashboard"&&(
+                  <button onClick={goBack} className="prog-tap" style={{display:"inline-flex",alignItems:"center",gap:5,background:"#F1F5F9",border:"1px solid #E2E8F0",color:"#475569",cursor:"pointer",fontSize:14.5,fontWeight:700,padding:"8px 14px",borderRadius:10,whiteSpace:"nowrap",fontFamily:FF}}>← 이전</button>
+                )}
+                <span className="app-title" style={{fontSize:27,fontWeight:800,color:"#0F172A",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.5px"}}>
+                  {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).icon}&nbsp;
+                  {(SIDEBAR_NAV.find(function(n){return n.key===activeKey;})||{label:"대시보드"}).label}
+                </span>
+              </div>
             )}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -5959,10 +5991,10 @@ export default function SubsidyApp(props){
 
         {/* 샘플 데이터 배너 */}
         {hasSample&&(
-          <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"11px 48px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"9px 48px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
             <span style={{...neutralBadge(),flexShrink:0}}>샘플</span>
             <div style={{flex:1,minWidth:200}}>
-              <span style={{fontSize:14,color:"#475569"}}>샘플 데이터로 고객 보고서, 서류 요청, 수수료 정산 흐름까지 확인해보세요. 실제 고객사 정보가 아닌 가상 데이터(10개 고객사·26명)이며, 언제든 삭제할 수 있습니다.</span>
+              <span style={{fontSize:13.5,color:"#64748B"}}>지금 보이는 건 둘러보기용 <strong style={{color:"#475569"}}>가상 데이터</strong>예요. 언제든 삭제할 수 있습니다.</span>
             </div>
             <button disabled={sampleBusy} onClick={function(){if(!requirePlan())return;deleteSampleData();}} style={{background:"#fff",color:sampleBusy?"#94A3B8":"#DC2626",border:"1px solid "+(sampleBusy?"#E2E8F0":"#FECACA"),borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:sampleBusy?"default":"pointer",fontFamily:FF,flexShrink:0,whiteSpace:"nowrap",opacity:sampleBusy?0.7:1}}>{sampleBusy?"처리 중…":"샘플 데이터 삭제"}</button>
           </div>

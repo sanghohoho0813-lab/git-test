@@ -206,6 +206,16 @@ body.no-scroll { overflow: hidden; }
   .modal-overlay, .modal-pop { animation: none !important; }
 }
 
+/* ── 사용 흐름 타임라인 (PC 가로 / 모바일 세로) ───────── */
+.guide-flow { display: flex; align-items: stretch; gap: 6px; }
+.guide-step { flex: 1 1 0; min-width: 0; }
+.guide-arrow { display: flex; align-items: center; justify-content: center; color: #94A3B8; font-size: 22px; flex-shrink: 0; }
+@media (max-width: 760px) {
+  .guide-flow { flex-direction: column; gap: 2px; }
+  .guide-step { width: 100%; }
+  .guide-arrow { transform: rotate(90deg); padding: 4px 0; }
+}
+
 /* ── 핵심 브리핑 그리드 (데스크톱 기본) ── */
 .brief-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 14px; }
 
