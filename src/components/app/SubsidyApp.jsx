@@ -266,8 +266,8 @@ function Modal(props){
   },[props.open]);
   if(!props.open||typeof document==="undefined")return null;
   return createPortal(
-    <div style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px",overflowY:"auto",WebkitOverflowScrolling:"touch"}} onClick={props.onClose}>
-      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:props.width||640,margin:"auto",maxHeight:"calc(100dvh - 32px)",display:"flex",flexDirection:"column",minHeight:0}} onClick={function(e){e.stopPropagation();}}>
+    <div className="modal-overlay" style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(15,23,42,0.48)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px",overflowY:"auto",WebkitOverflowScrolling:"touch"}} onClick={props.onClose}>
+      <div className="modal-pop" style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:props.width||640,margin:"auto",maxHeight:"calc(100dvh - 32px)",display:"flex",flexDirection:"column",minHeight:0,boxShadow:"0 24px 64px rgba(15,23,42,0.28)"}} onClick={function(e){e.stopPropagation();}}>
         <div style={{padding:"18px clamp(16px,4vw,28px)",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexShrink:0,borderRadius:"16px 16px 0 0",background:"#fff"}}>
           <h3 style={{margin:0,fontSize:FS_SECTION,fontWeight:700,wordBreak:"keep-all",minWidth:0}}>{props.title}</h3>
           <button onClick={props.onClose} style={{background:"none",border:"none",fontSize:28,cursor:"pointer",color:"#94A3B8",flexShrink:0,lineHeight:1}}>✕</button>
@@ -2493,26 +2493,26 @@ function Dashboard(props){
     {/* ── 즉시 확인 필요 (기한 경과) — 무료체험 요약은 우측 패널로 이동 ── */}
     {props.mode!=="list"&&metrics.overdueCount>0&&(function(){
       var overdueBlock=(
-        <div style={{borderRadius:12,overflow:"hidden",background:"#DC2626",border:"none",boxShadow:"0 4px 16px rgba(220,38,38,0.22)"}}>
-          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",borderBottom:"1px solid rgba(255,255,255,0.18)"}}>
-            <span style={{fontSize:16}}>🚨</span>
-            <span style={{fontSize:16,fontWeight:800,color:"#fff"}}>즉시 확인 필요 — 기한 경과 {metrics.overdueCount}건</span>
-            <span style={{marginLeft:"auto",fontSize:"var(--fs-badge)",fontWeight:800,color:"#DC2626",background:"#fff",borderRadius:999,padding:"3px 11px"}}>예상 {fMan(metrics.overdueAmount)} 위험</span>
+        <div style={{borderRadius:16,overflow:"hidden",background:"#fff",border:"1px solid #FCD9D9",borderLeft:"4px solid #DC2626",boxShadow:"0 2px 10px rgba(220,38,38,0.08)"}}>
+          <div style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",background:"#FEF4F4",borderBottom:"1px solid #FCE4E4"}}>
+            <span style={{fontSize:17}}>🚨</span>
+            <span style={{fontSize:16,fontWeight:800,color:"#B91C1C"}}>즉시 확인 필요 — 기한 경과 {metrics.overdueCount}건</span>
+            <span style={{marginLeft:"auto",fontSize:"var(--fs-badge)",fontWeight:800,color:"#fff",background:"#DC2626",borderRadius:999,padding:"4px 12px"}}>예상 {fMan(metrics.overdueAmount)} 위험</span>
           </div>
-          <div style={{padding:"3px 6px"}}>
+          <div style={{padding:"4px 8px"}}>
             {metrics.overdueList.slice(0,4).map(function(o,i){return(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid rgba(255,255,255,0.15)":"none"}}>
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 10px",borderRadius:10,borderBottom:i<Math.min(3,metrics.overdueList.length-1)?"1px solid #F3F4F6":"none"}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
-                    <span style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#fff"}}>{o.empName}</span>
-                    <span style={{fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.82)"}}>{o.companyName}</span>
+                    <span style={{fontSize:"var(--fs-name)",fontWeight:800,color:"#1E293B"}}>{o.empName}</span>
+                    <span style={{fontSize:"var(--fs-meta)",color:"#94A3B8"}}>{o.companyName}</span>
                   </div>
-                  <div style={{fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.9)",marginTop:1}}>{o.programName} {o.roundLabel} · <strong style={{color:"#fff"}}>{Math.abs(o.dd)}일 지연</strong> · <strong style={{color:"#fff"}}>{fMan(o.amount)}</strong></div>
+                  <div style={{fontSize:"var(--fs-meta)",color:"#64748B",marginTop:2}}>{o.programName} {o.roundLabel} · <strong style={{color:"#DC2626"}}>{Math.abs(o.dd)}일 지연</strong> · <strong style={{color:"#334155"}}>{fMan(o.amount)}</strong></div>
                 </div>
-                <button onClick={function(){props.goCompany(o.companyId);}} style={{flexShrink:0,background:"#fff",color:"#DC2626",border:"none",borderRadius:8,padding:"7px 13px",fontSize:"var(--fs-btn)",fontWeight:800,cursor:"pointer",fontFamily:FF}}>처리 →</button>
+                <button onClick={function(){props.goCompany(o.companyId);}} className="prog-tap" style={{flexShrink:0,background:"#DC2626",color:"#fff",border:"none",borderRadius:9,padding:"8px 15px",fontSize:"var(--fs-btn)",fontWeight:800,cursor:"pointer",fontFamily:FF}}>처리 →</button>
               </div>
             );})}
-            {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"7px 0",fontSize:"var(--fs-meta)",color:"rgba(255,255,255,0.85)"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
+            {metrics.overdueList.length>4&&<div style={{textAlign:"center",padding:"9px 0",fontSize:"var(--fs-meta)",color:"#94A3B8"}}>외 {metrics.overdueList.length-4}건 더 — 진행 보드에서 전체 확인</div>}
           </div>
         </div>
       );
@@ -4146,10 +4146,10 @@ function ProgramsList(props){
         var grpDesc={"신규채용":"새로 채용하는 직원에게 적용되는 지원금","재직자유지":"재직 중인 직원의 고용 유지·전환에 적용","육아":"육아휴직·근로시간 단축·대체인력 관련","커스텀":"직접 추가한 지원금"}[grp]||"";
         // 섹션 배경 — 토스식: 아주 연하지만 계열이 확실히 구분되는 톤
         // (신규채용=밝은 블루 / 재직자유지=밝은 퍼플 / 육아=밝은 그린)
-        var tint={"신규채용":{bg:"#F5F9FF",border:"#DCEAFE",num:"#2563EB",numGrad:"linear-gradient(135deg,#3B82F6,#2563EB)"},
-                  "재직자유지":{bg:"#F8F6FD",border:"#E6DEF7",num:"#7C3AED",numGrad:"linear-gradient(135deg,#A78BFA,#7C3AED)"},
-                  "육아":{bg:"#F2FBF6",border:"#CBF0DA",num:"#059669",numGrad:"linear-gradient(135deg,#34D399,#059669)"},
-                  "커스텀":{bg:"#F8FAFC",border:"#E8EDF3",num:"#64748B",numGrad:"linear-gradient(135deg,#94A3B8,#64748B)"}}[grp];
+        var tint={"신규채용":{bg:"#E9F2FF",border:"#C7DCFE",num:"#2563EB",numGrad:"linear-gradient(135deg,#3B82F6,#2563EB)"},
+                  "재직자유지":{bg:"#F0EAFB",border:"#DBCEF3",num:"#7C3AED",numGrad:"linear-gradient(135deg,#A78BFA,#7C3AED)"},
+                  "육아":{bg:"#E5F7ED",border:"#B6E9CA",num:"#059669",numGrad:"linear-gradient(135deg,#34D399,#059669)"},
+                  "커스텀":{bg:"#F1F5F9",border:"#E2E8F0",num:"#64748B",numGrad:"linear-gradient(135deg,#94A3B8,#64748B)"}}[grp];
         var grpOn=items.filter(function(p){return p.enabled!==false;}).length;
         return(
           <div key={grp} className="prog-section" style={{"--si":gi,background:tint.bg,border:"1px solid "+tint.border,borderRadius:20,padding:"24px 24px 22px",marginBottom:18,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
@@ -5768,7 +5768,7 @@ export default function SubsidyApp(props){
     brandTitle:{fontSize:25,fontWeight:800,color:"#fff",letterSpacing:"-0.3px"},
     brandSub:{fontSize:18,color:"#64748B",marginTop:4},
     nav:{flex:1,padding:"10px 0",overflowY:"auto"},
-    item:function(active){return{display:"flex",alignItems:"center",gap:11,padding:"11px 15px",margin:"2px 12px",borderRadius:10,fontSize:19,fontWeight:active?700:500,color:active?"#fff":"#94A3B8",background:active?"rgba(59,130,246,0.14)":"transparent",boxShadow:active?"inset 3px 0 0 #60A5FA":"none",cursor:"pointer",transition:"all 0.15s",userSelect:"none",boxSizing:"border-box"};},
+    item:function(active){return{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",margin:"3px 12px",borderRadius:12,fontSize:19,fontWeight:active?700:500,color:active?"#fff":"#94A3B8",background:active?"linear-gradient(90deg,rgba(59,130,246,0.30),rgba(59,130,246,0.18))":"transparent",boxShadow:active?"inset 3px 0 0 #60A5FA, 0 2px 10px rgba(37,99,235,0.18)":"none",cursor:"pointer",transition:"all 0.15s",userSelect:"none",boxSizing:"border-box"};},
     icon:{fontSize:22,width:28,textAlign:"center",flexShrink:0},
     bottom:{padding:"20px 24px",borderTop:"1px solid rgba(255,255,255,0.08)"},
     user:{display:"flex",alignItems:"center",gap:12,marginBottom:16},
