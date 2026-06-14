@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
+import { validateInviteCode, inviteReasonMessage } from "../lib/product";
 
 const FF = "'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: FF };
@@ -29,6 +30,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [teamName, setTeamName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -50,8 +52,12 @@ export default function AuthPage() {
         await signIn(email, password);
       } else {
         if (!displayName.trim()) { setError("이름을 입력해주세요."); setLoading(false); return; }
+        if (!inviteCode.trim()) { setError("초대코드를 입력해주세요. 초대코드를 받은 사용자만 가입할 수 있습니다."); setLoading(false); return; }
+        // 가입 전 초대코드 사전 검증 (실제 강제는 DB 트리거에서도 한 번 더 수행)
+        const chk = await validateInviteCode(inviteCode.trim());
+        if (!chk || !chk.valid) { setError(inviteReasonMessage(chk && chk.reason)); setLoading(false); return; }
         const team = teamName.trim() || (displayName.trim() + " 워크스페이스");
-        const res = await signUp(email, password, displayName.trim(), team);
+        const res = await signUp(email, password, displayName.trim(), team, inviteCode.trim());
         // 이메일 인증이 꺼져 있으면 가입 즉시 세션이 발급됨 → 바로 대시보드(세션 효과가 이동 처리).
         // 인증이 필요한 설정이면 세션이 없으므로 안내 화면을 보여준다.
         if (!(res && res.session)) setDone(true);
@@ -160,6 +166,14 @@ export default function AuthPage() {
           <Field label="이메일 *" type="email" value={email} onChange={setEmail} placeholder="hong@example.com" />
           <Field label="비밀번호 *" type="password" value={password} onChange={setPassword} placeholder="8자 이상" />
 
+          {mode === "signup" && (
+            <>
+              <Field label="초대코드 *" value={inviteCode} onChange={setInviteCode} placeholder="관리자에게 받은 초대코드" />
+              <div style={{ padding: "10px 12px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, fontSize: 12.5, color: "#1E40AF", lineHeight: 1.6, marginBottom: 14, marginTop: -4 }}>
+                초대코드를 받은 사용자만 가입할 수 있습니다.<br />초대코드가 없으신 경우 관리자에게 문의해 주세요.
+              </div>
+            </>
+          )}
           {error && (
             <div style={{ padding: "10px 12px", background: "#FEE2E2", borderRadius: 8, color: "#DC2626", fontSize: 13, marginBottom: 14 }}>
               {error}

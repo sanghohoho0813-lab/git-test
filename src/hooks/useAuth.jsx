@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { PRODUCT_KEY, fetchProductAccess } from "../lib/product";
 
 const AuthContext = createContext(null);
 
@@ -21,6 +22,8 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [org, setOrg] = useState(null);
   const [orgRole, setOrgRole] = useState(null);
+  // 제품(employment) 접근권한. { status, role, expires_at } | null(로딩 전)
+  const [productAccess, setProductAccess] = useState(undefined);
   const [loadedFor, setLoadedFor] = useState(null); // org/profile 을 확정한 user id
   // recovery(비밀번호 재설정) 모드. 이 값이 true면 라우터가 기존 세션과 무관하게
   // 무조건 비밀번호 재설정 화면을 우선 렌더링한다(대시보드 자동 진입 차단).
@@ -45,20 +48,26 @@ export function AuthProvider({ children }) {
       setProfile(null);
       setOrg(null);
       setOrgRole(null);
+      setProductAccess({ status: "none", role: null });
       setLoadedFor("none");
       return;
     }
     let cancelled = false;
+    setProductAccess(undefined);
     // 신규 가입 직후에는 DB 트리거(handle_new_user)가 워크스페이스를 만드는 데
     // 약간의 지연이 있을 수 있어 멤버십이 보일 때까지 짧게 재시도한다.
-    loadUserData(session.user.id, 6).finally(() => { if (!cancelled) setLoadedFor(session.user.id); });
+    // 제품 접근권한(employment)도 함께 확정한 뒤 loadedFor 를 세팅한다.
+    Promise.all([
+      loadUserData(session.user.id, 6),
+      fetchProductAccess(session.user.id).then((a) => { if (!cancelled) setProductAccess(a); }),
+    ]).finally(() => { if (!cancelled) setLoadedFor(session.user.id); });
     return () => { cancelled = true; };
   }, [session]);
 
-  // 세션 확인 전이거나, 로그인 상태인데 아직 org/profile 을 못 불러왔으면 로딩 중
+  // 세션 확인 전이거나, 로그인 상태인데 아직 org/profile/접근권한을 못 불러왔으면 로딩 중
   const authLoading = session === undefined
     ? true
-    : (session ? loadedFor !== session.user.id : false);
+    : (session ? (loadedFor !== session.user.id || productAccess === undefined) : false);
 
   // retries: 멤버십이 아직 없을 때 0.5초 간격으로 추가 조회. 정상 계정은 1회로 끝남.
   async function loadUserData(userId, retries = 0) {
@@ -87,14 +96,14 @@ export function AuthProvider({ children }) {
     return false;
   }
 
-  async function signUp(email, password, displayName, teamName) {
-    // 워크스페이스(profile/org/member/subscription)는 DB 트리거 handle_new_user 가
-    // auth.users INSERT 시점에 원자적으로 생성한다. 클라이언트는 더 이상 직접 insert 하지 않는다.
-    // 트리거가 raw_user_meta_data 에서 이름/팀명을 읽도록 메타데이터로 전달한다.
+  async function signUp(email, password, displayName, teamName, inviteCode) {
+    // 워크스페이스(profile/org/member/subscription) + 제품 접근권한은 DB 트리거
+    // handle_new_user 가 auth.users INSERT 시점에 원자적으로 생성한다.
+    // 초대코드(invite_code)가 유효하지 않으면 트리거가 예외를 던져 가입 자체가 실패한다.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName, team_name: teamName } },
+      options: { data: { display_name: displayName, team_name: teamName, invite_code: (inviteCode || "").trim() } },
     });
     if (error) throw error;
 
@@ -149,8 +158,16 @@ export function AuthProvider({ children }) {
     if (session) await loadUserData(session.user.id, 2);
   }
 
+  // 제품 접근권한 재조회 (권한 부여 후 새로고침 없이 반영용)
+  async function refreshAccess() {
+    if (!session) return { status: "none", role: null };
+    const a = await fetchProductAccess(session.user.id);
+    setProductAccess(a);
+    return a;
+  }
+
   return (
-    <AuthContext.Provider value={{ session, profile, org, orgRole, authLoading, signUp, signIn, signOut, updateProfile, refreshOrg, ensureWorkspace, recoveryMode, endRecovery }}>
+    <AuthContext.Provider value={{ session, profile, org, orgRole, authLoading, productAccess, productKey: PRODUCT_KEY, refreshAccess, signUp, signIn, signOut, updateProfile, refreshOrg, ensureWorkspace, recoveryMode, endRecovery }}>
       {children}
     </AuthContext.Provider>
   );

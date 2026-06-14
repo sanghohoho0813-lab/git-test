@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useData } from "../hooks/useData";
 import { useSub } from "../hooks/useSub";
 import { trackActivity } from "../lib/activity";
+import { isAccessAllowed, PRODUCT_NAME, redeemInviteCode, inviteReasonMessage } from "../lib/product";
 import BillingPage from "./BillingPage";
 import SubsidyApp from "../components/app/SubsidyApp";
 
@@ -103,8 +104,69 @@ function WorkspaceInit({ onEnsure, onSignOut }) {
   );
 }
 
+// 제품 접근권한이 없거나 차단/만료된 사용자를 위한 안내 화면 (대시보드 진입 차단).
+// 기존 가입자도 초대코드를 입력하면 즉시 employment 권한을 활성화할 수 있다.
+function AccessGate({ status, onSignOut, onRetry, email }) {
+  const blocked = status === "blocked";
+  const expired = status === "expired";
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const title = blocked ? "이용이 제한된 계정입니다"
+    : expired ? "이용 권한이 만료되었습니다"
+    : "아직 이용 권한이 없습니다";
+  async function activate() {
+    if (!code.trim()) { setMsg("초대코드를 입력해 주세요."); return; }
+    setBusy(true); setMsg("");
+    try {
+      const res = await redeemInviteCode(code.trim());
+      if (res && res.ok) {
+        setMsg("권한이 활성화되었습니다. 잠시 후 이동합니다…");
+        await onRetry(); // productAccess 재조회 → approved 면 자동 진입
+      } else {
+        setMsg(inviteReasonMessage(res && res.reason));
+      }
+    } catch (e) {
+      setMsg("활성화 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    }
+    setBusy(false);
+  }
+  const canRedeem = !blocked; // 차단 계정은 코드로 자가 활성화 불가
+  return (
+    <div style={{ fontFamily: FF, minHeight: "100vh", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#fff", borderRadius: 18, padding: "40px 32px", maxWidth: 440, width: "100%", textAlign: "center", boxShadow: "0 12px 40px rgba(15,23,42,0.12)", border: "1px solid #E8EDF3" }}>
+        <div style={{ fontSize: 52, marginBottom: 14 }}>{blocked ? "🚫" : expired ? "⏳" : "🔒"}</div>
+        <h2 style={{ margin: "0 0 10px", fontSize: 21, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.4px" }}>{title}</h2>
+        <p style={{ color: "#64748B", fontSize: 15, lineHeight: 1.7, margin: 0 }}>
+          이 계정({email})은 {PRODUCT_NAME} 이용 권한이 확인되지 않았습니다.<br />
+          {blocked ? "이용 권한이 만료되었거나 차단되었습니다. 관리자에게 문의해 주세요." : "초대코드가 있으신 경우 아래에 입력해 권한을 활성화해 주세요."}
+        </p>
+
+        {canRedeem && (
+          <div style={{ marginTop: 22, textAlign: "left" }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>초대코드</label>
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="관리자에게 받은 초대코드"
+              style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: FF }} />
+            <button onClick={activate} disabled={busy}
+              style={{ width: "100%", marginTop: 10, background: busy ? "#93C5FD" : "#2563EB", color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontSize: 15, fontWeight: 800, cursor: busy ? "default" : "pointer", fontFamily: FF }}>
+              {busy ? "확인 중…" : "초대코드로 권한 활성화"}
+            </button>
+            {msg && <div style={{ marginTop: 10, fontSize: 13.5, color: msg.indexOf("활성화되었습니다") >= 0 ? "#059669" : "#DC2626", fontWeight: 600 }}>{msg}</div>}
+            <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: 10, lineHeight: 1.6 }}>초대코드가 없으신 경우 관리자(ksh90813@naver.com)에게 문의해 주세요.</div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 22, justifyContent: "center", flexWrap: "wrap" }}>
+          <button onClick={onRetry} style={{ background: "#F1F5F9", color: "#475569", border: "1px solid #E2E8F0", borderRadius: 11, padding: "11px 20px", fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: FF }}>권한 다시 확인</button>
+          <button onClick={onSignOut} style={{ background: "#F1F5F9", color: "#475569", border: "1px solid #E2E8F0", borderRadius: 11, padding: "11px 20px", fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: FF }}>로그아웃</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppPage() {
-  const { org, profile, orgRole, signOut, updateProfile, authLoading, session, ensureWorkspace } = useAuth();
+  const { org, profile, orgRole, signOut, updateProfile, authLoading, session, ensureWorkspace, productAccess, refreshAccess } = useAuth();
   const { sub, isExpired, trialDaysLeft, loading: subLoading } = useSub(org);
   const data = useData(org?.id);
   const [showBilling, setShowBilling] = useState(false);
@@ -124,6 +186,13 @@ export default function AppPage() {
   // 인증·구독 상태가 확정되기 전에는 절대 paywall/대시보드를 먼저 렌더링하지 않는다.
   if (authLoading) {
     return <AppLoading />;
+  }
+
+  // 제품(employment) 접근권한 확인 — 권한이 없으면 대시보드 대신 접근 차단 화면.
+  // 운영자(ksh90813) 계정은 안전상 예외로 둔다. (그 외는 user_product_access 기준)
+  const isOperator = (session?.user?.email || "").trim().toLowerCase() === "ksh90813@naver.com";
+  if (session && !isOperator && !isAccessAllowed(productAccess)) {
+    return <AccessGate status={productAccess?.status} email={session?.user?.email || ""} onSignOut={signOut} onRetry={refreshAccess} />;
   }
 
   // 세션은 있는데 org 가 아직 없으면(신규 가입 직후 트리거 반영 지연 등)
