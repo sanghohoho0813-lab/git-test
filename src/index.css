@@ -21,18 +21,18 @@
 /* ── PC 전용 타이포 상향 (모바일 ≤860px 은 위 기준값 유지) ── */
 @media (min-width: 861px) {
   :root {
-    --fs-meta: 14.5px;
-    --fs-sub: 15px;
-    --fs-name: 17px;
-    --fs-row: 16px;
-    --fs-badge: 14px;
-    --fs-btn: 15.5px;
-    --fs-tab: 17px;
+    --fs-meta: 15px;
+    --fs-sub: 15.5px;
+    --fs-name: 18px;
+    --fs-row: 16.5px;
+    --fs-badge: 14.5px;
+    --fs-btn: 16px;
+    --fs-tab: 17.5px;
     --fs-label: 15px;
     --fs-dday: 15px;
-    --fs-body: 16px;
-    --fs-list: 17px;
-    --fs-mini: 12px;
+    --fs-body: 16.5px;
+    --fs-list: 17.5px;
+    --fs-mini: 12.5px;
   }
 }
 

@@ -193,9 +193,9 @@ var FS_INPUT="clamp(15px,4vw,17px)";   // 입력창·기본 버튼
 var FS_BTN_SM="var(--fs-btn)"; // 보조 버튼 (PC 상향)
 var FS_LABEL="var(--fs-label)";  // 라벨 (PC 상향)
 var FS_BADGE="var(--fs-badge)";    // 배지 (PC 상향)
-var FS_PAGE_TITLE="clamp(20px,5vw,26px)"; // 페이지 메인 제목
-var FS_SECTION="clamp(17px,4.4vw,22px)";  // 섹션 제목
-var FS_CARD_TITLE="clamp(15px,4vw,18px)"; // 카드 제목
+var FS_PAGE_TITLE="clamp(22px,5vw,30px)"; // 페이지 메인 제목
+var FS_SECTION="clamp(19px,4.4vw,24px)";  // 섹션 제목
+var FS_CARD_TITLE="clamp(16px,4vw,19px)"; // 카드 제목
 var FS_HERO_NUM="clamp(28px,8.5vw,44px)"; // 히어로 수치(시뮬레이터 총액 등)
 var FS_BODY="var(--fs-body)";     // 본문/설명 (PC 상향)
 var FS_LIST="var(--fs-list)";     // 표/리스트 (PC 상향)
@@ -203,7 +203,7 @@ var inp = {width:"100%",padding:"12px 15px",borderRadius:10,border:"1.5px solid 
 var inpKo = Object.assign({},inp,{lang:"ko"});
 var btnP = {background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontSize:FS_INPUT,fontWeight:600,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 2px rgba(37,99,235,0.18)",whiteSpace:"nowrap"};
 var btnS = {background:"#fff",color:"#475569",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"12px 24px",fontSize:FS_INPUT,fontWeight:500,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"};
-var btnSm = {background:"#F8FAFC",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:8,padding:"9px 16px",fontSize:FS_BTN_SM,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"};
+var btnSm = {background:"#F8FAFC",color:"#475569",border:"1px solid #E2E8F0",borderRadius:9,padding:"10px 18px",fontSize:FS_BTN_SM,fontWeight:600,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"};
 
 // ── 공통 색상 토큰 (의미 기반) ─────────────────────────────
 var COLORS = {
@@ -2461,9 +2461,9 @@ function Dashboard(props){
       return(
         <div style={{marginBottom:16}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
-            <div style={{display:"flex",alignItems:"baseline",gap:10}}>
-              <span style={{fontSize:24,fontWeight:800,color:"#0F172A",letterSpacing:"-0.5px"}}>이번 달 업무 현황</span>
-              <span style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{dstr} 기준</span>
+            <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+              <span style={{fontSize:27,fontWeight:800,color:"#0F172A",letterSpacing:"-0.6px"}}>이번 달 업무 현황</span>
+              <span style={{fontSize:14.5,color:"#94A3B8",fontWeight:500}}>{dstr} 기준 · 한눈에 보는 핵심 지표</span>
             </div>
           </div>
           <div className="brief-grid">
@@ -2471,16 +2471,16 @@ function Dashboard(props){
               var btnCta={marginTop:12,alignSelf:"flex-start",background:"#fff",color:b.bg,border:"none",borderRadius:8,padding:"8px 16px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF};
               var btnGhost={marginTop:12,alignSelf:"flex-start",background:"rgba(255,255,255,0.15)",color:"#fff",border:"1px solid rgba(255,255,255,0.35)",borderRadius:8,padding:"7px 14px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF};
               return(
-              <div key={i} className="hover-card brief-card" style={{background:b.bg,border:"none",borderRadius:16,padding:"20px 22px",display:"flex",flexDirection:"column",minHeight:148,boxShadow:"0 4px 16px rgba(15,23,42,0.14)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
-                  <span className="brief-icon" style={{fontSize:18,flexShrink:0,width:34,height:34,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
-                  <span className="brief-label" style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.88)",flex:1}}>{b.label}</span>
-                  {b.badge&&<span style={{fontSize:11,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"3px 10px",borderRadius:999}}>{b.badge}</span>}
+              <div key={i} className="hover-card brief-card" style={{background:b.bg,border:"none",borderRadius:18,padding:"22px 24px",display:"flex",flexDirection:"column",minHeight:158,boxShadow:"0 6px 20px rgba(15,23,42,0.12)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <span className="brief-icon" style={{fontSize:19,flexShrink:0,width:36,height:36,borderRadius:11,background:"rgba(255,255,255,0.18)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>
+                  <span className="brief-label" style={{fontSize:15.5,fontWeight:600,color:"rgba(255,255,255,0.92)",flex:1}}>{b.label}</span>
+                  {b.badge&&<span style={{fontSize:11.5,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.22)",padding:"4px 11px",borderRadius:999}}>{b.badge}</span>}
                 </div>
-                <div className="brief-num" style={{fontSize:46,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.04}}>
-                  {b.val}{b.unit&&<span className="brief-num-unit" style={{fontSize:22,opacity:0.80,marginLeft:4}}>{b.unit}</span>}
+                <div className="brief-num" style={{fontSize:50,fontWeight:800,color:"#fff",letterSpacing:"-1.2px",lineHeight:1.02}}>
+                  {b.val}{b.unit&&<span className="brief-num-unit" style={{fontSize:23,opacity:0.80,marginLeft:4}}>{b.unit}</span>}
                 </div>
-                <div className="brief-sub" style={{fontSize:14,color:"rgba(255,255,255,0.78)",marginTop:6,fontWeight:500,flex:1,lineHeight:1.4}}>{b.sub}</div>
+                <div className="brief-sub" style={{fontSize:14.5,color:"rgba(255,255,255,0.82)",marginTop:8,fontWeight:500,flex:1,lineHeight:1.45}}>{b.sub}</div>
                 {b.spark&&<div className="brief-spark" style={{marginTop:8}}><Sparkline data={metrics.spark} width={120} height={22} color="rgba(255,255,255,0.75)"/></div>}
                 {b.btn&&<button onClick={b.on} className="brief-btn" style={b.btnKind==="cta"?btnCta:btnGhost}>{b.btn} →</button>}
               </div>
@@ -4143,7 +4143,7 @@ function ProgramsList(props){
         var items=Object.values(programs).filter(function(p){return p.group===grp;});
         if(!items.length)return null;
         var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];
-        var grpDesc={"신규채용":"새로 채용하는 직원에게 적용되는 지원금","재직자유지":"재직 중인 직원의 고용 유지·전환에 적용","육아":"육아휴직·근로시간 단축·대체인력 관련","커스텀":"직접 추가한 지원금"}[grp]||"";
+        var grpDesc={"신규채용":"새로 채용한 직원 기준으로 검토하는 지원금","재직자유지":"기존 직원을 계속 고용하거나 고용안정을 위한 지원금","육아":"육아휴직·대체인력·근로시간 단축 관련 지원금","커스텀":"직접 추가한 지원금"}[grp]||"";
         // 섹션 배경 — 토스식: 아주 연하지만 계열이 확실히 구분되는 톤
         // (신규채용=밝은 블루 / 재직자유지=밝은 퍼플 / 육아=밝은 그린)
         var tint={"신규채용":{bg:"#E9F2FF",border:"#C7DCFE",num:"#2563EB",numGrad:"linear-gradient(135deg,#3B82F6,#2563EB)"},
@@ -4155,12 +4155,11 @@ function ProgramsList(props){
           <div key={grp} className="prog-section" style={{"--si":gi,background:tint.bg,border:"1px solid "+tint.border,borderRadius:20,padding:"24px 24px 22px",marginBottom:18,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
             {/* 섹션 헤더: 큰 제목(주 위계) + 설명(보조) — 카드 영역과 구분선으로 분리 */}
             <div style={{marginBottom:18,paddingBottom:16,borderBottom:"1px solid "+tint.border}}>
-              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-                <span style={{width:34,height:34,borderRadius:11,background:"#fff",color:tint.num,fontWeight:800,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid "+tint.border,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>{String(gi+1).padStart(2,"0")}</span>
-                <span style={{fontSize:32,fontWeight:900,color:gp.dark,letterSpacing:"-1.1px",lineHeight:1.15}}>{gp.icon} {grp}</span>
-                <span style={{fontSize:12.5,fontWeight:700,padding:"5px 13px",borderRadius:14,background:"#fff",border:"1px solid "+tint.border,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
+              <div style={{display:"flex",alignItems:"center",gap:13,flexWrap:"wrap"}}>
+                <span style={{fontSize:34,fontWeight:900,color:gp.dark,letterSpacing:"-1.2px",lineHeight:1.12}}>{gp.icon} {grp}</span>
+                <span style={{fontSize:13.5,fontWeight:700,padding:"6px 14px",borderRadius:999,background:"#fff",border:"1px solid "+tint.border,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
               </div>
-              <div style={{fontSize:13,color:"#64748B",marginTop:8,marginLeft:2}}>{grpDesc}</div>
+              <div style={{fontSize:14.5,color:"#64748B",marginTop:9,marginLeft:2,lineHeight:1.5}}>{grpDesc}</div>
             </div>
             {/* 지원금 카드 (개별 번호 1~15 · 여유 있는 반응형 그리드) */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:14}}>
@@ -4169,29 +4168,29 @@ function ProgramsList(props){
                 var isEnabled=p.enabled!==false;
                 var isYouth=p.id==="youth_jump";
                 var pNum=progNumMap[p.id]||"";
-                var pill=function(color,bg){return{fontSize:11.5,fontWeight:700,padding:"3px 10px",borderRadius:11,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
+                var pill=function(color,bg){return{fontSize:12.5,fontWeight:700,padding:"4px 11px",borderRadius:11,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
                 return(
-                  <div key={p.id} className="prog-card" style={{"--ci":idx,padding:"16px 18px",borderRadius:16,background:"#fff",border:"1px solid "+(isEnabled?tint.border:"#E8EDF3"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:10,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
+                  <div key={p.id} className="prog-card" style={{"--ci":idx,padding:"18px 20px",borderRadius:16,background:"#fff",border:"1px solid "+(isEnabled?tint.border:"#E8EDF3"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:11,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
                     {/* 위계 1·2: 번호 배지(토스식 pill) + 지원금명 */}
-                    <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-                      <span style={{width:28,height:28,borderRadius:9,background:isCustom?"#F1F5F9":tint.numGrad,color:isCustom?"#64748B":"#fff",fontWeight:800,fontSize:isCustom?10.5:12.5,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,boxShadow:isCustom?"none":"0 1px 3px rgba(15,23,42,0.12)"}}>{pNum}</span>
-                      <span style={{fontSize:16.5,fontWeight:800,color:"#0F172A",wordBreak:"keep-all",lineHeight:1.4,letterSpacing:"-0.3px"}}>{p.name}</span>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:11}}>
+                      <span style={{width:32,height:32,borderRadius:10,background:isCustom?"#EEF2F6":tint.numGrad,color:isCustom?"#64748B":"#fff",fontWeight:800,fontSize:isCustom?11:14,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,boxShadow:isCustom?"none":"0 2px 5px rgba(15,23,42,0.16)"}}>{pNum}</span>
+                      <span style={{fontSize:18.5,fontWeight:800,color:"#0F172A",wordBreak:"keep-all",lineHeight:1.35,letterSpacing:"-0.4px"}}>{p.name}</span>
                     </div>
                     {/* 위계 3: 연도 · 금액 · 추천 태그 */}
-                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
                       {p.year&&<span style={pill("#475569","#F1F5F9")}>{p.year}년</span>}
                       {isYouth&&<span style={pill("#D97706","#FEF3C7")}>⭐ 추천</span>}
                       {isCustom&&<span style={pill(gp.text,gp.badge)}>커스텀</span>}
-                      <span style={Object.assign({},pill(gp.dark,gp.light),{fontSize:13,fontWeight:800})}>{fMan(p.totalAmount||0)}</span>
+                      <span style={Object.assign({},pill(gp.dark,gp.light),{fontSize:14.5,fontWeight:800})}>{fMan(p.totalAmount||0)}</span>
                       {!isEnabled&&<span style={pill("#94A3B8","#F1F5F9")}>비활성</span>}
                     </div>
                     {/* 위계 4: 회차 · 지급시점 · 신청처 */}
-                    <div style={{display:"flex",gap:14,fontSize:12.5,color:"#475569",flexWrap:"wrap",lineHeight:1.75}}>
+                    <div style={{display:"flex",gap:15,fontSize:13.5,color:"#475569",flexWrap:"wrap",lineHeight:1.7}}>
                       <span>🔢 {(p.rounds||[]).length}회차</span>
                       <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join("/")}</span>
                       {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                     </div>
-                    {p.desc&&<div style={{fontSize:12,color:"#94A3B8",lineHeight:1.6}}>{p.desc}</div>}
+                    {p.desc&&<div style={{fontSize:13,color:"#94A3B8",lineHeight:1.6}}>{p.desc}</div>}
                     {/* 위계 5: ON/OFF · 편집 */}
                     <div style={{display:"flex",gap:7,alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid #F1F5F9"}}>
                       <button onClick={function(){toggleEnabled(p.id);}} className="prog-tap" style={{padding:"6px 14px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
@@ -4826,19 +4825,33 @@ var OFFICIAL_SITES = [
 
 // 외부 사이트는 항상 새 탭 + noopener noreferrer 로 연다.
 function OfficialSites(props){
+  var primary=OFFICIAL_SITES[0]; var rest=OFFICIAL_SITES.slice(1);
   return(
-    <div style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"18px 20px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
-      <div style={{fontSize:16.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>🔗 공식 사이트 바로가기</div>
-      <div style={{fontSize:13,color:"#64748B",margin:"5px 0 14px",lineHeight:1.6}}>지원금 신청·공고 확인은 공식 사이트에서 진행하고, 고객사 관리는 이곳에서 정리하세요.</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:10}}>
-        {OFFICIAL_SITES.map(function(s){
+    <div style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"20px 22px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
+      <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap",marginBottom:14}}>
+        <span style={{fontSize:17.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>🔗 공식 사이트 바로가기</span>
+        <span style={{fontSize:13,color:"#94A3B8"}}>신청·공고 확인은 공식 사이트, 고객사 관리는 이곳에서</span>
+      </div>
+      {/* 고용24 — 가장 먼저 눈에 띄는 대표 버튼 */}
+      <a href={primary.url} target="_blank" rel="noopener noreferrer" className="prog-tap"
+         style={{display:"flex",alignItems:"center",gap:13,padding:"15px 18px",borderRadius:13,background:"linear-gradient(135deg,#EFF6FF,#FFFFFF)",border:"1.5px solid #BFDBFE",textDecoration:"none",marginBottom:10}}>
+        <span style={{fontSize:26,flexShrink:0,lineHeight:1}}>{primary.emoji}</span>
+        <span style={{minWidth:0,flex:1}}>
+          <span style={{display:"block",fontSize:17,fontWeight:800,color:primary.color,letterSpacing:"-0.3px"}}>{primary.name} ↗</span>
+          <span style={{display:"block",fontSize:13,color:"#64748B",marginTop:2,lineHeight:1.4}}>{primary.desc}</span>
+        </span>
+        <span style={{flexShrink:0,fontSize:12.5,fontWeight:800,color:"#1D4ED8",background:"#DBEAFE",borderRadius:999,padding:"5px 12px",whiteSpace:"nowrap"}}>대표 창구</span>
+      </a>
+      {/* 나머지 공식 사이트 */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+        {rest.map(function(s){
           return(
             <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="prog-tap"
-               style={{display:"flex",alignItems:"center",gap:11,padding:"12px 14px",borderRadius:12,background:s.bg,border:"1px solid "+s.bd,textDecoration:"none"}}>
+               style={{display:"flex",alignItems:"center",gap:11,padding:"13px 15px",borderRadius:12,background:s.bg,border:"1px solid "+s.bd,textDecoration:"none"}}>
               <span style={{fontSize:21,flexShrink:0,lineHeight:1}}>{s.emoji}</span>
               <span style={{minWidth:0,flex:1}}>
-                <span style={{display:"block",fontSize:14,fontWeight:800,color:s.color,letterSpacing:"-0.3px"}}>{s.name} ↗</span>
-                <span style={{display:"block",fontSize:11.5,color:"#64748B",marginTop:2,lineHeight:1.4}}>{s.desc}</span>
+                <span style={{display:"block",fontSize:14.5,fontWeight:800,color:s.color,letterSpacing:"-0.3px"}}>{s.name} ↗</span>
+                <span style={{display:"block",fontSize:12,color:"#64748B",marginTop:2,lineHeight:1.4}}>{s.desc}</span>
               </span>
             </a>
           );
