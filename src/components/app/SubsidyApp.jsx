@@ -758,7 +758,7 @@ function BulkUpload(props){ var programs=props.programs,onUpload=props.onUpload;
 
 function PDFReport(props){ var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile; var st1=useState(false); var rd=useMemo(function(){ var emps=employees.filter(function(e){return e.companyId===company.id&&e.status!=="resigned";}); var totalReceived=emps.reduce(function(s,e){return s+(e.rounds||[]).reduce(function(ss,r){return ss+(r.isPaid?r.received||0:0);},0);},0); var totalExpected=emps.reduce(function(s,e){return s+(e.totalExpected||0);},0); var upcoming=[]; emps.forEach(function(e){var p=programs[e.programId];if(!e.startDate||!p)return;(e.rounds||[]).forEach(function(r){if(r.isPaid)return;var ed=addMo(e.startDate,r.month);var dd=getDday(ed);if(dd!==null&&dd>=0&&dd<=90)upcoming.push({empName:e.name,roundLabel:r.label,eligDate:ed,dday:dd,amount:r.expectedAmount});});}); upcoming.sort(function(a,b){return a.dday-b.dday;}); return{empCount:emps.length,totalExpected:totalExpected,totalReceived:totalReceived,remaining:totalExpected-totalReceived,upcomingRounds:upcoming.slice(0,10),employees:emps}; },[company,employees,programs]);
   function generatePDF(){ var cl=company.corpType==="법인"?(company.juPosition==="앞"?"(주)"+company.name:company.name+"(주)"):company.name; var today=new Date(); var rd2=today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일"; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+cl+' 고용지원금 현황</title><style>body{font-family:-apple-system,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#1E293B}h1{font-size:24px;border-bottom:3px solid #2563EB;padding-bottom:10px;margin-bottom:20px}h2{font-size:16px;color:#2563EB;margin-top:30px;border-left:4px solid #2563EB;padding-left:10px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px}.sc{background:#F8FAFC;border-radius:8px;padding:15px;text-align:center}.sc .l{font-size:12px;color:#64748B}.sc .v{font-size:24px;font-weight:700;color:#2563EB}table{width:100%;border-collapse:collapse}th,td{border:1px solid #E2E8F0;padding:8px 12px;text-align:left;font-size:13px}th{background:#F8FAFC}@media print{body{padding:20px}}</style></head><body>'; html+='<h1>📋 '+cl+' 고용지원금 현황</h1><p style="color:#64748B;font-size:13px">작성일: '+rd2+' | 작성자: '+(profile.display_name||"")+" "+(profile.title||"")+'</p>'; html+='<div class="summary"><div class="sc"><div class="l">대상자</div><div class="v">'+rd.empCount+'명</div></div><div class="sc"><div class="l">수령완료</div><div class="v">'+fMan(rd.totalReceived)+'</div></div><div class="sc"><div class="l">수령예정</div><div class="v">'+fMan(rd.remaining)+'</div></div></div>'; if(rd.upcomingRounds.length>0){html+='<h2>🔔 향후 90일 내 신청 예정</h2><table><tr><th>직원</th><th>회차</th><th>신청가능일</th><th>D-Day</th><th>예상금액</th></tr>';rd.upcomingRounds.forEach(function(r){html+='<tr><td>'+r.empName+'</td><td>'+r.roundLabel+'</td><td>'+fD(r.eligDate)+'</td><td>D-'+r.dday+'</td><td>'+fMan(r.amount)+'</td></tr>';});html+='</table>';} html+='<h2>👤 직원별 현황</h2><table><tr><th>이름</th><th>지원금</th><th>상태</th><th>입사일</th><th>수령액</th></tr>';rd.employees.forEach(function(e){var p2=programs[e.programId];var s2=STS.find(function(s){return s.key===e.status;});var rcv=(e.rounds||[]).reduce(function(s,r){return s+(r.isPaid?r.received||0:0);},0);html+='<tr><td>'+e.name+'</td><td>'+(p2?p2.name:"")+'</td><td>'+(s2?s2.label:"")+'</td><td>'+(e.startDate||"-")+'</td><td>'+fMan(rcv)+'</td></tr>';});html+='</table>'; html+='<div style="margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;text-align:center;font-size:12px;color:#64748B">고용지원금 매니저 Pro에서 자동 생성 · 신청 전 최신 공고 확인 필요</div></body></html>'; var blob=new Blob([html],{type:"text/html;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=cl+"_고용지원금_"+today.toISOString().split("T")[0]+".html";a.click();URL.revokeObjectURL(url);st1[1](false); if(props.onLog)props.onLog(company.id,"내부 관리 보고서 출력","기타"); toast("내부 보고서가 생성되었습니다.","success"); }
-  return(<React.Fragment><button style={Object.assign({},btnSm,{background:"#334155",color:"#fff",border:"none"})} onClick={function(){st1[1](true);}}>📄 내부 보고서</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📄 내부 관리 보고서" width={480}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>📄</div><h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700}}>{company.name}</h3><p style={{color:"#64748B",fontSize:13,marginBottom:24}}>대상자 {rd.empCount}명 | 수령완료 {fMan(rd.totalReceived)}</p><button style={Object.assign({},btnP,{padding:"14px 40px",fontSize:15})} onClick={generatePDF}>📥 HTML 보고서 다운로드</button><p style={{fontSize:11,color:"#94A3B8",marginTop:12}}>브라우저에서 열어 인쇄(Ctrl+P)하면 PDF로 저장됩니다</p><div style={{marginTop:10,padding:"8px 12px",background:"#D1FAE5",borderRadius:8,fontSize:12,color:"#065F46",textAlign:"left"}}>💡 <strong>영업 팁:</strong> 보고서를 고객사 담당자에게 정기 공유하면 재계약률·추가 의뢰 확률이 높아집니다!</div></div></Modal></React.Fragment>); }
+  return(<React.Fragment><button className="prog-tap" style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"})} onClick={function(){st1[1](true);}}>📄 내부 보고서</button><Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📄 내부 관리 보고서" width={480}><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:48,marginBottom:16}}>📄</div><h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700}}>{company.name}</h3><p style={{color:"#64748B",fontSize:13,marginBottom:24}}>대상자 {rd.empCount}명 | 수령완료 {fMan(rd.totalReceived)}</p><button style={Object.assign({},btnP,{padding:"14px 40px",fontSize:15})} onClick={generatePDF}>📥 HTML 보고서 다운로드</button><p style={{fontSize:11,color:"#94A3B8",marginTop:12}}>브라우저에서 열어 인쇄(Ctrl+P)하면 PDF로 저장됩니다</p><div style={{marginTop:10,padding:"8px 12px",background:"#D1FAE5",borderRadius:8,fontSize:12,color:"#065F46",textAlign:"left"}}>💡 <strong>영업 팁:</strong> 보고서를 고객사 담당자에게 정기 공유하면 재계약률·추가 의뢰 확률이 높아집니다!</div></div></Modal></React.Fragment>); }
 
 function CommissionReport(props){
   var company=props.company,employees=props.employees,programs=props.programs,profile=props.profile;
@@ -784,7 +784,7 @@ function CommissionReport(props){
   }
   return(
     <React.Fragment>
-      <button style={Object.assign({},btnSm,{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"})} onClick={function(){st1[1](true);}}>💰 수수료 정산</button>
+      <button className="prog-tap" style={Object.assign({},btnSm,{background:"#ECFDF5",color:"#047857",border:"1px solid #A7F3D0",fontWeight:700})} onClick={function(){st1[1](true);}}>💰 수수료 정산</button>
       <Modal open={st1[0]} onClose={function(){st1[1](false);}} title="💰 수수료 정산서" width={440}>
         <div>
           <div style={{marginBottom:16}}>
@@ -1168,7 +1168,7 @@ function AgencyReport(props){
 
   return(
     <React.Fragment>
-      <button style={Object.assign({},btnSm,{background:"#2563EB",color:"#fff",border:"none",fontWeight:700,letterSpacing:"-0.3px"})} onClick={function(){st1[1](true);}}>📊 고객 보고서</button>
+      <button className="prog-tap" style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"11px 20px",fontSize:15,fontWeight:800,letterSpacing:"-0.3px",cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",boxShadow:"0 2px 8px rgba(37,99,235,0.28)"}} onClick={function(){st1[1](true);}}>📊 고객 보고서</button>
       <Modal open={st1[0]} onClose={function(){st1[1](false);}} title="📊 전문가 고객 보고서" width={540}>
         <div style={{display:"grid",gap:16}}>
           {/* 미리보기 배너 */}
@@ -1983,25 +1983,25 @@ function ExcelImport(props){
   var pv=stPreview[0];
   var stColor={"정상":["#059669","#ECFDF5"],"주의":["#D97706","#FFFBEB"],"오류":["#DC2626","#FEF2F2"],"저장 제외":["#DC2626","#FEF2F2"],"중복 의심":["#7C3AED","#F5F3FF"]};
   var confBadge={high:["높음","#059669","#ECFDF5"],mid:["보통","#D97706","#FFFBEB"],low:["확인 필요","#DC2626","#FEF2F2"],none:["미매칭","#94A3B8","#F1F5F9"]};
-  var steps=["파일 업로드","컬럼 매핑","미리보기 · 검증","등록"];
+  var steps=["파일 선택","자동 인식","미리보기","최종 등록"];
   var headerCells=(stGrid[0]&&stGrid[0][stHeader[0]])||[];
 
   return(
     <React.Fragment>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2}}>
-        <button onClick={function(){stOpen[1](true);}} style={Object.assign({},btnSm,{background:"#2563EB",color:"#fff",border:"none",fontWeight:700,whiteSpace:"nowrap",boxShadow:"0 1px 6px rgba(37,99,235,0.28)"})}>📥 기존 엑셀 불러오기</button>
-        <span style={{fontSize:10.5,color:"#94A3B8",whiteSpace:"nowrap"}}>엑셀 업로드로 업체·직원 자동 등록</span>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:3}}>
+        <button onClick={function(){stOpen[1](true);}} className="prog-tap" style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,whiteSpace:"nowrap",cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.28)"}}>📥 기존 엑셀 불러오기</button>
+        <span style={{fontSize:12,color:"#94A3B8",whiteSpace:"nowrap"}}>기존 고객사·직원 엑셀을 올려 한 번에 정리하세요.</span>
       </div>
       <Modal open={stOpen[0]} onClose={function(){stOpen[1](false);reset();}} title="📥 엑셀로 업체/직원 가져오기" width={780}>
         <div style={{display:"grid",gap:14}}>
           {/* 단계 표시 */}
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <div style={{display:"flex",gap:7,alignItems:"center"}}>
             {steps.map(function(s,i){var cur=stStep[0]===i+1;var done=stStep[0]>i+1;return(
               <React.Fragment key={s}>
-                {i>0&&<span style={{flex:1,height:2,background:done||cur?"#BFDBFE":"#F1F5F9",borderRadius:1}}/>}
-                <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:700,color:cur?"#2563EB":done?"#059669":"#94A3B8",whiteSpace:"nowrap"}}>
-                  <span style={{width:20,height:20,borderRadius:10,background:cur?"#2563EB":done?"#D1FAE5":"#F1F5F9",color:cur?"#fff":done?"#059669":"#94A3B8",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11}}>{done?"✓":i+1}</span>
-                  {s}
+                {i>0&&<span style={{flex:1,height:3,background:done||cur?"#93C5FD":"#E8EDF3",borderRadius:2}}/>}
+                <span style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:14,fontWeight:800,color:cur?"#2563EB":done?"#059669":"#94A3B8",whiteSpace:"nowrap"}}>
+                  <span style={{width:26,height:26,borderRadius:13,background:cur?"#2563EB":done?"#D1FAE5":"#F1F5F9",color:cur?"#fff":done?"#059669":"#94A3B8",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,boxShadow:cur?"0 2px 6px rgba(37,99,235,0.3)":"none"}}>{done?"✓":i+1}</span>
+                  <span className="hide-mobile">{s}</span>
                 </span>
               </React.Fragment>
             );})}
@@ -2010,18 +2010,18 @@ function ExcelImport(props){
             🔒 엑셀의 개인정보는 현재 브라우저에서만 읽어 미리보기로 표시됩니다. 최종 등록 전에는 저장되지 않습니다.
           </div>
 
-          {/* 1단계: 파일 업로드 */}
+          {/* 1단계: 파일 선택 */}
           {stStep[0]===1&&(
             <div style={{display:"grid",gap:10}}>
-              <div style={{padding:"10px 14px",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,fontSize:12.5,color:"#475569",lineHeight:1.6}}>
-                각 사무실마다 사용하는 엑셀 양식이 달라도, 컬럼을 자동으로 인식합니다. 자동 인식이 맞지 않으면 직접 컬럼을 선택한 뒤 미리보기를 진행하세요.
+              <div style={{padding:"13px 16px",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:12,fontSize:14,color:"#065F46",lineHeight:1.7}}>
+                <strong>아직 저장되지 않습니다.</strong> 파일을 올린 뒤 <strong>미리보기에서 확인한 다음 최종 등록</strong>됩니다. 엑셀 양식이 달라도 자동으로 맞춰봅니다.
               </div>
               <div onClick={function(){if(!stBusy[0]&&fileRef.current)fileRef.current.click();}}
-                style={{border:"2px dashed #BFDBFE",borderRadius:14,padding:"34px 20px",textAlign:"center",cursor:"pointer",background:"#F8FAFC"}}>
-                <div style={{fontSize:34,marginBottom:10}}>📄</div>
-                <div style={{fontSize:15,fontWeight:700,color:"#1E293B",marginBottom:6}}>{stBusy[0]?"파일을 읽는 중…":"클릭해서 엑셀 파일 선택 (.xlsx · .xls · .csv)"}</div>
-                <div style={{fontSize:12.5,color:"#64748B"}}>권장 컬럼: 업체명, 사업자등록번호, 직원명, 입사일, 지원금명</div>
-                <div style={{fontSize:12,color:"#94A3B8",marginTop:4}}>제목·안내 문구가 위에 있어도 헤더 행을 자동으로 찾아냅니다.</div>
+                style={{border:"2px dashed #BFDBFE",borderRadius:14,padding:"38px 20px",textAlign:"center",cursor:"pointer",background:"#F8FBFF"}}>
+                <div style={{fontSize:40,marginBottom:12}}>📄</div>
+                <div style={{fontSize:16.5,fontWeight:800,color:"#1E293B",marginBottom:7,letterSpacing:"-0.3px"}}>{stBusy[0]?"파일을 읽는 중…":"클릭해서 엑셀 파일 선택"}</div>
+                <div style={{fontSize:13.5,color:"#64748B"}}>.xlsx · .xls · .csv · 권장 컬럼: 업체명, 사업자등록번호, 직원명, 입사일, 지원금명</div>
+                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:5}}>제목·안내 문구가 위에 있어도 헤더 행을 자동으로 찾아냅니다.</div>
               </div>
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}}
                 onChange={function(e){handleFile(e.target.files&&e.target.files[0]);}}/>
@@ -2151,9 +2151,9 @@ function ExcelImport(props){
                   ["중복 의심",pv.duplicates.length+"건",pv.duplicates.length>0?"#7C3AED":"#059669",pv.duplicates.length>0?"#F5F3FF":"#F0FDF4"],
                   ["사업자번호 주의",pv.bizWarnCount+"건",pv.bizWarnCount>0?"#DC2626":"#059669",pv.bizWarnCount>0?"#FEF2F2":"#F0FDF4"]
                 ].map(function(a,i){return(
-                  <div key={i} style={{padding:"10px 12px",borderRadius:10,background:a[3],textAlign:"center"}}>
-                    <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:3}}>{a[0]}</div>
-                    <div style={{fontSize:17,fontWeight:800,color:a[2]}}>{a[1]}</div>
+                  <div key={i} style={{padding:"13px 12px",borderRadius:12,background:a[3],textAlign:"center"}}>
+                    <div style={{fontSize:12,color:"#64748B",fontWeight:600,marginBottom:5}}>{a[0]}</div>
+                    <div style={{fontSize:22,fontWeight:800,color:a[2],letterSpacing:"-0.5px"}}>{a[1]}</div>
                   </div>
                 );})}
               </div>
@@ -2238,9 +2238,9 @@ function ExcelImport(props){
                   ["사업자번호 주의",r.bizWarn+"건",r.bizWarn>0?"#DC2626":"#94A3B8"],
                   ["실패 행",r.failedRows.length+"건",r.failedRows.length>0?"#DC2626":"#94A3B8"]
                 ].map(function(a,i){return(
-                  <div key={i} style={{padding:"10px 12px",borderRadius:10,background:"#F8FAFC",textAlign:"center"}}>
-                    <div style={{fontSize:11,color:"#64748B",fontWeight:600,marginBottom:3}}>{a[0]}</div>
-                    <div style={{fontSize:17,fontWeight:800,color:a[2]}}>{a[1]}</div>
+                  <div key={i} style={{padding:"13px 12px",borderRadius:12,background:"#F8FAFC",textAlign:"center"}}>
+                    <div style={{fontSize:12,color:"#64748B",fontWeight:600,marginBottom:5}}>{a[0]}</div>
+                    <div style={{fontSize:22,fontWeight:800,color:a[2],letterSpacing:"-0.5px"}}>{a[1]}</div>
                   </div>
                 );})}
               </div>
@@ -3469,7 +3469,7 @@ function CompDet(props){
             <AgencyReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
             <PDFReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
             <CommissionReport company={company} employees={compEmps} programs={programs} profile={props.profile} onLog={props.onLog}/>
-            <button style={Object.assign({},btnSm,{fontSize:16})} className="hover-lift" onClick={function(){st6[1](true);}}>⚙️ 업체 정보 수정</button>
+            <button style={Object.assign({},btnSm,{background:"transparent",border:"1px solid #E2E8F0",color:"#64748B"})} className="prog-tap" onClick={function(){st6[1](true);}}>⚙️ 업체 정보 수정</button>
           </div>
         </div>
         {/* 중단: 핵심 KPI */}
@@ -3482,19 +3482,19 @@ function CompDet(props){
             {l:"서류 완료율",v:docPct+"%",c:docPct===100?"#059669":"#0F172A",accent:null,sub:risk.docMiss>0?"미제출 "+risk.docMiss+"건":"모두 완료"},
             {l:"지연 신청 건",v:risk.overdue+"건",c:risk.overdue>0?"#DC2626":"#0F172A",accent:risk.overdue>0?"#DC2626":null,sub:risk.overdue>0?fMan(risk.overdueAmt)+" 위험":"지연 없음"}
           ].map(function(c,i){return(
-            <div key={i} style={{padding:"13px 15px",borderRadius:12,background:"#F8FAFC",border:"1px solid #EEF1F5",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #EEF1F5"}}>
-              <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:6}}>{c.l}</div>
-              <div style={{fontSize:23,fontWeight:800,color:c.c}}>{c.v}</div>
-              {c.sub&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:3,fontWeight:500}}>{c.sub}</div>}
+            <div key={i} className="hover-card" style={{padding:"15px 17px",borderRadius:13,background:"#fff",border:"1px solid #EEF1F5",borderLeft:c.accent?("3px solid "+c.accent):"1px solid #EEF1F5",boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
+              <div style={{fontSize:"var(--fs-label)",color:"#64748B",fontWeight:600,marginBottom:7}}>{c.l}</div>
+              <div style={{fontSize:26,fontWeight:800,color:c.c,letterSpacing:"-0.5px"}}>{c.v}</div>
+              {c.sub&&<div style={{fontSize:"var(--fs-meta)",color:"#94A3B8",marginTop:4,fontWeight:500}}>{c.sub}</div>}
             </div>
           );})}
         </div>
       </Card>
 
       {/* 탭 바 */}
-      <div style={{display:"flex",gap:4,borderBottom:"2px solid #E2E8F0",marginBottom:20,overflowX:"auto"}}>
+      <div style={{display:"flex",gap:6,borderBottom:"2px solid #E2E8F0",marginBottom:20,overflowX:"auto"}}>
         {TABS.map(function(t){var on=stTab[0]===t.key;return(
-          <button key={t.key} onClick={function(){stTab[1](t.key);}} style={{padding:"12px 22px",fontSize:18,fontWeight:on?700:500,color:on?"#2563EB":"#64748B",background:"none",border:"none",borderBottom:on?"3px solid #2563EB":"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",flexShrink:0}}>
+          <button key={t.key} className="prog-tap" onClick={function(){stTab[1](t.key);}} style={{padding:"13px 22px",fontSize:18,fontWeight:on?800:600,color:on?"#2563EB":"#64748B",background:on?"#EFF6FF":"none",border:"none",borderRadius:"10px 10px 0 0",borderBottom:on?"3px solid #2563EB":"3px solid transparent",marginBottom:-2,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",flexShrink:0}}>
             {t.icon} {t.label}
           </button>
         );})}
@@ -5180,8 +5180,9 @@ function KanbanBoard(props){
         onDragStart={function(ev){stDrag[1](e.id);ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",e.id);}}
         onDragEnd={function(){stDrag[1](null);stOver[1](null);}}
         onClick={function(){toggleExp(e.id);}}
+        className="hover-card"
         title={expanded?"클릭하면 접힙니다":"클릭하면 상세가 펼쳐집니다"}
-        style={{background:overdue?"#FFF5F5":kc.soft,borderRadius:12,border:"1px solid "+(overdue?"#FECACA":kc.border),borderLeft:"4px solid "+(overdue?"#DC2626":kc.main),padding:"10px 12px",marginBottom:8,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 2px rgba(15,23,42,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":"scale(1)"}}>
+        style={{background:overdue?"#FFF5F5":kc.soft,borderRadius:13,border:"1px solid "+(overdue?"#FECACA":kc.border),borderLeft:"4px solid "+(overdue?"#DC2626":kc.main),padding:"13px 14px",marginBottom:9,cursor:"grab",boxShadow:dragging?"0 12px 28px rgba(37,99,235,0.22)":"0 1px 2px rgba(15,23,42,0.04)",opacity:dragging?0.45:1,position:"relative",transition:"box-shadow 0.15s,opacity 0.15s,transform 0.1s",transform:dragging?"scale(1.03)":undefined}}>
         {/* 기본 노출: 이름 · 회사 · 지원금/연도 */}
         <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
           <div style={{width:30,height:30,borderRadius:15,background:"#fff",border:"1px solid "+kc.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:kc.main,fontWeight:700,flexShrink:0}}>{(e.name||"?").charAt(0)}</div>
@@ -5261,8 +5262,8 @@ function KanbanBoard(props){
       {/* 보드 헤더: 안내 문구(확대) + 업체 필터(본문 상단으로 이동·확대) */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:14,flexWrap:"wrap"}}>
         <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap",minWidth:0}}>
-          <span style={{fontSize:"clamp(18px,4vw,21px)",fontWeight:800,color:"#0F172A",whiteSpace:"nowrap"}}>🗂️ 단계별 진행 보드</span>
-          <span style={{fontSize:"var(--fs-sub)",color:"#64748B",fontWeight:500}}>카드를 클릭하면 상세가 펼쳐집니다 · 드래그로 단계 이동</span>
+          <span style={{fontSize:"clamp(20px,4vw,24px)",fontWeight:800,color:"#0F172A",whiteSpace:"nowrap",letterSpacing:"-0.5px"}}>🗂️ 단계별 진행 보드</span>
+          <span style={{fontSize:"var(--fs-sub)",color:"#64748B",fontWeight:500}}>지원금 신청 일정과 처리 상태를 한눈에 관리합니다.</span>
         </div>
         {companies.length>0&&(
           <select style={Object.assign({},inp,{width:"auto",minWidth:200,fontSize:"var(--fs-list)",fontWeight:700,flexShrink:0})} value={stFilter[0]} onChange={function(e){stFilter[1](e.target.value);}}>
@@ -5300,13 +5301,13 @@ function KanbanBoard(props){
                 onDrop={function(ev){ev.preventDefault();if(stDrag[0])move(stDrag[0],col.key);stDrag[1](null);stOver[1](null);}}
                 style={{background:isOver?kc.soft:"#FBFCFE",borderRadius:14,border:isOver?"2px dashed "+kc.main:"1px solid #E8EEF4",padding:"10px",minHeight:150,transition:"background 0.18s,border-color 0.18s,transform 0.15s",transform:isOver?"scale(1.01)":"scale(1)",boxShadow:isOver?"0 4px 18px rgba(15,23,42,0.10)":"none"}}>
                 {/* 단계 헤더: 메인 컬러 채움 + 흰 글자 */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:9,padding:"8px 11px",borderRadius:10,background:kc.main}}>
-                  <span style={{fontSize:"var(--fs-sub)",fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{col.icon} {col.label}</span>
-                  <span style={{fontSize:"var(--fs-badge)",fontWeight:800,color:"#fff",background:"rgba(255,255,255,0.28)",borderRadius:999,padding:"1px 9px",flexShrink:0,minWidth:24,textAlign:"center"}}>{es.length}</span>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:9,padding:"11px 13px",borderRadius:11,background:kc.main,boxShadow:"0 2px 6px "+kc.soft}}>
+                  <span style={{fontSize:"var(--fs-list)",fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.3px"}}>{col.icon} {col.label}</span>
+                  <span style={{fontSize:"var(--fs-badge)",fontWeight:800,color:"#fff",background:"rgba(255,255,255,0.30)",borderRadius:999,padding:"2px 10px",flexShrink:0,minWidth:26,textAlign:"center"}}>{es.length}</span>
                 </div>
                 {summaryParts.length>0&&<div style={{fontSize:"var(--fs-meta)",color:colOverdue>0?"#B91C1C":"#94A3B8",padding:"0 2px 9px",fontWeight:600}}>{summaryParts.join(" · ")}</div>}
                 {es.length===0?(
-                  <div style={{textAlign:"center",padding:"24px 0",fontSize:"var(--fs-sub)",color:isOver?kc.main:"#CBD5E1",fontWeight:isOver?700:400,borderRadius:10,border:isOver?"2px dashed "+kc.main:"2px dashed transparent",transition:"all 0.15s"}}>{isOver?"⬇ 여기에 놓기":"비어 있음"}</div>
+                  <div style={{textAlign:"center",padding:"26px 8px",fontSize:"var(--fs-sub)",color:isOver?kc.main:"#94A3B8",fontWeight:isOver?700:500,borderRadius:10,border:isOver?"2px dashed "+kc.main:"1.5px dashed #E2E8F0",background:isOver?kc.soft:"#fff",transition:"all 0.15s"}}>{isOver?"⬇ 여기에 놓기":"현재 항목 없음"}</div>
                 ):(
                   <React.Fragment>
                     {shownEs.map(card)}
