@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { supabase } from "./lib/supabase";
 import AuthPage from "./pages/AuthPage";
 import AppPage from "./pages/AppPage";
+import AdminAccessPage from "./pages/AdminAccessPage";
 import BillingResultPage from "./pages/BillingResultPage";
 
 const FF = "'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
@@ -182,6 +183,7 @@ function AppRouter() {
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/billing/result" element={<Guard><BillingResultPage /></Guard>} />
+      <Route path="/admin/access" element={<Guard><AdminAccessPage /></Guard>} />
       <Route path="/*" element={<Guard><AppPage /></Guard>} />
     </Routes>
   );
