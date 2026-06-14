@@ -5808,13 +5808,13 @@ export default function SubsidyApp(props){
     nav:{flex:1,padding:"10px 0",overflowY:"auto"},
     item:function(active){return{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",margin:"3px 12px",borderRadius:12,fontSize:19,fontWeight:active?700:500,color:active?"#fff":"#94A3B8",background:active?"linear-gradient(90deg,rgba(59,130,246,0.30),rgba(59,130,246,0.18))":"transparent",boxShadow:active?"inset 3px 0 0 #60A5FA, 0 2px 10px rgba(37,99,235,0.18)":"none",cursor:"pointer",transition:"all 0.15s",userSelect:"none",boxSizing:"border-box"};},
     icon:{fontSize:22,width:28,textAlign:"center",flexShrink:0},
-    bottom:{padding:"20px 24px",borderTop:"1px solid rgba(255,255,255,0.08)"},
-    user:{display:"flex",alignItems:"center",gap:12,marginBottom:16},
-    avatar:{width:46,height:46,borderRadius:23,background:"#334155",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:"#fff",fontWeight:700,flexShrink:0},
-    userName:{fontSize:21,fontWeight:600,color:"#E2E8F0",lineHeight:1.3},
-    userRole:{fontSize:18,color:"#64748B"},
+    bottom:{padding:"16px 20px 20px",borderTop:"1px solid rgba(255,255,255,0.08)"},
+    user:{display:"flex",alignItems:"center",gap:11,marginBottom:12,cursor:"pointer"},
+    avatar:{width:40,height:40,borderRadius:20,background:"#334155",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,color:"#fff",fontWeight:700,flexShrink:0},
+    userName:{fontSize:16,fontWeight:700,color:"#E2E8F0",lineHeight:1.3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},
+    userRole:{fontSize:12.5,color:"#94A3B8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},
     actions:{display:"flex",gap:8},
-    actionBtn:function(c){return{flex:1,padding:"10px 0",fontSize:18,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:c||"#94A3B8",cursor:"pointer",textAlign:"center"};},
+    actionBtn:function(c){return{flex:1,padding:"11px 0",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:c||"#94A3B8",cursor:"pointer",textAlign:"center",fontFamily:FF};},
   };
 
   function NavItem(p){
@@ -5903,48 +5903,51 @@ export default function SubsidyApp(props){
           })()}
         </div>
 
-        {/* 하단: 유저 정보 + 버튼 */}
+        {/* 하단: 보조/관리자 버튼 → 다른 SaaS 바로가기 → 내 계정 순서로 정리 */}
         <div style={SB.bottom} className="sb-bottom">
-          <div style={SB.user} className="sb-user" onClick={function(){stProfileOpen[1](true);}} title="프로필 설정">
-            <div style={SB.avatar} className="sb-avatar">{(profile.display_name||"?").charAt(0)}</div>
-            <div style={{minWidth:0}}>
-              <div style={SB.userName} className="sb-username">{profile.display_name||"사용자"}</div>
-              <div style={SB.userRole} className="sb-userrole">{isAdmin?"총괄 관리자":(profile.title||"담당자")}</div>
-            </div>
-          </div>
-          {isAdmin?(
-            <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.25)"}}>
-              <span style={{fontSize:13,color:"#FCD34D",fontWeight:700}}>🛡️ 관리자 계정 · 운영자 모드</span>
-            </div>
-          ):(
-            <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
-              <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
-              {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
-            </div>
-          )}
-          {!isAdmin&&!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:8,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
+          {/* 1) 보조 · 관리자 버튼 */}
+          {!isAdmin&&!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:9,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
             <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
             <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
           </button>)}
-          {!isAdmin&&(<button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>)}
-          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
-          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
-          {/* 다른 OS 바로가기 — 모든 사용자 노출, 새 탭 (보조 액션) */}
-          <div className="sb-osnav" style={{marginBottom:12,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#94A3B8",letterSpacing:"0.2px",marginBottom:9,paddingLeft:2}}>다른 OS 바로가기</div>
+          {!isAdmin&&(<button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>)}
+          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
+          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
+
+          {/* 2) 다른 SaaS 바로가기 — 사용자 정보보다 위에 별도 그룹 */}
+          <div className="sb-osnav" style={{paddingTop:12,marginTop:4,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+            <div style={{fontSize:11.5,fontWeight:700,color:"#94A3B8",letterSpacing:"0.3px",marginBottom:9,paddingLeft:2}}>다른 SaaS 바로가기</div>
             <a href="https://labcare-rnd-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn prog-tap"
-               style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",marginBottom:8,padding:"12px 14px",borderRadius:10,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.14)",color:"#DBEAFE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:14.5,fontWeight:700}}>
-              <span style={{fontSize:17,lineHeight:1}}>🧪</span><span style={{flex:1}}>기업부설연구소 OS</span><span style={{opacity:0.75}}>↗</span>
+               style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",marginBottom:8,padding:"12px 14px",borderRadius:10,border:"1px solid rgba(96,165,250,0.32)",background:"rgba(59,130,246,0.12)",color:"#DBEAFE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:15,fontWeight:700}}>
+              <span style={{fontSize:17,lineHeight:1}}>🧪</span><span style={{flex:1}}>기업부설연구소 OS</span><span style={{opacity:0.7}}>↗</span>
             </a>
             <a href="https://corp-sales-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn prog-tap"
-               style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid rgba(167,139,250,0.35)",background:"rgba(139,92,246,0.14)",color:"#E9D5FF",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:14.5,fontWeight:700}}>
-              <span style={{fontSize:17,lineHeight:1}}>🏢</span><span style={{flex:1}}>법인컨설팅 OS</span><span style={{opacity:0.75}}>↗</span>
+               style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid rgba(129,140,248,0.32)",background:"rgba(99,102,241,0.14)",color:"#C7D2FE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:15,fontWeight:700}}>
+              <span style={{fontSize:17,lineHeight:1}}>🏢</span><span style={{flex:1}}>법인컨설팅 OS</span><span style={{opacity:0.7}}>↗</span>
             </a>
           </div>
-          <div style={SB.actions} className="sb-actions">
-            <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
-            <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
-            <button style={SB.actionBtn("#FCA5A5")} className="sb-actionbtn" onClick={onSignOut}>로그아웃</button>
+
+          {/* 3) 내 계정 — 가장 아래 차분히 (프로필 → 구독상태 → 설정/구독/로그아웃) */}
+          <div style={{paddingTop:14,marginTop:14,borderTop:"1px solid rgba(255,255,255,0.10)"}}>
+            <div style={SB.user} className="sb-user" onClick={function(){stProfileOpen[1](true);}} title="프로필 설정">
+              <div style={SB.avatar} className="sb-avatar">{(profile.display_name||"?").charAt(0)}</div>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={SB.userName} className="sb-username">{profile.display_name||"사용자"}</div>
+                <div style={SB.userRole} className="sb-userrole">{isAdmin?"총괄 관리자":(profile.title||"담당자")}{orgName?" · "+orgName:""}</div>
+              </div>
+              {isAdmin&&<span style={{flexShrink:0,fontSize:11,fontWeight:700,color:"#FCD34D",background:"rgba(251,191,36,0.12)",border:"1px solid rgba(251,191,36,0.25)",borderRadius:999,padding:"3px 9px"}}>관리자</span>}
+            </div>
+            {!isAdmin&&(
+              <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
+                <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
+                {!isTrial&&tier.key!=="pro"&&tier.key!=="team"&&<button onClick={props.onOpenBilling||function(){}} style={{fontSize:12,fontWeight:700,color:"#BFDBFE",background:"rgba(37,99,235,0.25)",border:"none",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontFamily:FF}}>업그레이드 →</button>}
+              </div>
+            )}
+            <div style={SB.actions} className="sb-actions">
+              <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
+              <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
+              <button style={SB.actionBtn("#FCA5A5")} className="sb-actionbtn" onClick={onSignOut}>로그아웃</button>
+            </div>
           </div>
         </div>
       </div>
