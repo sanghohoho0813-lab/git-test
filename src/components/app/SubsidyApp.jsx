@@ -5875,6 +5875,18 @@ export default function SubsidyApp(props){
           {!isAdmin&&(<button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:500,borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>)}
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
           {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"9px",fontSize:14,fontWeight:600,borderRadius:8,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
+          {/* 다른 OS 바로가기 — 모든 사용자 노출, 새 탭 (보조 액션) */}
+          <div className="sb-osnav" style={{marginBottom:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#64748B",letterSpacing:"0.2px",marginBottom:7,paddingLeft:2}}>다른 OS 바로가기</div>
+            <a href="https://labcare-rnd-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn"
+               style={{display:"flex",alignItems:"center",gap:8,width:"100%",boxSizing:"border-box",marginBottom:7,padding:"10px 12px",borderRadius:8,border:"1px solid rgba(96,165,250,0.30)",background:"rgba(59,130,246,0.10)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:13.5,fontWeight:600}}>
+              <span style={{fontSize:15,lineHeight:1}}>🧪</span><span style={{flex:1}}>기업부설연구소 OS</span><span style={{opacity:0.7}}>↗</span>
+            </a>
+            <button className="sb-osbtn" title="법인컨설팅 OS는 준비 중입니다." disabled
+               style={{display:"flex",alignItems:"center",gap:8,width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,0.10)",background:"rgba(255,255,255,0.04)",color:"#64748B",cursor:"not-allowed",fontFamily:FF,fontSize:13.5,fontWeight:600}}>
+              <span style={{fontSize:15,lineHeight:1}}>🏢</span><span style={{flex:1,textAlign:"left"}}>법인컨설팅 OS</span><span style={{fontSize:10.5,fontWeight:700,color:"#475569",background:"rgba(255,255,255,0.06)",borderRadius:6,padding:"2px 6px"}}>준비 중</span>
+            </button>
+          </div>
           <div style={SB.actions} className="sb-actions">
             <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
             <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
