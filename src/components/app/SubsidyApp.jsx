@@ -4122,8 +4122,8 @@ function ProgramsList(props){
           <p style={{margin:0,fontSize:FS_BODY,color:"#64748B",lineHeight:1.6}}>활성화된 지원금 <strong style={{color:"#2563EB"}}>{enabledCount}개</strong>만 직원 추가 화면에 표시됩니다. ON/OFF로 노출을 제어하세요.</p>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button style={btnS} onClick={resetBuiltins}>↺ 기본값 복원</button>
-          <button style={btnP} className="hover-lift" onClick={openNew}>+ 커스텀 지원금 추가</button>
+          <button style={btnS} className="prog-tap" onClick={resetBuiltins}>↺ 기본값 복원</button>
+          <button style={btnP} className="hover-lift prog-tap" onClick={openNew}>+ 커스텀 지원금 추가</button>
         </div>
       </div>
       <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,marginBottom:14,fontSize:12,color:"#92400E"}}>
@@ -4135,60 +4135,61 @@ function ProgramsList(props){
         if(!items.length)return null;
         var gp=GROUP_COLORS[grp]||GROUP_COLORS["커스텀"];
         var grpDesc={"신규채용":"새로 채용하는 직원에게 적용되는 지원금","재직자유지":"재직 중인 직원의 고용 유지·전환에 적용","육아":"육아휴직·근로시간 단축·대체인력 관련","커스텀":"직접 추가한 지원금"}[grp]||"";
-        // 섹션 배경 — 계열이 즉시 느껴지는 한 단계 진한 톤 (신규채용=블루 / 재직자유지=라벤더 / 육아=민트)
-        var tint={"신규채용":{bg:"#EAF2FF",border:"#BFDBFE",num:"#2563EB"},
-                  "재직자유지":{bg:"#F1EDFB",border:"#D8CFF2",num:"#7C3AED"},
-                  "육아":{bg:"#E7F8EF",border:"#A7F3D0",num:"#059669"},
-                  "커스텀":{bg:"#F3F4F6",border:"#E2E8F0",num:"#64748B"}}[grp];
+        // 섹션 배경 — 토스식: 아주 연하지만 계열이 확실히 구분되는 톤
+        // (신규채용=밝은 블루 / 재직자유지=밝은 퍼플 / 육아=밝은 그린)
+        var tint={"신규채용":{bg:"#F5F9FF",border:"#DCEAFE",num:"#2563EB",numGrad:"linear-gradient(135deg,#3B82F6,#2563EB)"},
+                  "재직자유지":{bg:"#F8F6FD",border:"#E6DEF7",num:"#7C3AED",numGrad:"linear-gradient(135deg,#A78BFA,#7C3AED)"},
+                  "육아":{bg:"#F2FBF6",border:"#CBF0DA",num:"#059669",numGrad:"linear-gradient(135deg,#34D399,#059669)"},
+                  "커스텀":{bg:"#F8FAFC",border:"#E8EDF3",num:"#64748B",numGrad:"linear-gradient(135deg,#94A3B8,#64748B)"}}[grp];
         var grpOn=items.filter(function(p){return p.enabled!==false;}).length;
         return(
-          <div key={grp} style={{background:tint.bg,border:"1.5px solid "+tint.border,borderRadius:18,padding:"22px 22px 20px",marginBottom:18}}>
+          <div key={grp} className="prog-section" style={{"--si":gi,background:tint.bg,border:"1px solid "+tint.border,borderRadius:20,padding:"24px 24px 22px",marginBottom:18,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
             {/* 섹션 헤더: 큰 제목(주 위계) + 설명(보조) — 카드 영역과 구분선으로 분리 */}
-            <div style={{marginBottom:16,paddingBottom:14,borderBottom:"1.5px solid "+tint.border}}>
+            <div style={{marginBottom:18,paddingBottom:16,borderBottom:"1px solid "+tint.border}}>
               <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-                <span style={{width:34,height:34,borderRadius:10,background:"#fff",color:tint.num,fontWeight:800,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid "+tint.border}}>{String(gi+1).padStart(2,"0")}</span>
-                <span style={{fontSize:34,fontWeight:900,color:gp.dark,letterSpacing:"-1px",lineHeight:1.15}}>{gp.icon} {grp}</span>
-                <span style={{fontSize:12.5,fontWeight:700,padding:"4px 12px",borderRadius:12,background:"#fff",border:"1px solid "+tint.border,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
+                <span style={{width:34,height:34,borderRadius:11,background:"#fff",color:tint.num,fontWeight:800,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid "+tint.border,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>{String(gi+1).padStart(2,"0")}</span>
+                <span style={{fontSize:32,fontWeight:900,color:gp.dark,letterSpacing:"-1.1px",lineHeight:1.15}}>{gp.icon} {grp}</span>
+                <span style={{fontSize:12.5,fontWeight:700,padding:"5px 13px",borderRadius:14,background:"#fff",border:"1px solid "+tint.border,color:gp.text,whiteSpace:"nowrap"}}>{items.length}개 · ON {grpOn}</span>
               </div>
-              <div style={{fontSize:13,color:"#64748B",marginTop:7,marginLeft:2}}>{grpDesc}</div>
+              <div style={{fontSize:13,color:"#64748B",marginTop:8,marginLeft:2}}>{grpDesc}</div>
             </div>
             {/* 지원금 카드 (개별 번호 1~15 · 여유 있는 반응형 그리드) */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:12}}>
-              {items.map(function(p){
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:14}}>
+              {items.map(function(p,idx){
                 var isCustom=!DEFAULT_PROGRAMS[p.id];
                 var isEnabled=p.enabled!==false;
                 var isYouth=p.id==="youth_jump";
                 var pNum=progNumMap[p.id]||"";
-                var pill=function(color,bg){return{fontSize:11.5,fontWeight:700,padding:"2px 9px",borderRadius:10,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
+                var pill=function(color,bg){return{fontSize:11.5,fontWeight:700,padding:"3px 10px",borderRadius:11,background:bg,color:color,whiteSpace:"nowrap",display:"inline-block"};};
                 return(
-                  <div key={p.id} className="hover-card" style={{padding:"14px 16px",borderRadius:14,background:"#fff",border:"1px solid "+(isEnabled?tint.border:"#E2E8F0"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:9,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
-                    {/* 위계 1·2: 번호 배지 + 지원금명 */}
-                    <div style={{display:"flex",alignItems:"flex-start",gap:9}}>
-                      <span style={{width:27,height:27,borderRadius:14,background:isCustom?"#64748B":tint.num,color:"#fff",fontWeight:800,fontSize:isCustom?10.5:12.5,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{pNum}</span>
-                      <span style={{fontSize:16.5,fontWeight:800,color:"#0F172A",wordBreak:"keep-all",lineHeight:1.4}}>{p.name}</span>
+                  <div key={p.id} className="prog-card" style={{"--ci":idx,padding:"16px 18px",borderRadius:16,background:"#fff",border:"1px solid "+(isEnabled?tint.border:"#E8EDF3"),opacity:isEnabled?1:0.6,display:"flex",flexDirection:"column",gap:10,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
+                    {/* 위계 1·2: 번호 배지(토스식 pill) + 지원금명 */}
+                    <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                      <span style={{width:28,height:28,borderRadius:9,background:isCustom?"#F1F5F9":tint.numGrad,color:isCustom?"#64748B":"#fff",fontWeight:800,fontSize:isCustom?10.5:12.5,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,boxShadow:isCustom?"none":"0 1px 3px rgba(15,23,42,0.12)"}}>{pNum}</span>
+                      <span style={{fontSize:16.5,fontWeight:800,color:"#0F172A",wordBreak:"keep-all",lineHeight:1.4,letterSpacing:"-0.3px"}}>{p.name}</span>
                     </div>
                     {/* 위계 3: 연도 · 금액 · 추천 태그 */}
                     <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                       {p.year&&<span style={pill("#475569","#F1F5F9")}>{p.year}년</span>}
                       {isYouth&&<span style={pill("#D97706","#FEF3C7")}>⭐ 추천</span>}
                       {isCustom&&<span style={pill(gp.text,gp.badge)}>커스텀</span>}
-                      <span style={pill(gp.dark,gp.light)}>{fMan(p.totalAmount||0)}</span>
+                      <span style={Object.assign({},pill(gp.dark,gp.light),{fontSize:13,fontWeight:800})}>{fMan(p.totalAmount||0)}</span>
                       {!isEnabled&&<span style={pill("#94A3B8","#F1F5F9")}>비활성</span>}
                     </div>
                     {/* 위계 4: 회차 · 지급시점 · 신청처 */}
-                    <div style={{display:"flex",gap:13,fontSize:12.5,color:"#475569",flexWrap:"wrap",lineHeight:1.75}}>
+                    <div style={{display:"flex",gap:14,fontSize:12.5,color:"#475569",flexWrap:"wrap",lineHeight:1.75}}>
                       <span>🔢 {(p.rounds||[]).length}회차</span>
                       <span>📅 {(p.rounds||[]).map(function(r){return r.month+"개월";}).join("/")}</span>
                       {p.applyUrl&&<span style={{color:"#2563EB"}}>📍 {p.applyUrl}</span>}
                     </div>
                     {p.desc&&<div style={{fontSize:12,color:"#94A3B8",lineHeight:1.6}}>{p.desc}</div>}
                     {/* 위계 5: ON/OFF · 편집 */}
-                    <div style={{display:"flex",gap:7,alignItems:"center",marginTop:"auto",paddingTop:4,borderTop:"1px solid #F8FAFC"}}>
-                      <button onClick={function(){toggleEnabled(p.id);}} style={{padding:"5px 13px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
+                    <div style={{display:"flex",gap:7,alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid #F1F5F9"}}>
+                      <button onClick={function(){toggleEnabled(p.id);}} className="prog-tap" style={{padding:"6px 14px",borderRadius:20,fontSize:FS_BADGE,fontWeight:700,cursor:"pointer",border:"none",background:isEnabled?"#D1FAE5":"#F1F5F9",color:isEnabled?"#059669":"#64748B",minWidth:46}}>
                         {isEnabled?"ON":"OFF"}
                       </button>
-                      <button style={btnSm} onClick={function(){openEdit(p);}}>편집</button>
-                      {isCustom&&<button style={Object.assign({},btnSm,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
+                      <button className="prog-tap" style={btnSm} onClick={function(){openEdit(p);}}>편집</button>
+                      {isCustom&&<button className="prog-tap" style={Object.assign({},btnSm,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={function(){deleteCustom(p.id);}}>삭제</button>}
                     </div>
                   </div>
                 );
