@@ -4896,53 +4896,69 @@ function BeginnerSubsidyGuide(){
 // 첫 사용자가 "무엇부터, 왜 쓰는지"를 바로 이해하도록 돕는다.
 function StarterGuide(props){
   var stHidden=useState(function(){try{return localStorage.getItem("hrSubsidyPro_starterGuideHidden")==="1";}catch(e){return false;}});
-  var stOpen=useState(true);
+  var stOpen=useState(false); // 기본 접힘 — 첫 화면은 컴팩트 CTA 카드만 노출
   if(stHidden[0])return null;
   function hideForever(){try{localStorage.setItem("hrSubsidyPro_starterGuideHidden","1");}catch(e){}stHidden[1](true);}
   var steps=[
-    {n:1,emoji:"📥",title:"고객사 엑셀 불러오기",desc:"기존에 쓰던 관리 엑셀을 올리면 업체와 직원 정보를 자동으로 정리해드려요.",cta:"기존 엑셀 불러오기",on:props.onExcel},
-    {n:2,emoji:"🔍",title:"지원금 후보 확인",desc:"직원별로 청년일자리도약·고용촉진·시니어 인턴십 등 받을 수 있는 지원금을 확인해요.",cta:"지원금 종류 보기",on:props.onPrograms},
-    {n:3,emoji:"📅",title:"D-Day와 서류 관리",desc:"신청 기한·지급월·필요한 서류를 놓치지 않게 자동으로 챙겨드려요.",cta:null,on:null},
-    {n:4,emoji:"📊",title:"고객 보고서로 계약 전환",desc:"대표님께 '받을 수 있는 지원금과 일정'을 한 장으로 보여주며 상담·계약 자료로 활용해요.",cta:"고객 보고서 예시 보기",on:props.onReport},
+    {n:1,emoji:"📥",title:"기존 엑셀 불러오기",desc:"고객사와 직원 정보를 엑셀로 한 번에 가져옵니다. 각 사무실에서 쓰던 엑셀 양식도 자동으로 맞춰줍니다.",cta:"기존 엑셀 불러오기",on:props.onExcel},
+    {n:2,emoji:"🔍",title:"지원금 후보 확인",desc:"청년일자리도약·고용촉진·시니어 인턴십·육아휴직 관련 지원금 등을 고객사별로 정리합니다.",cta:"지원금 종류 보기",on:props.onPrograms},
+    {n:3,emoji:"📅",title:"일정·서류·D-Day 관리",desc:"신청 기한·지급 예정월·필요한 서류를 놓치지 않게 관리합니다.",cta:null,on:null},
+    {n:4,emoji:"📊",title:"고객 보고서로 상담·계약 전환",desc:"대표님에게 대상자·예상 수령액·신청 기한·필요한 서류를 한 장의 보고서로 보여줄 수 있습니다.",cta:"고객 보고서 예시 보기",on:props.onReport},
   ];
+
+  // ── 접힘(기본): 작지만 클릭하고 싶은 CTA 카드 ──
+  if(!stOpen[0]){
+    return(
+      <div className="fade-in" style={{display:"flex",alignItems:"center",gap:14,background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:14,padding:"15px 18px",marginBottom:16,boxShadow:"0 1px 3px rgba(37,99,235,0.05)"}}>
+        <span style={{fontSize:26,flexShrink:0,lineHeight:1}}>👋</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",lineHeight:1.35,wordBreak:"keep-all"}}>처음 오셨나요? 고용지원금 관리는 이렇게 시작하세요</div>
+          <div style={{fontSize:12.5,color:"#64748B",marginTop:3,lineHeight:1.5,wordBreak:"keep-all"}}>기존 엑셀 불러오기부터 고객 보고서 활용까지 한 번에 안내해드립니다.</div>
+        </div>
+        <button className="prog-tap" onClick={function(){stOpen[1](true);}} style={{flexShrink:0,background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"10px 18px",fontSize:13.5,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 3px rgba(37,99,235,0.25)",whiteSpace:"nowrap"}}>가이드 보기 →</button>
+        <button className="prog-tap" onClick={hideForever} title="이 안내를 다시 표시하지 않습니다" style={{flexShrink:0,background:"none",border:"none",color:"#94A3B8",fontSize:12,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",padding:"4px 2px"}}>다시 보지 않기</button>
+      </div>
+    );
+  }
+
+  // ── 펼침: 상세 가이드 (accordion) ──
   return(
     <div className="fade-in-up" style={{background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:18,padding:"20px 22px",marginBottom:18,boxShadow:"0 2px 10px rgba(37,99,235,0.06)"}}>
       {/* 헤더 + 접기/숨기기 */}
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:14}}>
         <div style={{minWidth:0,flex:1}}>
-          <div style={{fontSize:19,fontWeight:900,color:"#0F172A",letterSpacing:"-0.5px",lineHeight:1.3}}>👋 처음 오셨나요? 고용지원금 관리는 이렇게 시작하세요</div>
+          <div style={{fontSize:19,fontWeight:900,color:"#0F172A",letterSpacing:"-0.5px",lineHeight:1.3}}>🏛️ 고용지원금 Pro는 이런 도구입니다</div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px"})} onClick={function(){stOpen[1](!stOpen[0]);}}>{stOpen[0]?"접기 ▲":"펼치기 ▼"}</button>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px",color:"#94A3B8"})} onClick={hideForever}>다시 안 보기</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px"})} onClick={function(){stOpen[1](false);}}>가이드 접기 ▲</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px",color:"#94A3B8"})} onClick={hideForever}>다시 보지 않기</button>
         </div>
       </div>
-      {stOpen[0]&&(<div style={{marginTop:14}}>
-        {/* 이 도구가 무엇인지 (가장 중요한 메시지) */}
-        <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
-          <div style={{fontSize:14.5,fontWeight:800,color:"#1E3A8A",lineHeight:1.6}}>고용지원금 Pro는 지원금을 대신 신청해주는 사이트가 아닙니다.</div>
-          <div style={{fontSize:13.5,color:"#1E40AF",marginTop:5,lineHeight:1.7}}>컨설턴트가 <strong>고객사별 지원금 가능성·신청 일정·서류 요청·수수료 정산·고객 보고서</strong>를 한 곳에서 관리하는 <strong>영업·운영 도구</strong>예요. 실제 신청·공고 확인은 고용24 등 공식 사이트에서 진행합니다.</div>
-        </div>
-        {/* 4단계 시작 가이드 */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
-          {steps.map(function(s,i){
-            return(
-              <div key={s.n} className="prog-card" style={{"--ci":i,background:"#fff",border:"1px solid #E8EDF3",borderRadius:13,padding:"15px 16px",display:"flex",flexDirection:"column",gap:8,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:9}}>
-                  <span style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#3B82F6,#2563EB)",color:"#fff",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 1px 3px rgba(37,99,235,0.25)"}}>{s.n}</span>
-                  <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{s.emoji} {s.title}</span>
-                </div>
-                <div style={{fontSize:12.5,color:"#475569",lineHeight:1.6,flex:1}}>{s.desc}</div>
-                {s.cta&&s.on&&<button className="prog-tap" onClick={s.on} style={{alignSelf:"flex-start",background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:8,padding:"7px 13px",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{s.cta} →</button>}
+      {/* 이 도구가 무엇인지 (가장 중요한 메시지) */}
+      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+        <div style={{fontSize:14.5,fontWeight:800,color:"#1E3A8A",lineHeight:1.6}}>고용지원금 Pro는 지원금을 대신 신청해주는 사이트가 아닙니다.</div>
+        <div style={{fontSize:13.5,color:"#1E40AF",marginTop:5,lineHeight:1.7}}>컨설턴트가 <strong>고객사별 지원금 가능성·신청 일정·서류 요청·수수료 정산·고객 보고서</strong>를 한 곳에서 관리하는 <strong>영업·운영 도구</strong>입니다. 실제 신청과 공고 확인은 고용24 등 공식 사이트에서 진행합니다.</div>
+      </div>
+      {/* 4단계 시작 가이드 */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+        {steps.map(function(s,i){
+          return(
+            <div key={s.n} className="prog-card" style={{"--ci":i,background:"#fff",border:"1px solid #E8EDF3",borderRadius:13,padding:"15px 16px",display:"flex",flexDirection:"column",gap:8,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:9}}>
+                <span style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#3B82F6,#2563EB)",color:"#fff",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 1px 3px rgba(37,99,235,0.25)"}}>{s.n}</span>
+                <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{s.emoji} {s.title}</span>
               </div>
-            );
-          })}
-        </div>
-        {/* 계약에 어떻게 도움이 되는지 */}
-        <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:12,padding:"13px 16px",marginTop:16}}>
-          <div style={{fontSize:13.5,color:"#166534",lineHeight:1.7}}>💬 대표님에게 단순히 "지원금 받을 수 있습니다"라고 말하는 것보다, <strong>대상자·예상 수령액·신청 기한·필요 서류를 한 장의 보고서</strong>로 보여주면 상담 신뢰도가 올라갑니다. 이 앱은 <strong>지원금 지식을 고객사별 실행계획으로 바꿔주는 도구</strong>예요.</div>
-        </div>
-      </div>)}
+              <div style={{fontSize:12.5,color:"#475569",lineHeight:1.6,flex:1}}>{s.desc}</div>
+              {s.cta&&s.on&&<button className="prog-tap" onClick={s.on} style={{alignSelf:"flex-start",background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:8,padding:"7px 13px",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{s.cta} →</button>}
+            </div>
+          );
+        })}
+      </div>
+      {/* 계약 도움 + 시간 절약 메시지 */}
+      <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:12,padding:"13px 16px",marginTop:16}}>
+        <div style={{fontSize:13.5,color:"#166534",lineHeight:1.7}}>💬 단순히 "지원금 받을 수 있습니다"라고 말하는 것보다, <strong>고객사별 대상자·예상 수령액·신청 기한·필요 서류를 보고서</strong>로 보여주면 상담 신뢰도가 올라갑니다.</div>
+        <div style={{fontSize:13,color:"#15803D",lineHeight:1.7,marginTop:8,paddingTop:8,borderTop:"1px solid #BBF7D0"}}>⏱️ 매번 지원금 종류를 검색하고, 직원별 일정을 따로 계산하고, 서류 요청 문구를 새로 쓰는 <strong>시간을 줄이는 것</strong>이 핵심입니다.</div>
+      </div>
     </div>
   );
 }
