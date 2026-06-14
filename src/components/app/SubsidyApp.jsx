@@ -2427,6 +2427,13 @@ function Dashboard(props){
 
   return(<div className="fade-in" style={{display:"flex",gap:20,alignItems:"flex-start"}}>
     <div style={{flex:1,minWidth:0}}>
+    {props.mode==="stats"&&(
+      <StarterGuide
+        onExcel={function(){props.setView&&props.setView("company");}}
+        onPrograms={function(){props.setView&&props.setView("programs");}}
+        onReport={function(){if(props.companies.length>0)props.goCompany(props.companies[0].id);else if(props.setView)props.setView("company");}}
+      />
+    )}
     {props.mode!=="stats"&&<GlobalSearch employees={props.employees} companies={props.companies} goCompany={props.goCompany}/>}
 
     {/* 무료체험 요약 — 중간/모바일 화면용 한 줄 배지 (PC에서는 우측 패널로 표시) */}
@@ -4130,6 +4137,8 @@ function ProgramsList(props){
         ⭐ <strong>청년일자리도약장려금</strong>이 기본 추천 지원금입니다. 2026년에도 예산이 유지되며 청년 채용 기업의 신청 실적이 가장 높습니다.
       </div>
       <Notice>금액·회차·신청처는 매년 공고에 따라 바뀝니다. 카드의 <b>편집</b>으로 직접 수정하면 내 계정에 저장됩니다. 기본 지원금도 모두 수정 가능합니다.</Notice>
+      <OfficialSites/>
+      <BeginnerSubsidyGuide/>
       {["신규채용","재직자유지","육아","커스텀"].map(function(grp,gi){
         var items=Object.values(programs).filter(function(p){return p.group===grp;});
         if(!items.length)return null;
@@ -4801,6 +4810,139 @@ function AdminFeedback(props){
       ):(
         filtered.map(function(r){return <FbCard key={r.id||r.created_at} row={r}/>;})
       )}
+    </div>
+  );
+}
+
+// ── 공식 사이트 바로가기 (신청·공고 확인은 공식 사이트, 고객사 관리는 이곳) ──
+// URL은 기존 지원금 데이터에서 쓰던 공식 링크를 그대로 재사용한다.
+var OFFICIAL_SITES = [
+  {name:"고용24",          desc:"고용지원금 확인·신청·기업지원 통합 창구",  url:"https://www.work24.go.kr",  emoji:"🏛️", color:"#1D4ED8", bg:"#EFF6FF", bd:"#BFDBFE"},
+  {name:"노사발전재단",      desc:"일터혁신·워라밸·재직자 유지 지원사업 확인", url:"https://www.nosa.or.kr",     emoji:"🤝", color:"#334155", bg:"#F1F5F9", bd:"#E2E8F0"},
+  {name:"여성새로일하기센터", desc:"새일여성인턴제 등 경력단절여성 채용 지원",  url:"https://saeil.mogef.go.kr",  emoji:"👩‍💼", color:"#BE185D", bg:"#FDF2F8", bd:"#FBCFE8"},
+  {name:"한국노인인력개발원", desc:"시니어 인턴십 등 고령자 채용 지원 확인",    url:"https://www.seniorro.or.kr", emoji:"🧓", color:"#B45309", bg:"#FFFBEB", bd:"#FDE68A"},
+  {name:"장애인고용공단 e-신고", desc:"장애인 고용장려금 신고·확인",          url:"https://www.esingo.or.kr",   emoji:"♿", color:"#0E7490", bg:"#ECFEFF", bd:"#A5F3FC"},
+];
+
+// 외부 사이트는 항상 새 탭 + noopener noreferrer 로 연다.
+function OfficialSites(props){
+  return(
+    <div style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"18px 20px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
+      <div style={{fontSize:16.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>🔗 공식 사이트 바로가기</div>
+      <div style={{fontSize:13,color:"#64748B",margin:"5px 0 14px",lineHeight:1.6}}>지원금 신청·공고 확인은 공식 사이트에서 진행하고, 고객사 관리는 이곳에서 정리하세요.</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:10}}>
+        {OFFICIAL_SITES.map(function(s){
+          return(
+            <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="prog-tap"
+               style={{display:"flex",alignItems:"center",gap:11,padding:"12px 14px",borderRadius:12,background:s.bg,border:"1px solid "+s.bd,textDecoration:"none"}}>
+              <span style={{fontSize:21,flexShrink:0,lineHeight:1}}>{s.emoji}</span>
+              <span style={{minWidth:0,flex:1}}>
+                <span style={{display:"block",fontSize:14,fontWeight:800,color:s.color,letterSpacing:"-0.3px"}}>{s.name} ↗</span>
+                <span style={{display:"block",fontSize:11.5,color:"#64748B",marginTop:2,lineHeight:1.4}}>{s.desc}</span>
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── 대표 지원금 한눈에 보기 (초보자용 · 쉬운 설명) ──
+var REP_SUBSIDIES = [
+  {emoji:"⭐", name:"청년일자리도약장려금",      grp:"신규채용",  one:"청년을 새로 뽑는 회사가 가장 먼저 챙겨야 할 대표 지원금",  tip:"신규 채용 상담에서 제일 많이 활용돼요."},
+  {emoji:"🤝", name:"고용촉진장려금",          grp:"신규채용",  one:"오래 취업이 어려웠던 분을 채용할 때 검토하는 지원금",     tip:"채용 전·후 요건을 미리 확인해야 해요."},
+  {emoji:"🧓", name:"고령자 계속고용 장려금",    grp:"재직자유지", one:"정년이 지난 직원을 계속 일하게 할 때 받는 지원금",       tip:"제조업·현장직 고객사에서 자주 검토돼요."},
+  {emoji:"👵", name:"시니어 인턴십",           grp:"신규채용",  one:"나이가 많은 분을 채용할 때 검토하는 지원금",            tip:"한국노인인력개발원에서 확인이 필요해요."},
+  {emoji:"👩‍💼", name:"새일여성인턴제",         grp:"신규채용",  one:"일을 쉬었던 여성을 다시 채용할 때 받는 지원금",          tip:"여성새로일하기센터에서 확인이 필요해요."},
+  {emoji:"🤱", name:"육아휴직·대체인력 지원금",  grp:"육아",     one:"육아휴직자·대체인력·근로시간 단축과 관련된 지원금",      tip:"인사·노무 이슈와 함께 상담하기 좋아요."},
+];
+
+function BeginnerSubsidyGuide(){
+  var stOpen=useState(true);
+  var tintOf={"신규채용":{bg:"#F5F9FF",bd:"#DCEAFE",c:"#1D4ED8"},"재직자유지":{bg:"#F8F6FD",bd:"#E6DEF7",c:"#7C3AED"},"육아":{bg:"#F2FBF6",bd:"#CBF0DA",c:"#059669"}};
+  return(
+    <div style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"18px 20px",marginBottom:16,boxShadow:"0 1px 2px rgba(15,23,42,0.03)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:16.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>📚 대표 지원금 한눈에 보기</div>
+          <div style={{fontSize:13,color:"#64748B",marginTop:5,lineHeight:1.6}}>지원금 이름만 봐선 감이 안 잡히죠. 어떤 상황에 쓰는지 쉽게 정리했어요.</div>
+        </div>
+        <button className="prog-tap" style={Object.assign({},btnSm,{flexShrink:0})} onClick={function(){stOpen[1](!stOpen[0]);}}>{stOpen[0]?"접기 ▲":"펼치기 ▼"}</button>
+      </div>
+      {stOpen[0]&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10,marginTop:14}}>
+          {REP_SUBSIDIES.map(function(s,i){
+            var t=tintOf[s.grp]||tintOf["신규채용"];
+            return(
+              <div key={i} className="prog-card" style={{"--ci":i,background:t.bg,border:"1px solid "+t.bd,borderRadius:13,padding:"13px 15px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
+                  <span style={{fontSize:19,lineHeight:1}}>{s.emoji}</span>
+                  <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{s.name}</span>
+                  <span style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:t.c,background:"#fff",border:"1px solid "+t.bd,borderRadius:10,padding:"2px 9px",whiteSpace:"nowrap"}}>{s.grp}</span>
+                </div>
+                <div style={{fontSize:13,color:"#334155",lineHeight:1.55}}>{s.one}</div>
+                <div style={{fontSize:12,color:"#64748B",marginTop:6,lineHeight:1.5}}>💡 {s.tip}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 초보 컨설턴트용 시작 가이드 (접기/숨기기 · localStorage) ──
+// 첫 사용자가 "무엇부터, 왜 쓰는지"를 바로 이해하도록 돕는다.
+function StarterGuide(props){
+  var stHidden=useState(function(){try{return localStorage.getItem("hrSubsidyPro_starterGuideHidden")==="1";}catch(e){return false;}});
+  var stOpen=useState(true);
+  if(stHidden[0])return null;
+  function hideForever(){try{localStorage.setItem("hrSubsidyPro_starterGuideHidden","1");}catch(e){}stHidden[1](true);}
+  var steps=[
+    {n:1,emoji:"📥",title:"고객사 엑셀 불러오기",desc:"기존에 쓰던 관리 엑셀을 올리면 업체와 직원 정보를 자동으로 정리해드려요.",cta:"기존 엑셀 불러오기",on:props.onExcel},
+    {n:2,emoji:"🔍",title:"지원금 후보 확인",desc:"직원별로 청년일자리도약·고용촉진·시니어 인턴십 등 받을 수 있는 지원금을 확인해요.",cta:"지원금 종류 보기",on:props.onPrograms},
+    {n:3,emoji:"📅",title:"D-Day와 서류 관리",desc:"신청 기한·지급월·필요한 서류를 놓치지 않게 자동으로 챙겨드려요.",cta:null,on:null},
+    {n:4,emoji:"📊",title:"고객 보고서로 계약 전환",desc:"대표님께 '받을 수 있는 지원금과 일정'을 한 장으로 보여주며 상담·계약 자료로 활용해요.",cta:"고객 보고서 예시 보기",on:props.onReport},
+  ];
+  return(
+    <div className="fade-in-up" style={{background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:18,padding:"20px 22px",marginBottom:18,boxShadow:"0 2px 10px rgba(37,99,235,0.06)"}}>
+      {/* 헤더 + 접기/숨기기 */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+        <div style={{minWidth:0,flex:1}}>
+          <div style={{fontSize:19,fontWeight:900,color:"#0F172A",letterSpacing:"-0.5px",lineHeight:1.3}}>👋 처음 오셨나요? 고용지원금 관리는 이렇게 시작하세요</div>
+        </div>
+        <div style={{display:"flex",gap:6,flexShrink:0}}>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px"})} onClick={function(){stOpen[1](!stOpen[0]);}}>{stOpen[0]?"접기 ▲":"펼치기 ▼"}</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"7px 13px",color:"#94A3B8"})} onClick={hideForever}>다시 안 보기</button>
+        </div>
+      </div>
+      {stOpen[0]&&(<div style={{marginTop:14}}>
+        {/* 이 도구가 무엇인지 (가장 중요한 메시지) */}
+        <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+          <div style={{fontSize:14.5,fontWeight:800,color:"#1E3A8A",lineHeight:1.6}}>고용지원금 Pro는 지원금을 대신 신청해주는 사이트가 아닙니다.</div>
+          <div style={{fontSize:13.5,color:"#1E40AF",marginTop:5,lineHeight:1.7}}>컨설턴트가 <strong>고객사별 지원금 가능성·신청 일정·서류 요청·수수료 정산·고객 보고서</strong>를 한 곳에서 관리하는 <strong>영업·운영 도구</strong>예요. 실제 신청·공고 확인은 고용24 등 공식 사이트에서 진행합니다.</div>
+        </div>
+        {/* 4단계 시작 가이드 */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+          {steps.map(function(s,i){
+            return(
+              <div key={s.n} className="prog-card" style={{"--ci":i,background:"#fff",border:"1px solid #E8EDF3",borderRadius:13,padding:"15px 16px",display:"flex",flexDirection:"column",gap:8,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9}}>
+                  <span style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#3B82F6,#2563EB)",color:"#fff",fontWeight:800,fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 1px 3px rgba(37,99,235,0.25)"}}>{s.n}</span>
+                  <span style={{fontSize:14.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{s.emoji} {s.title}</span>
+                </div>
+                <div style={{fontSize:12.5,color:"#475569",lineHeight:1.6,flex:1}}>{s.desc}</div>
+                {s.cta&&s.on&&<button className="prog-tap" onClick={s.on} style={{alignSelf:"flex-start",background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:8,padding:"7px 13px",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{s.cta} →</button>}
+              </div>
+            );
+          })}
+        </div>
+        {/* 계약에 어떻게 도움이 되는지 */}
+        <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:12,padding:"13px 16px",marginTop:16}}>
+          <div style={{fontSize:13.5,color:"#166534",lineHeight:1.7}}>💬 대표님에게 단순히 "지원금 받을 수 있습니다"라고 말하는 것보다, <strong>대상자·예상 수령액·신청 기한·필요 서류를 한 장의 보고서</strong>로 보여주면 상담 신뢰도가 올라갑니다. 이 앱은 <strong>지원금 지식을 고객사별 실행계획으로 바꿔주는 도구</strong>예요.</div>
+        </div>
+      </div>)}
     </div>
   );
 }
