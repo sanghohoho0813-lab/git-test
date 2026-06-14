@@ -18,6 +18,13 @@ var GROUP_COLORS = {
 function gc(group,key){ var g=GROUP_COLORS[group]||GROUP_COLORS["커스텀"]; return g[key]||g.base; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).substr(2,6); }
 function ruuid(){ return crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
+// ── 화면 안내 가이드 숨김(하루 동안) · localStorage 만료 시각 기반 ──
+var GUIDE_HIDE_PREFIX="hrSubsidyPro_guideHideUntil_";
+function guideHidden(key){try{var v=localStorage.getItem(GUIDE_HIDE_PREFIX+key);return !!(v&&Date.now()<Number(v));}catch(e){return false;}}
+function guideHideForDay(key){try{localStorage.setItem(GUIDE_HIDE_PREFIX+key,String(Date.now()+86400000));}catch(e){}}
+function guideReset(key){try{localStorage.removeItem(GUIDE_HIDE_PREFIX+key);}catch(e){}}
+// ── 전체 글자 크기(설정) 적용 ──
+function applyFontScale(v){try{document.documentElement.setAttribute("data-fontscale",v==="large"||v==="xlarge"?v:"normal");}catch(e){}}
 function fD(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate(); }
 function fDFull(ds){ if(!ds) return ""; var d=new Date(ds); return d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일"; }
 function fMan(n){ var v=Math.abs(n||0); return v>=10000?Math.round(n/10000).toLocaleString()+"만 원":((n||0).toLocaleString())+"원"; }
@@ -4909,10 +4916,10 @@ function BeginnerSubsidyGuide(){
 // ── 초보 컨설턴트용 시작 가이드 (접기/숨기기 · localStorage) ──
 // 첫 사용자가 "무엇부터, 왜 쓰는지"를 바로 이해하도록 돕는다.
 function StarterGuide(props){
-  var stHidden=useState(function(){try{return localStorage.getItem("hrSubsidyPro_starterGuideHidden")==="1";}catch(e){return false;}});
-  var stOpen=useState(false); // 기본 접힘 — 첫 화면은 컴팩트 CTA 카드만 노출
+  var stHidden=useState(function(){return guideHidden("dashboard");});
+  var stOpen=useState(true); // 기본 펼침 — 첫 화면에서 가장 먼저 보이게
   if(stHidden[0])return null;
-  function hideForever(){try{localStorage.setItem("hrSubsidyPro_starterGuideHidden","1");}catch(e){}stHidden[1](true);}
+  function hideForDay(){guideHideForDay("dashboard");stHidden[1](true);}
   var steps=[
     {n:1,emoji:"📊",title:"기존 엑셀 불러오기",desc:"기존에 관리하던 고객사·직원 엑셀을 올려 시작합니다.",cta:"기존 엑셀 불러오기",on:props.onExcel,tint:"#EFF6FF",bd:"#BFDBFE",c:"#1D4ED8"},
     {n:2,emoji:"🎯",title:"지원금 후보 확인",desc:"직원별로 검토 가능한 지원금을 한눈에 정리합니다.",cta:"지원금 관리 보기",on:props.onPrograms,tint:"#F0EAFB",bd:"#DBCEF3",c:"#7C3AED"},
@@ -4920,33 +4927,31 @@ function StarterGuide(props){
     {n:4,emoji:"📄",title:"고객 보고서로 상담",desc:"대표님에게 보여줄 상담 자료와 보고서를 만듭니다.",cta:"고객 보고서 보기",on:props.onReport,tint:"#E5F7ED",bd:"#B6E9CA",c:"#059669"},
   ];
 
-  // ── 접힘(기본): 작지만 클릭하고 싶은 CTA 카드 ──
+  // ── 접힘: 크고 클릭하고 싶은 CTA 카드 ──
   if(!stOpen[0]){
     return(
-      <div className="fade-in" style={{display:"flex",alignItems:"center",gap:14,background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:14,padding:"15px 18px",marginBottom:16,boxShadow:"0 1px 3px rgba(37,99,235,0.05)"}}>
-        <span style={{fontSize:26,flexShrink:0,lineHeight:1}}>👋</span>
+      <div className="fade-in" style={{display:"flex",alignItems:"center",gap:16,background:"linear-gradient(135deg,#F4F9FF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:16,padding:"20px 24px",marginBottom:22,boxShadow:"0 2px 10px rgba(37,99,235,0.06)"}}>
+        <span style={{fontSize:34,flexShrink:0,lineHeight:1}}>👋</span>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:15.5,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px",lineHeight:1.35,wordBreak:"keep-all"}}>처음 오셨나요? 고용지원금 관리는 이렇게 시작하세요</div>
-          <div style={{fontSize:12.5,color:"#64748B",marginTop:3,lineHeight:1.5,wordBreak:"keep-all"}}>기존 엑셀 불러오기부터 고객 보고서 활용까지 한 번에 안내해드립니다.</div>
+          <div style={{fontSize:19,fontWeight:800,color:"#0F172A",letterSpacing:"-0.4px",lineHeight:1.3,wordBreak:"keep-all"}}>처음 오셨나요? 고용지원금 관리는 이렇게 시작하세요</div>
+          <div style={{fontSize:14.5,color:"#64748B",marginTop:5,lineHeight:1.5,wordBreak:"keep-all"}}>기존 엑셀 불러오기부터 고객 보고서 활용까지 한 번에 안내해드립니다.</div>
         </div>
-        <button className="prog-tap" onClick={function(){stOpen[1](true);}} style={{flexShrink:0,background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"10px 18px",fontSize:13.5,fontWeight:700,cursor:"pointer",fontFamily:FF,boxShadow:"0 1px 3px rgba(37,99,235,0.25)",whiteSpace:"nowrap"}}>가이드 보기 →</button>
-        <button className="prog-tap" onClick={hideForever} title="이 안내를 다시 표시하지 않습니다" style={{flexShrink:0,background:"none",border:"none",color:"#94A3B8",fontSize:12,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",padding:"4px 2px"}}>다시 보지 않기</button>
+        <button className="prog-tap" onClick={function(){stOpen[1](true);}} style={{flexShrink:0,background:"#2563EB",color:"#fff",border:"none",borderRadius:11,padding:"13px 24px",fontSize:15.5,fontWeight:800,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.28)",whiteSpace:"nowrap"}}>가이드 보기 →</button>
       </div>
     );
   }
 
-  // ── 펼침: 그림형 사용 흐름 타임라인 ──
+  // ── 펼침: 그림형 사용 흐름 타임라인 (크게) ──
   return(
-    <div className="fade-in-up" style={{background:"linear-gradient(135deg,#F8FBFF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:18,padding:"24px 24px 22px",marginBottom:18,boxShadow:"0 2px 10px rgba(37,99,235,0.06)"}}>
+    <div className="fade-in-up" style={{background:"linear-gradient(135deg,#F4F9FF,#FFFFFF)",border:"1px solid #DCEAFE",borderRadius:20,padding:"30px 30px 26px",marginBottom:24,boxShadow:"0 4px 18px rgba(37,99,235,0.08)"}}>
       {/* 헤더 + 접기/숨기기 */}
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:18}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:22}}>
         <div style={{minWidth:0,flex:1}}>
-          <div style={{fontSize:28,fontWeight:900,color:"#0F172A",letterSpacing:"-0.7px",lineHeight:1.25}}>고용지원금 Pro 사용 흐름</div>
-          <div style={{fontSize:15,color:"#64748B",marginTop:7,lineHeight:1.6,wordBreak:"keep-all"}}>기존 엑셀을 불러오고, 지원금 후보를 확인한 뒤, 고객 보고서로 상담 자료를 만듭니다.</div>
+          <div style={{fontSize:32,fontWeight:900,color:"#0F172A",letterSpacing:"-0.9px",lineHeight:1.2}}>👋 고용지원금 Pro 사용 흐름</div>
+          <div style={{fontSize:16,color:"#64748B",marginTop:9,lineHeight:1.6,wordBreak:"keep-all"}}>기존 엑셀을 불러오고, 지원금 후보를 확인한 뒤, 고객 보고서로 상담 자료를 만듭니다.</div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 14px"})} onClick={function(){stOpen[1](false);}}>가이드 접기 ▲</button>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 14px",color:"#94A3B8"})} onClick={hideForever}>다시 보지 않기</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"9px 14px"})} onClick={function(){stOpen[1](false);}}>가이드 접기 ▲</button>
         </div>
       </div>
       {/* 4단계 흐름 — PC 가로 / 모바일 세로 타임라인 (단계 사이 화살표) */}
@@ -4972,13 +4977,16 @@ function StarterGuide(props){
       <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:12,padding:"15px 18px",marginTop:18}}>
         <div style={{fontSize:15,color:"#1E40AF",lineHeight:1.65,wordBreak:"keep-all"}}>💡 이 도구는 <strong>지원금 신청 사이트가 아니라</strong>, 컨설턴트가 <strong>고객사별 지원금 업무를 관리하고 상담 자료로 연결</strong>하는 운영 도구입니다.</div>
       </div>
-      {/* 안내 영상 자리 (추후 URL 연결) */}
-      <div style={{display:"flex",alignItems:"center",gap:10,background:"#F8FAFC",border:"1px dashed #D7DEE8",borderRadius:11,padding:"11px 14px",marginTop:10}}>
-        <span style={{fontSize:18,flexShrink:0}}>🎬</span>
-        <div style={{minWidth:0}}>
-          <div style={{fontSize:13.5,fontWeight:700,color:"#475569"}}>3분 사용법 영상 준비 중</div>
-          <div style={{fontSize:12,color:"#94A3B8",marginTop:1}}>영상이 추가되면 이곳에서 바로 확인할 수 있습니다.</div>
+      {/* 안내 영상 자리 + 하루 동안 다시 보지 않기 */}
+      <div style={{display:"flex",alignItems:"center",gap:12,marginTop:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:11,background:"#F8FAFC",border:"1px dashed #D7DEE8",borderRadius:13,padding:"13px 16px",flex:1,minWidth:240}}>
+          <span style={{fontSize:20,flexShrink:0}}>🎬</span>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:14.5,fontWeight:700,color:"#475569"}}>3분 사용법 영상 준비 중</div>
+            <div style={{fontSize:12.5,color:"#94A3B8",marginTop:1}}>영상이 추가되면 이곳에서 바로 확인할 수 있습니다.</div>
+          </div>
         </div>
+        <button className="prog-tap" onClick={hideForDay} style={{background:"none",border:"none",color:"#94A3B8",fontSize:13.5,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",padding:"6px 4px"}}>하루 동안 다시 보지 않기</button>
       </div>
     </div>
   );
@@ -4992,7 +5000,63 @@ var SIDEBAR_NAV = [
   {key:"simulator", icon:"📈", label:"수령액 시뮬레이터",   hint:"예상 수령액·수수료 계산"},
   {key:"diagnosis", icon:"🎯", label:"채용 진단",         hint:"검토 가능한 지원금 빠르게 확인"},
   {key:"programs",  icon:"⚙️", label:"지원금 관리",        hint:"지원금 종류와 공식 사이트 관리"},
+  {key:"settings",  icon:"🛠️", label:"설정",             hint:"글자 크기·화면 안내 다시 보기"},
 ];
+
+// ── 설정 화면 (글자 크기 · 화면 안내 다시 보기) ──
+function SettingsScreen(){
+  var stScale=useState(function(){try{return localStorage.getItem("hrSubsidyPro_fontScale")||"normal";}catch(e){return "normal";}});
+  function setScale(v){try{localStorage.setItem("hrSubsidyPro_fontScale",v);}catch(e){}applyFontScale(v);stScale[1](v);toast("글자 크기를 변경했습니다.","success");}
+  var scaleOpts=[{v:"normal",label:"기본",sample:"가"},{v:"large",label:"조금 크게",sample:"가"},{v:"xlarge",label:"크게",sample:"가"}];
+  var guideItems=[["dashboard","대시보드"],["company","업체 관리"],["kanban","진행 보드"],["wage","급여 계산기"],["simulator","수령액 시뮬레이터"],["diagnosis","채용 진단"],["programs","지원금 관리"]];
+  function resetOne(key,label){guideReset(key);toast(label+" 화면 안내를 다시 켰습니다. 해당 화면에서 확인하세요.","success");}
+  function resetAll(){guideItems.forEach(function(g){guideReset(g[0]);});toast("모든 화면 안내를 다시 켰습니다.","success");}
+  var card={background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"22px 24px",marginBottom:18,boxShadow:"0 1px 3px rgba(15,23,42,0.04)"};
+  return(
+    <div className="fade-in">
+      <div style={{marginBottom:18}}>
+        <h2 style={{margin:"0 0 4px",fontSize:FS_PAGE_TITLE,fontWeight:800,letterSpacing:"-0.5px"}}>🛠️ 설정</h2>
+        <p style={{margin:0,fontSize:FS_BODY,color:"#64748B"}}>글자 크기와 화면 안내를 내게 맞게 바꿀 수 있어요.</p>
+      </div>
+
+      {/* 전체 글자 크기 */}
+      <div style={card}>
+        <div style={{fontSize:18,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>전체 글자 크기</div>
+        <div style={{fontSize:14,color:"#64748B",margin:"6px 0 16px",lineHeight:1.5}}>화면 전체의 글자 크기를 조절합니다. 눈이 편한 크기를 선택하세요.</div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {scaleOpts.map(function(o){var on=stScale[0]===o.v;return(
+            <button key={o.v} className="prog-tap" onClick={function(){setScale(o.v);}}
+              style={{flex:"1 1 120px",minWidth:120,display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"16px 12px",borderRadius:13,cursor:"pointer",fontFamily:FF,
+                background:on?"#EFF6FF":"#fff",border:on?"2px solid #2563EB":"1px solid #E2E8F0"}}>
+              <span style={{fontSize:o.v==="normal"?20:o.v==="large"?25:30,fontWeight:800,color:on?"#1D4ED8":"#475569",lineHeight:1}}>{o.sample}</span>
+              <span style={{fontSize:14.5,fontWeight:700,color:on?"#1D4ED8":"#475569"}}>{o.label}</span>
+              {on&&<span style={{fontSize:12,fontWeight:700,color:"#2563EB"}}>✓ 사용 중</span>}
+            </button>
+          );})}
+        </div>
+      </div>
+
+      {/* 화면 안내 다시 보기 */}
+      <div style={card}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:18,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>화면 안내 다시 보기</div>
+            <div style={{fontSize:14,color:"#64748B",marginTop:6,lineHeight:1.5}}>처음 보는 화면 설명을 다시 켤 수 있어요. (각 화면 상단 안내 카드)</div>
+          </div>
+          <button className="prog-tap" onClick={resetAll} style={{flexShrink:0,background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"}}>모든 화면 안내 다시 켜기</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginTop:16}}>
+          {guideItems.map(function(g){return(
+            <div key={g[0]} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"13px 15px",borderRadius:12,background:"#F8FAFC",border:"1px solid #EEF1F5"}}>
+              <span style={{fontSize:15,fontWeight:700,color:"#334155"}}>{g[1]}</span>
+              <button className="prog-tap" onClick={function(){resetOne(g[0],g[1]);}} style={{flexShrink:0,background:"#fff",color:"#2563EB",border:"1px solid #BFDBFE",borderRadius:9,padding:"8px 14px",fontSize:13.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>다시 보기</button>
+            </div>
+          );})}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── 메뉴별 화면 안내 (프롤로그) — 처음 쓰는 컨설턴트용 ──
 var SCREEN_GUIDES = {
@@ -5026,14 +5090,13 @@ var SCREEN_GUIDES = {
     ctas:[{label:"고용24 열기",act:"gov24",primary:true},{label:"대시보드",act:"dashboard"}]},
 };
 
-// 재사용 화면 안내 카드 (접기/펼치기 + localStorage 다시 보지 않기 + 영상 자리)
+// 재사용 화면 안내 카드 (접기/펼치기 + 하루 동안 숨김 + 영상 자리)
 function ScreenGuide(props){
   var key=props.viewKey; var g=SCREEN_GUIDES[key];
-  var lsKey="hrSubsidyPro_hideGuide_"+key;
-  var stHidden=useState(function(){try{return localStorage.getItem(lsKey)==="1";}catch(e){return false;}});
+  var stHidden=useState(function(){return guideHidden(key);});
   var stOpen=useState(true);
   if(!g||stHidden[0])return null;
-  function hideForever(){try{localStorage.setItem(lsKey,"1");}catch(e){}stHidden[1](true);}
+  function hideForDay(){guideHideForDay(key);stHidden[1](true);}
   function runCta(act){
     if(act==="gov24"){try{window.open("https://www.work24.go.kr","_blank","noopener,noreferrer");}catch(e){}return;}
     if(act==="addCompany"){props.onAddCompany&&props.onAddCompany();return;}
@@ -5052,59 +5115,57 @@ function ScreenGuide(props){
       </div>
     );
   }
-  // 펼침: 안내 카드
+  // 펼침: 안내 카드 (크게)
   return(
-    <div className="fade-in-up" style={{background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"20px 22px",marginBottom:18,boxShadow:"0 1px 3px rgba(15,23,42,0.04)"}}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
-        <div style={{display:"flex",alignItems:"center",gap:11,minWidth:0}}>
-          <span style={{fontSize:30,lineHeight:1,flexShrink:0}}>{g.icon}</span>
+    <div className="fade-in-up" style={{background:"#fff",border:"1px solid #E0EBFB",borderRadius:20,padding:"28px 30px",marginBottom:22,boxShadow:"0 4px 18px rgba(37,99,235,0.07)"}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:14,minWidth:0}}>
+          <span style={{fontSize:42,lineHeight:1,flexShrink:0}}>{g.icon}</span>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:21,fontWeight:900,color:"#0F172A",letterSpacing:"-0.5px"}}>{g.title}</div>
-            <div style={{fontSize:14.5,color:"#64748B",marginTop:4,lineHeight:1.55,wordBreak:"keep-all"}}>{g.desc}</div>
+            <div style={{fontSize:27,fontWeight:900,color:"#0F172A",letterSpacing:"-0.6px",lineHeight:1.2}}>{g.title}</div>
+            <div style={{fontSize:16,color:"#64748B",marginTop:6,lineHeight:1.55,wordBreak:"keep-all"}}>{g.desc}</div>
           </div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 13px"})} onClick={function(){stOpen[1](false);}}>안내 접기 ▴</button>
-          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"8px 13px",color:"#94A3B8"})} onClick={hideForever}>다시 보지 않기</button>
+          <button className="prog-tap" style={Object.assign({},btnSm,{padding:"9px 14px"})} onClick={function(){stOpen[1](false);}}>안내 접기 ▴</button>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12,marginTop:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:14,marginTop:22}}>
         {/* 이 화면에서 할 수 있는 것 */}
-        <div style={{background:"#F8FBFF",border:"1px solid #E0EBFB",borderRadius:13,padding:"14px 16px"}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#1D4ED8",marginBottom:9}}>✅ 이 화면에서 할 수 있는 것</div>
+        <div style={{background:"#F5F9FF",border:"1px solid #DCEAFE",borderRadius:15,padding:"18px 20px"}}>
+          <div style={{fontSize:15,fontWeight:800,color:"#1D4ED8",marginBottom:12}}>✅ 이 화면에서 할 수 있는 것</div>
           {g.can.map(function(c,i){return(
-            <div key={i} style={{display:"flex",gap:7,alignItems:"flex-start",marginBottom:i<g.can.length-1?6:0}}>
-              <span style={{color:"#2563EB",fontWeight:800,flexShrink:0}}>·</span>
-              <span style={{fontSize:14,color:"#334155",lineHeight:1.5,wordBreak:"keep-all"}}>{c}</span>
+            <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:i<g.can.length-1?9:0}}>
+              <span style={{color:"#2563EB",fontWeight:800,flexShrink:0,fontSize:16}}>·</span>
+              <span style={{fontSize:15.5,color:"#334155",lineHeight:1.5,wordBreak:"keep-all"}}>{c}</span>
             </div>
           );})}
         </div>
         {/* 얻는 결과 + 영상 자리 */}
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:13,padding:"14px 16px",flex:1}}>
-            <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:7}}>🎯 이 화면을 쓰면</div>
-            <div style={{fontSize:14.5,color:"#15803D",lineHeight:1.55,fontWeight:600,wordBreak:"keep-all"}}>{g.result}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:15,padding:"18px 20px",flex:1}}>
+            <div style={{fontSize:15,fontWeight:800,color:"#166534",marginBottom:9}}>🎯 이 화면을 쓰면</div>
+            <div style={{fontSize:16,color:"#15803D",lineHeight:1.55,fontWeight:600,wordBreak:"keep-all"}}>{g.result}</div>
           </div>
           {/* 안내 영상 자리 (추후 URL 연결) */}
-          <div style={{display:"flex",alignItems:"center",gap:10,background:"#F8FAFC",border:"1px dashed #D7DEE8",borderRadius:11,padding:"11px 14px"}}>
-            <span style={{fontSize:18,flexShrink:0}}>🎬</span>
+          <div style={{display:"flex",alignItems:"center",gap:11,background:"#F8FAFC",border:"1px dashed #D7DEE8",borderRadius:13,padding:"13px 16px"}}>
+            <span style={{fontSize:20,flexShrink:0}}>🎬</span>
             <div style={{minWidth:0}}>
-              <div style={{fontSize:13.5,fontWeight:700,color:"#475569"}}>3분 사용법 영상 준비 중</div>
-              <div style={{fontSize:12,color:"#94A3B8",marginTop:1}}>영상이 추가되면 이곳에서 바로 확인할 수 있습니다.</div>
+              <div style={{fontSize:14.5,fontWeight:700,color:"#475569"}}>3분 사용법 영상 준비 중</div>
+              <div style={{fontSize:12.5,color:"#94A3B8",marginTop:1}}>영상이 추가되면 이곳에서 바로 확인할 수 있습니다.</div>
             </div>
           </div>
         </div>
       </div>
-      {/* CTA */}
-      {g.ctas&&g.ctas.length>0&&(
-        <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
-          {g.ctas.map(function(c,i){return(
-            <button key={i} className="prog-tap" onClick={function(){runCta(c.act);}}
-              style={c.primary?{background:"#2563EB",color:"#fff",border:"none",borderRadius:10,padding:"11px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"}
-                              :{background:"#fff",color:"#475569",border:"1px solid #E2E8F0",borderRadius:10,padding:"11px 18px",fontSize:14.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{c.label} →</button>
-          );})}
-        </div>
-      )}
+      {/* CTA + 하루 동안 다시 보지 않기 */}
+      <div style={{display:"flex",gap:9,marginTop:18,flexWrap:"wrap",alignItems:"center"}}>
+        {(g.ctas||[]).map(function(c,i){return(
+          <button key={i} className="prog-tap" onClick={function(){runCta(c.act);}}
+            style={c.primary?{background:"#2563EB",color:"#fff",border:"none",borderRadius:11,padding:"13px 24px",fontSize:15.5,fontWeight:800,cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(37,99,235,0.25)"}
+                            :{background:"#fff",color:"#475569",border:"1px solid #E2E8F0",borderRadius:11,padding:"13px 22px",fontSize:15.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{c.label} →</button>
+        );})}
+        <button className="prog-tap" onClick={hideForDay} style={{marginLeft:"auto",background:"none",border:"none",color:"#94A3B8",fontSize:13.5,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap",padding:"6px 4px"}}>하루 동안 다시 보지 않기</button>
+      </div>
     </div>
   );
 }
@@ -5757,6 +5818,8 @@ export default function SubsidyApp(props){
     if(navPopRef.current){ navPopRef.current=false; return; }          // 뒤로가기로 인한 변경은 skip
     try{ window.history.pushState({hrnav:true,view:stView[0],company:stCompany[0]},""); }catch(e){}
   },[stView[0],stCompany[0]]);
+  // 저장된 전체 글자 크기 설정 적용 (새로고침 후에도 유지)
+  useEffect(function(){ try{applyFontScale(localStorage.getItem("hrSubsidyPro_fontScale"));}catch(e){} },[]);
   var stFocusEmp=useState(null); // 진행보드 등에서 '처리하기'로 넘어온 직원 id
   var stAddComp=useState(false);
   var stProfileOpen=useState(false);
@@ -6026,19 +6089,10 @@ export default function SubsidyApp(props){
           })()}
         </div>
 
-        {/* 하단: 보조/관리자 버튼 → 다른 SaaS 바로가기 → 내 계정 순서로 정리 */}
+        {/* 하단: 다른 SaaS 바로가기 → 보조/관리자 버튼 → 내 계정 순서로 정리 */}
         <div style={SB.bottom} className="sb-bottom">
-          {/* 1) 보조 · 관리자 버튼 */}
-          {!isAdmin&&!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:9,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
-            <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
-            <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
-          </button>)}
-          {!isAdmin&&(<button className="sb-tourbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>)}
-          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
-          {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
-
-          {/* 2) 다른 SaaS 바로가기 — 사용자 정보보다 위에 별도 그룹 */}
-          <div className="sb-osnav" style={{paddingTop:12,marginTop:4,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+          {/* 1) 다른 SaaS 바로가기 — 베타 피드백보다 위에 별도 그룹 */}
+          <div className="sb-osnav" style={{marginBottom:4}}>
             <div style={{fontSize:11.5,fontWeight:700,color:"#94A3B8",letterSpacing:"0.3px",marginBottom:9,paddingLeft:2}}>다른 SaaS 바로가기</div>
             <a href="https://labcare-rnd-os.vercel.app" target="_blank" rel="noopener noreferrer" className="sb-osbtn prog-tap"
                style={{display:"flex",alignItems:"center",gap:9,width:"100%",boxSizing:"border-box",marginBottom:8,padding:"12px 14px",borderRadius:10,border:"1px solid rgba(96,165,250,0.32)",background:"rgba(59,130,246,0.12)",color:"#DBEAFE",cursor:"pointer",fontFamily:FF,textDecoration:"none",fontSize:15,fontWeight:700}}>
@@ -6050,7 +6104,18 @@ export default function SubsidyApp(props){
             </a>
           </div>
 
-          {/* 3) 내 계정 — 가장 아래 차분히 (프로필 → 구독상태 → 설정/구독/로그아웃) */}
+          {/* 2) 보조 · 관리자 버튼 */}
+          <div style={{paddingTop:12,marginTop:12,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+            {!isAdmin&&!stFbHidden[0]&&(<button className={"sb-feedback"+(stFbGlow[0]?" fb-glow":"")} style={{width:"100%",marginBottom:8,padding:"10px",borderRadius:9,border:"1px solid rgba(96,165,250,0.35)",background:"rgba(59,130,246,0.12)",color:"#BFDBFE",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){openFeedback();stMobileNav[1](false);}}>
+              <div style={{fontSize:14,fontWeight:700}}>💬 피드백 남기기</div>
+              <div style={{fontSize:11,color:"#93A8C9",fontWeight:400,marginTop:2,lineHeight:1.4}}>더 좋은 프로그램으로 만들기 위해 의견을 들려주세요.</div>
+            </button>)}
+            {!isAdmin&&(<button className="sb-tourbtn" style={{width:"100%",padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#86EFAC",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={startTour}>📖 사용법 안내 (투어)</button>)}
+            {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",marginBottom:8,padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid "+(stView[0]==="adminFeedback"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminFeedback"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminFeedback");stCompany[1](null);stMobileNav[1](false);}}>📋 베타 피드백 (관리자)</button>)}
+            {isAdmin&&(<button className="sb-adminbtn" style={{width:"100%",padding:"10px",fontSize:14,fontWeight:600,borderRadius:9,border:"1px solid "+(stView[0]==="adminActivity"?"rgba(251,191,36,0.5)":"rgba(255,255,255,0.12)"),background:stView[0]==="adminActivity"?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.06)",color:"#FCD34D",cursor:"pointer",fontFamily:FF,textAlign:"center"}} onClick={function(){stView[1]("adminActivity");stCompany[1](null);stMobileNav[1](false);}}>📊 사용자 활동 (관리자)</button>)}
+          </div>
+
+          {/* 3) 내 계정 — 가장 아래 차분히 (프로필 → 구독상태 → 구독/로그아웃) */}
           <div style={{paddingTop:14,marginTop:14,borderTop:"1px solid rgba(255,255,255,0.10)"}}>
             <div style={SB.user} className="sb-user" onClick={function(){stProfileOpen[1](true);}} title="프로필 설정">
               <div style={SB.avatar} className="sb-avatar">{(profile.display_name||"?").charAt(0)}</div>
@@ -6067,7 +6132,6 @@ export default function SubsidyApp(props){
               </div>
             )}
             <div style={SB.actions} className="sb-actions">
-              <button style={SB.actionBtn()} className="sb-actionbtn" onClick={function(){stProfileOpen[1](true);}}>설정</button>
               <button style={SB.actionBtn("#93C5FD")} className="sb-actionbtn" onClick={props.onOpenBilling||function(){}} title="구독 관리">구독</button>
               <button style={SB.actionBtn("#FCA5A5")} className="sb-actionbtn" onClick={onSignOut}>로그아웃</button>
             </div>
@@ -6235,6 +6299,10 @@ export default function SubsidyApp(props){
 
           {stView[0]==="programs"&&(
             <ProgramsList programs={programs} onUpdate={onSavePrograms}/>
+          )}
+
+          {stView[0]==="settings"&&(
+            <SettingsScreen/>
           )}
 
           {stView[0]==="adminFeedback"&&(

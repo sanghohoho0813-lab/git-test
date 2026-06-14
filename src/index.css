@@ -3,36 +3,41 @@
 :root {
   --ff: 'Pretendard', 'Pretendard Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
 
-  /* ── 반응형 폰트 스케일 (모바일 기준값 = 현재 렌더 크기 유지) ── */
-  --fs-meta: 12px;    /* 리스트 메타: 업체명·날짜·기한·보조설명 */
-  --fs-sub: 13px;     /* 카드 보조 설명 */
-  --fs-name: 14px;    /* 직원명·업체명·지원금명 (리스트 내) */
-  --fs-row: 14px;     /* 리스트 행 본문·금액 */
-  --fs-badge: 12px;   /* 배지·칩 */
-  --fs-btn: 13px;     /* 보조 버튼 */
-  --fs-tab: 15px;     /* 탭 메뉴 */
-  --fs-label: 13px;   /* 카드 내부 라벨 */
-  --fs-dday: 12px;    /* D-day·상태값 */
-  --fs-body: 14px;    /* 본문 */
-  --fs-list: 14px;    /* 표·리스트 */
-  --fs-mini: 10px;    /* 아주 작은 칩 보조 */
+  /* ── 반응형 폰트 스케일 (모바일 기준값) · --fsm = 전체 글자 크기 배율(설정) ── */
+  --fsm: 1;
+  --fs-meta: calc(12px * var(--fsm));    /* 리스트 메타: 업체명·날짜·기한·보조설명 */
+  --fs-sub: calc(13px * var(--fsm));     /* 카드 보조 설명 */
+  --fs-name: calc(14px * var(--fsm));    /* 직원명·업체명·지원금명 (리스트 내) */
+  --fs-row: calc(14px * var(--fsm));     /* 리스트 행 본문·금액 */
+  --fs-badge: calc(12px * var(--fsm));   /* 배지·칩 */
+  --fs-btn: calc(13px * var(--fsm));     /* 보조 버튼 */
+  --fs-tab: calc(15px * var(--fsm));     /* 탭 메뉴 */
+  --fs-label: calc(13px * var(--fsm));   /* 카드 내부 라벨 */
+  --fs-dday: calc(12px * var(--fsm));    /* D-day·상태값 */
+  --fs-body: calc(14px * var(--fsm));    /* 본문 */
+  --fs-list: calc(14px * var(--fsm));    /* 표·리스트 */
+  --fs-mini: calc(10px * var(--fsm));    /* 아주 작은 칩 보조 */
 }
+
+/* 전체 글자 크기 설정 (설정 화면) — 기본 / 조금 크게 / 크게 */
+html[data-fontscale="large"] { --fsm: 1.1; }
+html[data-fontscale="xlarge"] { --fsm: 1.22; }
 
 /* ── PC 전용 타이포 상향 (모바일 ≤860px 은 위 기준값 유지) ── */
 @media (min-width: 861px) {
   :root {
-    --fs-meta: 15px;
-    --fs-sub: 15.5px;
-    --fs-name: 18px;
-    --fs-row: 16.5px;
-    --fs-badge: 14.5px;
-    --fs-btn: 16px;
-    --fs-tab: 17.5px;
-    --fs-label: 15px;
-    --fs-dday: 15px;
-    --fs-body: 16.5px;
-    --fs-list: 17.5px;
-    --fs-mini: 12.5px;
+    --fs-meta: calc(15px * var(--fsm));
+    --fs-sub: calc(15.5px * var(--fsm));
+    --fs-name: calc(18px * var(--fsm));
+    --fs-row: calc(16.5px * var(--fsm));
+    --fs-badge: calc(14.5px * var(--fsm));
+    --fs-btn: calc(16px * var(--fsm));
+    --fs-tab: calc(17.5px * var(--fsm));
+    --fs-label: calc(15px * var(--fsm));
+    --fs-dday: calc(15px * var(--fsm));
+    --fs-body: calc(16.5px * var(--fsm));
+    --fs-list: calc(17.5px * var(--fsm));
+    --fs-mini: calc(12.5px * var(--fsm));
   }
 }
 
