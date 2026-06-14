@@ -2449,7 +2449,7 @@ function Dashboard(props){
     {/* 무료체험 요약 — 중간/모바일 화면용 한 줄 배지 (PC에서는 우측 패널로 표시) */}
     {showTrialPanel&&trialInfo&&(
       <div className="trial-inline" style={{display:"none",alignItems:"center",gap:8,flexWrap:"wrap",padding:"9px 12px",marginBottom:12,background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10}}>
-        <span style={{fontSize:12,fontWeight:800,color:"#0F766E",background:"#CCFBF1",borderRadius:999,padding:"2px 9px",whiteSpace:"nowrap"}}>⏳ 무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일 남음":""}</span>
+        <span style={{fontSize:12,fontWeight:800,color:"#0F766E",background:"#CCFBF1",borderRadius:999,padding:"2px 9px",whiteSpace:"nowrap"}}>🗓️ {accessPeriodLabel({role:props.accessRole,expires_at:props.accessExpiresAt},props.isAdmin).text}</span>
         <span style={{fontSize:12.5,color:"#115E59",fontWeight:600}}>업체 {trialInfo.comp} · 대상자 {trialInfo.emp} · 예상 {fMan(trialInfo.expect)} · 일정 {trialInfo.sched}건</span>
         <button onClick={props.onOpenBilling||function(){}} style={{marginLeft:"auto",background:"#0F766E",color:"#fff",border:"none",borderRadius:7,padding:"5px 11px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:FF,whiteSpace:"nowrap"}}>요금제</button>
         <button onClick={dismissTrialPanel} title="닫기" style={{background:"none",border:"none",color:"#14B8A6",fontSize:16,cursor:"pointer",padding:"0 2px",lineHeight:1}}>×</button>
@@ -2683,7 +2683,7 @@ function Dashboard(props){
       <aside ref={trialAsideRef} className="trial-aside" style={{width:230,flexShrink:0,position:"sticky",top:92}}>
         <div style={{background:"#fff",border:"1px solid #99F6E4",borderRadius:14,overflow:"hidden",boxShadow:"0 2px 10px rgba(13,148,136,0.08)"}}>
           <div style={{display:"flex",alignItems:"center",gap:6,padding:"11px 13px",background:"#F0FDFA",borderBottom:"1px solid #CCFBF1"}}>
-            <span style={{fontSize:13,fontWeight:800,color:"#0F766E",whiteSpace:"nowrap"}}>⏳ 무료체험{props.trialDaysLeft!=null?" "+props.trialDaysLeft+"일 남음":" 이용 중"}</span>
+            <span style={{fontSize:12.5,fontWeight:800,color:"#0F766E",lineHeight:1.35}}>🗓️ {accessPeriodLabel({role:props.accessRole,expires_at:props.accessExpiresAt},props.isAdmin).text}</span>
             <button onClick={dismissTrialPanel} title="닫기" style={{marginLeft:"auto",background:"none",border:"none",color:"#14B8A6",fontSize:17,cursor:"pointer",padding:0,lineHeight:1}}>×</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:1,background:"#F1F5F9"}}>
@@ -6133,12 +6133,17 @@ export default function SubsidyApp(props){
               <span style={{fontSize:16}}>🛡️</span>
               <span style={{fontSize:17,color:"#FCD34D",fontWeight:700}}>관리자 계정</span>
             </div>
-          ):(trialDays!==null&&trialDays!==undefined&&(
-            <div className="sb-trial" style={{marginTop:10,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.3)"}}>
-              <span style={{fontSize:16}}>⏳</span>
-              <span style={{fontSize:17,color:"#93C5FD",fontWeight:600}}>무료체험 {trialDays}일 남음</span>
-            </div>
-          ))}
+          ):(function(){
+            // 이용 가능 기간 단일 기준 = user_product_access.expires_at
+            var ap=accessPeriodLabel({role:props.accessRole,expires_at:props.accessExpiresAt},isAdmin);
+            var col=ap.tone==="expired"?"#FCA5A5":ap.tone==="soon"?"#FCD34D":ap.tone==="warn"?"#FCD34D":"#93C5FD";
+            var bg=ap.tone==="expired"?"rgba(220,38,38,0.18)":ap.tone==="warn"?"rgba(251,191,36,0.15)":"rgba(59,130,246,0.15)";
+            var bd=ap.tone==="expired"?"rgba(220,38,38,0.35)":ap.tone==="warn"?"rgba(251,191,36,0.3)":"rgba(59,130,246,0.3)";
+            return(<div className="sb-trial" style={{marginTop:10,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,background:bg,border:"1px solid "+bd}}>
+              <span style={{fontSize:15}}>🗓️</span>
+              <span style={{fontSize:14.5,color:col,fontWeight:600,lineHeight:1.35}}>{ap.text}</span>
+            </div>);
+          })()}
         </div>
 
         {/* 네비 */}
@@ -6227,7 +6232,7 @@ export default function SubsidyApp(props){
             {/* 이용 가능 기간 (항상 표시) */}
             {(function(){
               var ap=accessPeriodLabel({role:props.accessRole,expires_at:props.accessExpiresAt},isAdmin);
-              var col=ap.tone==="expired"?"#FCA5A5":ap.tone==="soon"?"#FCD34D":ap.tone==="admin"?"#FCD34D":"#93C5FD";
+              var col=ap.tone==="expired"?"#FCA5A5":(ap.tone==="soon"||ap.tone==="warn"||ap.tone==="admin")?"#FCD34D":"#93C5FD";
               return(<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,padding:"7px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
                 <span style={{fontSize:13,flexShrink:0}}>🗓️</span>
                 <span style={{fontSize:12.5,color:col,fontWeight:600,lineHeight:1.4}}>{ap.text}</span>
@@ -6344,6 +6349,7 @@ export default function SubsidyApp(props){
               onAddCompany={function(){if(!requirePlan())return;stAddComp[1](true);}}
               setView={function(v){stView[1](v);stCompany[1](null);}}
               tier={tier} isTrial={isAdmin?false:isTrial} trialDaysLeft={isAdmin?null:trialDays} onOpenBilling={props.onOpenBilling}
+              isAdmin={isAdmin} accessExpiresAt={props.accessExpiresAt} accessRole={props.accessRole}
               mode="stats"
             />
           )}

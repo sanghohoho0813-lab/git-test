@@ -28,6 +28,7 @@ export default function AdminAccessPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [dateEdits, setDateEdits] = useState({}); // { userId: 'YYYY-MM-DD' }
 
   // 초대코드 생성 폼
   const [label, setLabel] = useState("");
@@ -56,11 +57,37 @@ export default function AdminAccessPage() {
 
   useEffect(() => { if (isAdmin) load(); else setLoading(false); }, [isAdmin, load]);
 
-  async function setStatus(userId, status, role) {
-    setBusyId(userId);
+  // 상태 변경 시 기존 만료일/역할은 그대로 보존한다 (null 로 덮어쓰지 않음)
+  async function setStatus(u, status) {
+    setBusyId(u.user_id);
     try {
       const { error } = await supabase.rpc("admin_set_product_access", {
-        p_user_id: userId, p_product_key: PRODUCT_KEY, p_role: role || "user", p_status: status, p_expires_at: null,
+        p_user_id: u.user_id, p_product_key: PRODUCT_KEY,
+        p_role: u.role === "admin" ? "admin" : "user",
+        p_status: status, p_expires_at: u.expires_at || null,
+      });
+      if (error) throw error;
+      await load();
+    } catch (e) { alert(e.message || "변경 실패"); }
+    setBusyId("");
+  }
+
+  // 만료일 변경: kind 'date'(YYYY-MM-DD) | 'none'(제한없음) | 'now'(즉시 만료)
+  async function setExpiry(u, kind, ymd) {
+    let exp = null;
+    if (kind === "date") {
+      if (!ymd) { alert("날짜를 선택하세요."); return; }
+      exp = new Date(ymd + "T23:59:59").toISOString();
+    } else if (kind === "now") {
+      exp = new Date(Date.now() - 1000).toISOString();
+    } // 'none' → null
+    setBusyId(u.user_id);
+    try {
+      const { error } = await supabase.rpc("admin_set_product_access", {
+        p_user_id: u.user_id, p_product_key: PRODUCT_KEY,
+        p_role: u.role === "admin" ? "admin" : "user",
+        p_status: u.status === "blocked" ? "blocked" : "approved",
+        p_expires_at: exp,
       });
       if (error) throw error;
       await load();
@@ -225,7 +252,7 @@ export default function AdminAccessPage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead><tr style={{ background: "#F8FAFC" }}>
-                  {["이메일", "이름", "역할", "상태", "만료", "가입일", "권한 변경"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 12px", fontSize: 12.5, fontWeight: 700, color: "#64748B", borderBottom: "2px solid #E2E8F0", whiteSpace: "nowrap" }}>{h}</th>)}
+                  {["이메일", "이름", "역할", "상태", "만료", "만료일 관리", "권한 변경"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 12px", fontSize: 12.5, fontWeight: 700, color: "#64748B", borderBottom: "2px solid #E2E8F0", whiteSpace: "nowrap" }}>{h}</th>)}
                 </tr></thead>
                 <tbody>
                   {users.map((u) => {
@@ -240,12 +267,21 @@ export default function AdminAccessPage() {
                           <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: sm.bg, color: sm.color }}>{sm.label}</span>
                         </td>
                         <td style={{ padding: "10px 12px", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>{(function(){ var e = expiryLabel(u.expires_at); var c = e.tone === "expired" ? "#DC2626" : e.tone === "soon" ? "#B45309" : e.tone === "none" ? "#94A3B8" : "#475569"; var w = (e.tone === "expired" || e.tone === "soon") ? 800 : 500; return <span style={{ color: c, fontWeight: w }}>{e.text}</span>; })()}</td>
-                        <td style={{ padding: "10px 12px", color: "#94A3B8", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>{fmtDate(u.user_created_at)}</td>
+                        <td style={{ padding: "10px 12px", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                            <input type="date" disabled={busy} value={dateEdits[u.user_id] || (u.expires_at ? new Date(u.expires_at).toISOString().slice(0, 10) : "")}
+                              onChange={(e) => setDateEdits({ ...dateEdits, [u.user_id]: e.target.value })}
+                              style={{ ...inp, padding: "6px 8px", fontSize: 13 }} />
+                            <button disabled={busy} style={btn("#EFF6FF", "#1D4ED8", "1px solid #BFDBFE")} onClick={() => setExpiry(u, "date", dateEdits[u.user_id])}>저장</button>
+                            <button disabled={busy} style={btn("#F8FAFC", "#475569", "1px solid #E2E8F0")} onClick={() => setExpiry(u, "none")}>제한없음</button>
+                            <button disabled={busy} style={btn("#FEF2F2", "#DC2626", "1px solid #FECACA")} onClick={() => { if (window.confirm("이 사용자를 즉시 만료 처리할까요?")) setExpiry(u, "now"); }}>즉시 만료</button>
+                          </div>
+                        </td>
                         <td style={{ padding: "10px 12px", borderBottom: "1px solid #F1F5F9" }}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            <button disabled={busy || u.status === "approved"} style={btn(u.status === "approved" ? "#F1F5F9" : "#ECFDF5", u.status === "approved" ? "#94A3B8" : "#059669", "1px solid #A7F3D0")} onClick={() => setStatus(u.user_id, "approved", u.role === "admin" ? "admin" : "user")}>승인</button>
-                            <button disabled={busy || u.status === "pending"} style={btn("#FEF3C7", "#B45309", "1px solid #FDE68A")} onClick={() => setStatus(u.user_id, "pending", "user")}>대기</button>
-                            <button disabled={busy || u.status === "blocked"} style={btn("#FEF2F2", "#DC2626", "1px solid #FECACA")} onClick={() => setStatus(u.user_id, "blocked", u.role === "admin" ? "admin" : "user")}>차단</button>
+                            <button disabled={busy || u.status === "approved"} style={btn(u.status === "approved" ? "#F1F5F9" : "#ECFDF5", u.status === "approved" ? "#94A3B8" : "#059669", "1px solid #A7F3D0")} onClick={() => setStatus(u, "approved")}>승인</button>
+                            <button disabled={busy || u.status === "pending"} style={btn("#FEF3C7", "#B45309", "1px solid #FDE68A")} onClick={() => setStatus(u, "pending")}>대기</button>
+                            <button disabled={busy || u.status === "blocked"} style={btn("#FEF2F2", "#DC2626", "1px solid #FECACA")} onClick={() => setStatus(u, "blocked")}>차단</button>
                           </div>
                         </td>
                       </tr>

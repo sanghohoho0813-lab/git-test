@@ -65,13 +65,15 @@ function fmtYmd(s) {
 }
 
 // 사이드바 등에 표시할 "이용 가능 기간" 라벨.
-// 반환: { text, tone } tone: 'admin'|'unlimited'|'normal'|'soon'|'expired'
+// 단일 기준 = user_product_access.expires_at (subscription/trial 과 무관).
+// 반환: { text, tone } tone: 'admin'|'warn'|'normal'|'soon'|'expired'
 export function accessPeriodLabel(access, isAdmin) {
   if (isAdmin || (access && access.role === "admin")) {
     return { text: "관리자 계정 · 이용 제한 없음", tone: "admin" };
   }
   const exp = access && access.expires_at;
-  if (!exp) return { text: "이용 가능 기간: 제한 없음", tone: "unlimited" };
+  // 일반 사용자는 만료일이 없으면 "제한 없음"으로 두지 않고 관리자 확인을 유도
+  if (!exp) return { text: "이용 가능 기간: 만료일 미설정 — 관리자 확인 필요", tone: "warn" };
   const end = new Date(exp);
   const days = Math.ceil((end - new Date()) / 86400000);
   if (days < 0) return { text: "이용 기간 만료: " + fmtYmd(exp), tone: "expired" };
