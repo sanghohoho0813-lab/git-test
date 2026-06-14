@@ -4,6 +4,8 @@ import { supabase } from "../../lib/supabase";
 import { TeamSettings } from "../TeamSettings";
 import { validateUploadFile, ALLOWED_FILE_EXT, MAX_FILE_MB } from "../../hooks/useData";
 import { trackActivity } from "../../lib/activity";
+import { accessPeriodLabel } from "../../lib/product";
+import { isPinSet as lockIsPinSet, setPin as lockSetPin, clearPin as lockClearPin, isValidPin as lockIsValidPin } from "../../lib/applock";
 
 // ── 상수 ──────────────────────────────────────────────────
 var MIN_WAGE_2026 = 10320;
@@ -5004,7 +5006,7 @@ var SIDEBAR_NAV = [
 ];
 
 // ── 설정 화면 (글자 크기 · 화면 안내 다시 보기) ──
-function SettingsScreen(){
+function SettingsScreen(props){
   var stScale=useState(function(){try{return localStorage.getItem("hrSubsidyPro_fontScale")||"normal";}catch(e){return "normal";}});
   function setScale(v){try{localStorage.setItem("hrSubsidyPro_fontScale",v);}catch(e){}applyFontScale(v);stScale[1](v);toast("글자 크기를 변경했습니다.","success");}
   var scaleOpts=[{v:"normal",label:"기본",sample:"가"},{v:"large",label:"조금 크게",sample:"가"},{v:"xlarge",label:"크게",sample:"가"}];
@@ -5012,6 +5014,50 @@ function SettingsScreen(){
   function resetOne(key,label){guideReset(key);toast(label+" 화면 안내를 다시 켰습니다. 해당 화면에서 확인하세요.","success");}
   function resetAll(){guideItems.forEach(function(g){guideReset(g[0]);});toast("모든 화면 안내를 다시 켰습니다.","success");}
   var card={background:"#fff",border:"1px solid #E8EDF3",borderRadius:16,padding:"22px 24px",marginBottom:18,boxShadow:"0 1px 3px rgba(15,23,42,0.04)"};
+
+  // ── 화면 잠금(PIN) ──
+  var stHasPin=useState(function(){return lockIsPinSet();});
+  var stPin1=useState(""),stPin2=useState("");
+  function savePin(){
+    if(!lockIsValidPin(stPin1[0])){toast("PIN은 숫자 4~6자리로 입력하세요.","warn");return;}
+    if(stPin1[0]!==stPin2[0]){toast("두 PIN이 일치하지 않습니다.","warn");return;}
+    lockSetPin(stPin1[0]).then(function(){stHasPin[1](true);stPin1[1]("");stPin2[1]("");toast("화면 잠금 PIN을 설정했습니다.","success");});
+  }
+  function removePin(){
+    if(!window.confirm("화면 잠금을 해제(PIN 삭제)할까요? 업무 데이터는 영향받지 않습니다."))return;
+    lockClearPin();stHasPin[1](false);toast("화면 잠금을 해제했습니다.","success");
+  }
+
+  // ── 데이터 백업 내보내기 (현재 화면 데이터 → JSON · 읽기 전용) ──
+  function exportBackup(){
+    try{
+      var payload={exportedAt:new Date().toISOString(),app:"hrSubsidyPro",version:1,
+        companies:props.companies||[],employees:props.employees||[],
+        programs:props.programs||{},calendarMemos:props.calendarMemos||{}};
+      var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a");
+      a.href=url; a.download="고용지원금Pro_백업_"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+      toast("백업 파일을 내려받았습니다.","success");
+    }catch(e){toast("백업 내보내기에 실패했습니다.","warn");}
+  }
+
+  // ── 로컬 화면 설정 초기화 (이 브라우저의 표시 설정만 · 업무 데이터는 보존) ──
+  var stResetText=useState("");
+  function resetLocalPrefs(){
+    if(stResetText[0]!=="초기화"){toast("확인을 위해 '초기화'를 입력하세요.","warn");return;}
+    try{
+      var keys=[];
+      for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("hrSubsidyPro_")===0)keys.push(k);}
+      keys.forEach(function(k){localStorage.removeItem(k);});
+    }catch(e){}
+    applyFontScale("normal");
+    toast("이 브라우저의 화면 설정을 초기화했습니다.","success");
+    stResetText[1]("");
+    setTimeout(function(){window.location.reload();},800);
+  }
   return(
     <div className="fade-in">
       <div style={{marginBottom:18}}>
@@ -5053,6 +5099,58 @@ function SettingsScreen(){
             </div>
           );})}
         </div>
+      </div>
+
+      {/* 화면 잠금 (PIN) */}
+      <div style={card}>
+        <div style={{fontSize:18,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>화면 잠금 (PIN)</div>
+        <div style={{fontSize:14,color:"#64748B",margin:"6px 0 16px",lineHeight:1.5}}>공용 PC 등에서 화면을 잠글 수 있습니다. PIN을 설정하면 앱을 열 때(새로고침 포함)와 30분 무조작 시 잠금 화면이 표시됩니다. <strong>PIN은 해시로만 저장</strong>되며, 잊은 경우 잠금만 초기화하면 됩니다(업무 데이터는 보존).</div>
+        {stHasPin[0]?(
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:14,fontWeight:700,color:"#059669",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:999,padding:"6px 14px"}}>✓ 화면 잠금 사용 중</span>
+            <button className="prog-tap" style={Object.assign({},btnSm,{color:"#DC2626",border:"1px solid #FECACA"})} onClick={removePin}>잠금 해제(PIN 삭제)</button>
+          </div>
+        ):(
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+            <div>
+              <label style={{fontSize:12.5,fontWeight:700,color:"#475569",display:"block",marginBottom:5}}>PIN (숫자 4~6자리)</label>
+              <input type="password" inputMode="numeric" value={stPin1[0]} onChange={function(e){stPin1[1](e.target.value.replace(/[^0-9]/g,"").slice(0,6));}} style={Object.assign({},inp,{width:160,letterSpacing:"4px"})} placeholder="****"/>
+            </div>
+            <div>
+              <label style={{fontSize:12.5,fontWeight:700,color:"#475569",display:"block",marginBottom:5}}>PIN 확인</label>
+              <input type="password" inputMode="numeric" value={stPin2[0]} onChange={function(e){stPin2[1](e.target.value.replace(/[^0-9]/g,"").slice(0,6));}} style={Object.assign({},inp,{width:160,letterSpacing:"4px"})} placeholder="****"/>
+            </div>
+            <button className="prog-tap" style={btnP} onClick={savePin}>PIN 설정</button>
+          </div>
+        )}
+      </div>
+
+      {/* 데이터 백업 · 보관 안내 */}
+      <div style={card}>
+        <div style={{fontSize:18,fontWeight:800,color:"#0F172A",letterSpacing:"-0.3px"}}>데이터 백업</div>
+        <div style={{fontSize:14,color:"#64748B",margin:"6px 0 14px",lineHeight:1.6}}>현재 화면에 보이는 업체·직원·지원금·메모 데이터를 JSON 파일로 내려받아 보관할 수 있습니다.</div>
+        <button className="prog-tap" style={btnP} onClick={exportBackup}>⬇️ 전체 데이터 백업 내보내기 (JSON)</button>
+        <div style={{marginTop:14,padding:"13px 16px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:12,fontSize:13.5,color:"#92400E",lineHeight:1.7}}>
+          <div style={{fontWeight:800,marginBottom:4}}>안전한 사용 안내</div>
+          · <strong>주 1회 백업</strong>을 권장합니다.<br/>
+          · <strong>공용 PC</strong> 사용 시 화면 잠금(PIN)과 로그아웃에 주의하세요.<br/>
+          · 실제 <strong>민감정보(주민번호 등) 입력은 최소화</strong>해 주세요.
+        </div>
+      </div>
+
+      {/* 로컬 화면 설정 초기화 */}
+      <div style={Object.assign({},card,{border:"1px solid #FECACA"})}>
+        <div style={{fontSize:18,fontWeight:800,color:"#B91C1C",letterSpacing:"-0.3px"}}>이 브라우저 화면 설정 초기화</div>
+        <div style={{fontSize:14,color:"#64748B",margin:"6px 0 14px",lineHeight:1.6}}>이 브라우저에 저장된 <strong>화면 설정(글자 크기·안내 표시·화면 잠금 PIN)</strong>만 초기화합니다. <strong>업체·직원 등 업무 데이터는 서버에 보관되어 삭제되지 않습니다.</strong></div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+          <input value={stResetText[0]} onChange={function(e){stResetText[1](e.target.value);}} style={Object.assign({},inp,{width:200})} placeholder="초기화 라고 입력"/>
+          <button className="prog-tap" style={{background:stResetText[0]==="초기화"?"#DC2626":"#FCA5A5",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:14.5,fontWeight:800,cursor:stResetText[0]==="초기화"?"pointer":"not-allowed",fontFamily:FF}} onClick={resetLocalPrefs}>화면 설정 초기화</button>
+        </div>
+      </div>
+
+      {/* 데이터 보관 방식 안내 (정확한 표기) */}
+      <div style={{fontSize:12.5,color:"#94A3B8",textAlign:"center",lineHeight:1.6,marginBottom:8}}>
+        업무 데이터(업체·직원 등)는 보안 서버에 안전하게 보관됩니다. 화면 설정(글자 크기·안내·PIN)만 이 브라우저에 저장됩니다.
       </div>
     </div>
   );
@@ -6126,6 +6224,15 @@ export default function SubsidyApp(props){
               </div>
               {isAdmin&&<span style={{flexShrink:0,fontSize:11,fontWeight:700,color:"#FCD34D",background:"rgba(251,191,36,0.12)",border:"1px solid rgba(251,191,36,0.25)",borderRadius:999,padding:"3px 9px"}}>관리자</span>}
             </div>
+            {/* 이용 가능 기간 (항상 표시) */}
+            {(function(){
+              var ap=accessPeriodLabel({role:props.accessRole,expires_at:props.accessExpiresAt},isAdmin);
+              var col=ap.tone==="expired"?"#FCA5A5":ap.tone==="soon"?"#FCD34D":ap.tone==="admin"?"#FCD34D":"#93C5FD";
+              return(<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,padding:"7px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
+                <span style={{fontSize:13,flexShrink:0}}>🗓️</span>
+                <span style={{fontSize:12.5,color:col,fontWeight:600,lineHeight:1.4}}>{ap.text}</span>
+              </div>);
+            })()}
             {!isAdmin&&(
               <div className="sb-trialrow" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
                 <span style={{fontSize:13,color:"#CBD5E1",fontWeight:600}}>{isTrial?"무료체험 · 프로 전체 이용":tier.label}</span>
@@ -6303,7 +6410,7 @@ export default function SubsidyApp(props){
           )}
 
           {stView[0]==="settings"&&(
-            <SettingsScreen/>
+            <SettingsScreen companies={companies} employees={employees} programs={programs} calendarMemos={calendarMemos}/>
           )}
 
           {stView[0]==="adminFeedback"&&(

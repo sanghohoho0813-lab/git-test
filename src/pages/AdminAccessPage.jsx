@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
-import { PRODUCT_KEY } from "../lib/product";
+import { PRODUCT_KEY, expiryLabel } from "../lib/product";
 
 const FF = "'Pretendard','Pretendard Variable',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif";
 const card = { background: "#fff", border: "1px solid #E8EDF3", borderRadius: 16, padding: "22px 24px", marginBottom: 18, boxShadow: "0 1px 3px rgba(15,23,42,0.04)" };
@@ -239,7 +239,7 @@ export default function AdminAccessPage() {
                         <td style={{ padding: "10px 12px", borderBottom: "1px solid #F1F5F9" }}>
                           <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: sm.bg, color: sm.color }}>{sm.label}</span>
                         </td>
-                        <td style={{ padding: "10px 12px", color: "#475569", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>{fmtDate(u.expires_at)}</td>
+                        <td style={{ padding: "10px 12px", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>{(function(){ var e = expiryLabel(u.expires_at); var c = e.tone === "expired" ? "#DC2626" : e.tone === "soon" ? "#B45309" : e.tone === "none" ? "#94A3B8" : "#475569"; var w = (e.tone === "expired" || e.tone === "soon") ? 800 : 500; return <span style={{ color: c, fontWeight: w }}>{e.text}</span>; })()}</td>
                         <td style={{ padding: "10px 12px", color: "#94A3B8", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>{fmtDate(u.user_created_at)}</td>
                         <td style={{ padding: "10px 12px", borderBottom: "1px solid #F1F5F9" }}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

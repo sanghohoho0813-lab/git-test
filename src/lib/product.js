@@ -57,3 +57,33 @@ export async function fetchProductAccess(userId) {
 export function isAccessAllowed(access) {
   return !!access && access.status === "approved";
 }
+
+function fmtYmd(s) {
+  if (!s) return "";
+  const d = new Date(s);
+  return d.getFullYear() + "." + String(d.getMonth() + 1).padStart(2, "0") + "." + String(d.getDate()).padStart(2, "0");
+}
+
+// 사이드바 등에 표시할 "이용 가능 기간" 라벨.
+// 반환: { text, tone } tone: 'admin'|'unlimited'|'normal'|'soon'|'expired'
+export function accessPeriodLabel(access, isAdmin) {
+  if (isAdmin || (access && access.role === "admin")) {
+    return { text: "관리자 계정 · 이용 제한 없음", tone: "admin" };
+  }
+  const exp = access && access.expires_at;
+  if (!exp) return { text: "이용 가능 기간: 제한 없음", tone: "unlimited" };
+  const end = new Date(exp);
+  const days = Math.ceil((end - new Date()) / 86400000);
+  if (days < 0) return { text: "이용 기간 만료: " + fmtYmd(exp), tone: "expired" };
+  if (days <= 3) return { text: "이용 가능 기간: " + fmtYmd(exp) + "까지 (D-" + days + ")", tone: "soon" };
+  return { text: "이용 가능 기간: " + fmtYmd(exp) + "까지", tone: "normal" };
+}
+
+// 관리자 목록 만료일 표시용. 반환 { text, tone }
+export function expiryLabel(expiresAt) {
+  if (!expiresAt) return { text: "제한 없음", tone: "none" };
+  const days = Math.ceil((new Date(expiresAt) - new Date()) / 86400000);
+  if (days < 0) return { text: "만료됨 (" + fmtYmd(expiresAt) + ")", tone: "expired" };
+  if (days <= 3) return { text: fmtYmd(expiresAt) + " (D-" + days + ")", tone: "soon" };
+  return { text: fmtYmd(expiresAt), tone: "ok" };
+}

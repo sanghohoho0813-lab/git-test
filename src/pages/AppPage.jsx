@@ -106,15 +106,22 @@ function WorkspaceInit({ onEnsure, onSignOut }) {
 
 // 제품 접근권한이 없거나 차단/만료된 사용자를 위한 안내 화면 (대시보드 진입 차단).
 // 기존 가입자도 초대코드를 입력하면 즉시 employment 권한을 활성화할 수 있다.
-function AccessGate({ status, onSignOut, onRetry, email }) {
+function AccessGate({ status, onSignOut, onRetry, email, expiresAt }) {
   const blocked = status === "blocked";
   const expired = status === "expired";
+  const pending = status === "pending";
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const title = blocked ? "이용이 제한된 계정입니다"
     : expired ? "이용 권한이 만료되었습니다"
     : "아직 이용 권한이 없습니다";
+  // 현재 상태 한 줄 안내 (만료일이 있으면 함께 표시)
+  const expStr = expiresAt ? (new Date(expiresAt).getFullYear() + "." + String(new Date(expiresAt).getMonth() + 1).padStart(2, "0") + "." + String(new Date(expiresAt).getDate()).padStart(2, "0")) : "";
+  const statusMeta = blocked ? { t: "이용이 차단되었습니다", c: "#DC2626", bg: "#FEF2F2" }
+    : expired ? { t: "이용 기간이 만료되었습니다" + (expStr ? " (" + expStr + ")" : ""), c: "#DC2626", bg: "#FEF2F2" }
+    : pending ? { t: "승인 대기 중입니다", c: "#B45309", bg: "#FEF3C7" }
+    : { t: "이용 권한이 없습니다", c: "#64748B", bg: "#F1F5F9" };
   async function activate() {
     if (!code.trim()) { setMsg("초대코드를 입력해 주세요."); return; }
     setBusy(true); setMsg("");
@@ -137,6 +144,7 @@ function AccessGate({ status, onSignOut, onRetry, email }) {
       <div style={{ background: "#fff", borderRadius: 18, padding: "40px 32px", maxWidth: 440, width: "100%", textAlign: "center", boxShadow: "0 12px 40px rgba(15,23,42,0.12)", border: "1px solid #E8EDF3" }}>
         <div style={{ fontSize: 52, marginBottom: 14 }}>{blocked ? "🚫" : expired ? "⏳" : "🔒"}</div>
         <h2 style={{ margin: "0 0 10px", fontSize: 21, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.4px" }}>{title}</h2>
+        <div style={{ display: "inline-block", margin: "0 0 12px", padding: "6px 14px", borderRadius: 999, background: statusMeta.bg, color: statusMeta.c, fontSize: 13.5, fontWeight: 700 }}>{statusMeta.t}</div>
         <p style={{ color: "#64748B", fontSize: 15, lineHeight: 1.7, margin: 0 }}>
           이 계정({email})은 {PRODUCT_NAME} 이용 권한이 확인되지 않았습니다.<br />
           {blocked ? "이용 권한이 만료되었거나 차단되었습니다. 관리자에게 문의해 주세요." : "초대코드가 있으신 경우 아래에 입력해 권한을 활성화해 주세요."}
@@ -192,7 +200,7 @@ export default function AppPage() {
   // 운영자(ksh90813) 계정은 안전상 예외로 둔다. (그 외는 user_product_access 기준)
   const isOperator = (session?.user?.email || "").trim().toLowerCase() === "ksh90813@naver.com";
   if (session && !isOperator && !isAccessAllowed(productAccess)) {
-    return <AccessGate status={productAccess?.status} email={session?.user?.email || ""} onSignOut={signOut} onRetry={refreshAccess} />;
+    return <AccessGate status={productAccess?.status} expiresAt={productAccess?.expires_at} email={session?.user?.email || ""} onSignOut={signOut} onRetry={refreshAccess} />;
   }
 
   // 세션은 있는데 org 가 아직 없으면(신규 가입 직후 트리거 반영 지연 등)
@@ -257,6 +265,8 @@ export default function AppPage() {
       trialDaysLeft={trialDaysLeft}
       plan={sub?.plan_type}
       subStatus={sub?.status}
+      accessExpiresAt={productAccess?.expires_at || null}
+      accessRole={productAccess?.role || null}
     />
   );
 }

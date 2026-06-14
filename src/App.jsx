@@ -6,6 +6,8 @@ import AuthPage from "./pages/AuthPage";
 import AppPage from "./pages/AppPage";
 import AdminAccessPage from "./pages/AdminAccessPage";
 import BillingResultPage from "./pages/BillingResultPage";
+import PinLock from "./components/PinLock";
+import { isPinSet, isIdleExpired, markActive } from "./lib/applock";
 
 const FF = "'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 const inp = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: FF };
@@ -155,6 +157,18 @@ function ResetPasswordPage() {
 
 function Guard({ children }) {
   const { session } = useAuth();
+  // 새로고침/브라우저 재실행 시 항상 잠금부터(PIN 설정된 경우). 세션 중에는 30분 무조작 시 자동 잠금.
+  const [unlocked, setUnlocked] = useState(() => !isPinSet());
+
+  useEffect(() => {
+    if (!isPinSet()) return;
+    const onAct = () => markActive();
+    const evts = ["mousedown", "keydown", "touchstart", "mousemove", "wheel"];
+    evts.forEach((e) => window.addEventListener(e, onAct, { passive: true }));
+    const iv = setInterval(() => { if (isIdleExpired()) setUnlocked(false); }, 60 * 1000);
+    return () => { evts.forEach((e) => window.removeEventListener(e, onAct)); clearInterval(iv); };
+  }, []);
+
   if (session === undefined) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "sans-serif", color: "#64748B" }}>
@@ -166,6 +180,7 @@ function Guard({ children }) {
     );
   }
   if (!session) return <Navigate to="/auth" replace />;
+  if (isPinSet() && !unlocked) return <PinLock onUnlock={() => { markActive(); setUnlocked(true); }} />;
   return children;
 }
 
