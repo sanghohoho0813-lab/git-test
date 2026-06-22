@@ -2314,7 +2314,17 @@ function PayrollDiagnosis(props){
   var stCopied=useState(false);
   var stPhase=useState("");          // PDF 분석 진행 상태 문구
   var stMissing=useState(0);         // 일부 항목 미확인(확인 필요) 직원 수
+  var stErr=useState("");            // 모달 내부에 유지되는 오류 안내(앱 튕김 방지)
   var fileRef=useRef(null);
+
+  // 모바일 환경 추정 + PDF 안전 제한값
+  function isMobileEnv(){
+    try{ return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.innerWidth||1024) < 768; }
+    catch{ return false; }
+  }
+  var PDF_MOBILE_MAX_MB=5;
+  var PDF_MAX_PAGES_MOBILE=5, PDF_MAX_PAGES_DESKTOP=30;
+  var PDF_TIMEOUT_MS_MOBILE=15000, PDF_TIMEOUT_MS_DESKTOP=30000;
   // 추가 입력값
   var stRegion=useState("metro");   // metro|local
   var stSize=useState("sme");       // sme|mid|other
@@ -2328,7 +2338,7 @@ function PayrollDiagnosis(props){
   var stUnitN=useState(0);
 
   function reset(){
-    stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);stPhase[1]("");stMissing[1](0);
+    stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);stPhase[1]("");stMissing[1](0);stErr[1]("");
     stPrevTotal[1]("");stPrevYouth[1]("");stCurTotal[1]("");stCurYouth[1]("");
     if(fileRef.current)fileRef.current.value="";
   }
@@ -2361,12 +2371,12 @@ function PayrollDiagnosis(props){
 
   // 2) 파일 선택됨 — 분석 전에 파일 정보만 표시(저장 안 함)
   function onFileChange(file){
-    if(!file){return;}
+    if(!file){return;}      // 선택 취소 — 모달 유지, 아무 것도 하지 않음
     var ext=fileExt(file);
-    stEmps[1](null);
-    stFile[1](file);
+    stEmps[1](null);stErr[1]("");
+    stFile[1](file);        // 선택 시점에는 파일 정보만 저장(무거운 분석 실행 안 함)
     if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){
-      toast("현재는 엑셀(xlsx·xls)·CSV 파일을 우선 지원합니다.","error");
+      toast("현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.","error");
     }else{
       toast("파일을 선택했습니다: "+file.name+" (아직 저장되지 않음)","success");
     }
@@ -2379,30 +2389,58 @@ function PayrollDiagnosis(props){
     else if(phase==="find")stPhase[1]("직원 정보를 찾는 중입니다…");
   }
 
+  // 타임아웃 래퍼 — PDF 분석이 너무 오래 걸리면 대기를 끊고 안내(앱 유지)
+  function withTimeout(promise,ms){
+    return new Promise(function(resolve){
+      var done=false;
+      var t=setTimeout(function(){ if(!done){ done=true; resolve({ok:false,error:"timeout"}); } },ms);
+      promise.then(function(v){ if(!done){ done=true; clearTimeout(t); resolve(v); } },
+                   function(e){ if(!done){ done=true; clearTimeout(t); console.error("[명부진단] 분석 예외:",e); resolve({ok:false,error:"read_failed",message:e&&e.message}); } });
+    });
+  }
+
   // 3) 명부 분석 시작 — 선택된 파일을 브라우저에서 파싱 (엑셀/CSV·PDF)
+  // 어떤 경우에도 예외가 밖으로 새지 않게 하여 앱이 홈/대시보드로 튕기지 않도록 함.
   async function analyze(){
     var file=stFile[0];
     if(!file){toast("먼저 명부 파일을 선택해주세요.","error");return;}
     var ext=fileExt(file);
     var isPdf=ext==="pdf";
     if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){
-      toast("현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.","error");
+      stErr[1]("현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.");
       return;
     }
+    stErr[1]("");
+    var mobile=isMobileEnv();
+    // 모바일 PDF 크기 제한 — 분석을 시작하지 않고 안내(메모리 과부하·튕김 예방)
+    if(isPdf&&mobile&&file.size>PDF_MOBILE_MAX_MB*1024*1024){
+      stErr[1]("모바일에서는 큰 PDF("+PDF_MOBILE_MAX_MB+"MB 초과) 분석이 불안정할 수 있습니다. PC에서 분석하거나, 4대보험 EDI/사회보험통합징수포털에서 명부를 엑셀로 내려받아 올려주세요.");
+      return;
+    }
+
     stBusy[1](true);stPhase[1](isPdf?"PDF를 읽는 중입니다…":"명부를 읽는 중입니다…");
     var r;
     try{
-      r=isPdf ? await PD.parsePdfRoster(file,onPdfProgress) : await PD.parseRosterFile(file);
-      if(isPdf&&r.ok)stPhase[1]("지원금 후보를 분류하는 중입니다…");
+      if(isPdf){
+        var opts={maxPages:mobile?PDF_MAX_PAGES_MOBILE:PDF_MAX_PAGES_DESKTOP};
+        var to=mobile?PDF_TIMEOUT_MS_MOBILE:PDF_TIMEOUT_MS_DESKTOP;
+        r=await withTimeout(PD.parsePdfRoster(file,onPdfProgress,opts),to);
+        if(r&&r.ok)stPhase[1]("지원금 후보를 분류하는 중입니다…");
+      }else{
+        r=await withTimeout(PD.parseRosterFile(file),20000);
+      }
     }catch(err){ console.error("[명부진단] 파싱 예외:",err); r={ok:false,error:"read_failed",message:err&&err.message}; }
     stBusy[1](false);stPhase[1]("");
-    if(!r.ok){
-      if(r.message)console.error("[명부진단] 파싱 실패:",r.error,r.message);
-      var msg=r.error==="no_text"?"이 PDF는 텍스트를 읽기 어려운 파일입니다. 4대보험 EDI 또는 사회보험통합징수포털에서 명부를 엑셀로 내려받아 다시 올려주세요.":
-        r.error==="unsupported"?"현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.":
-        (r.error==="empty"||r.error==="no_rows")?"명부에서 읽을 수 있는 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 항목이 있는지 확인해주세요.":
+    if(!r||!r.ok){
+      var err=r?r.error:"read_failed";
+      if(r&&r.message)console.error("[명부진단] 파싱 실패:",err,r.message);
+      var msg=err==="timeout"?"PDF 분석 시간이 길어 중단했습니다. 모바일에서는 불안정할 수 있어요. 엑셀 파일로 올리면 더 안정적입니다.":
+        err==="no_text"?"이 PDF는 텍스트를 읽기 어려운 파일입니다. 4대보험 EDI 또는 사회보험통합징수포털에서 명부를 엑셀로 내려받아 다시 올려주세요.":
+        err==="unsupported"?"현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.":
+        (err==="empty"||err==="no_rows")?"명부에서 읽을 수 있는 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 항목이 있는지 확인해주세요. (PDF는 양식에 따라 인식이 어려울 수 있어요)":
         (isPdf?"PDF를 읽지 못했습니다. 텍스트 PDF인지 확인하거나 엑셀로 올려주세요.":"파일을 읽지 못했습니다. 엑셀 파일인지 확인해주세요.");
-      toast(msg,"error");return;
+      stErr[1](msg);                 // 모달 안에 유지 — 닫히거나 홈으로 가지 않음
+      return;
     }
     // 올해 인원 자동 추정(재직 추정 인원 기준) — 사용자가 수정 가능
     var an=PD.analyzeRoster(r.employees,{baseDate:stBase[0],year:stYear[0]});
@@ -2410,7 +2448,9 @@ function PayrollDiagnosis(props){
     stCurYouth[1](String(an.counts.youthCount));
     stMissing[1](r.missingCount||0);
     stEmps[1](r.employees);
-    toast("명부 "+r.employees.length+"명을 읽었습니다."+(isPdf&&r.missingCount?" (일부 "+r.missingCount+"건은 확인 필요)":"")+" (저장되지 않음)","success");
+    var extra="";
+    if(isPdf&&r.truncated)extra=" (PDF "+r.totalPages+"쪽 중 일부만 분석)";
+    toast("명부 "+r.employees.length+"명을 읽었습니다."+(isPdf&&r.missingCount?" (일부 "+r.missingCount+"건 확인 필요)":"")+extra+" (저장되지 않음)","success");
   }
 
   var analysis=useMemo(function(){
@@ -2455,7 +2495,7 @@ function PayrollDiagnosis(props){
   return(
     <React.Fragment>
       {btn}
-      <Modal open={stOpen[0]} onClose={function(){stOpen[1](false);}} title="🩺 4대보험 명부 자동진단 (1차 검토)" width={900}>
+      <Modal open={stOpen[0]} onClose={function(){if(stBusy[0])return;stOpen[1](false);}} title="🩺 4대보험 명부 자동진단 (1차 검토)" width={900}>
         <div style={{display:"grid",gap:14}}>
           {/* 개인정보/면책 안내 (항상 표시) */}
           <div style={{padding:"11px 14px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:12.5,color:"#0F766E",lineHeight:1.65}}>
@@ -2481,7 +2521,7 @@ function PayrollDiagnosis(props){
                 <button type="button" onClick={function(e){e.stopPropagation();openPicker();}} className="prog-tap"
                   style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,marginBottom:9}}>📎 파일 선택</button>
                 <div style={{fontSize:13,color:"#64748B"}}>지원: XLSX · XLS · CSV · 텍스트 PDF</div>
-                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV·텍스트 PDF를 읽을 수 있습니다. 스캔 이미지 PDF는 엑셀 파일로 내려받아 올려주세요.</div>
+                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV는 가장 안정적으로 분석됩니다. PDF는 텍스트 PDF만 지원하며, 모바일에서는 파일 크기와 형식에 따라 제한될 수 있습니다.</div>
               </div>
 
               {/* 선택된 파일 정보 카드 */}
@@ -2505,7 +2545,7 @@ function PayrollDiagnosis(props){
                     </div>
                     {isPdf&&(
                       <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>
-                        📄 PDF는 양식에 따라 일부 항목이 “확인 필요”로 표시될 수 있습니다. 텍스트로 작성된 PDF만 읽을 수 있으며, 스캔 이미지 PDF는 4대보험 EDI/사회보험통합징수포털에서 엑셀로 내려받아 올려주세요.
+                        📄 PDF는 양식에 따라 일부 항목이 “확인 필요”로 표시될 수 있습니다. 텍스트 PDF만 지원하며, 스마트폰에서는 파일 크기·형식에 따라 제한될 수 있습니다. 가장 안정적인 방법은 4대보험 EDI/사회보험통합징수포털에서 <strong>엑셀로 내려받아 올리기</strong>입니다.
                       </div>
                     )}
                     {stBusy[0]&&stPhase[0]&&(
@@ -2514,13 +2554,24 @@ function PayrollDiagnosis(props){
                         {stPhase[0]}
                       </div>
                     )}
+                    {/* 분석 실패/제한 안내 — 모달 안에 유지(앱이 홈으로 튕기지 않음) */}
+                    {stErr[0]&&!stBusy[0]&&(
+                      <div style={{padding:"11px 13px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:9,fontSize:13,color:"#991B1B",lineHeight:1.7}}>
+                        ⚠️ {stErr[0]}
+                      </div>
+                    )}
                     <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
-                      <button type="button" disabled={stBusy[0]} onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14,opacity:stBusy[0]?0.6:1})}>파일 다시 선택</button>
+                      <button type="button" disabled={stBusy[0]} onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14,opacity:stBusy[0]?0.6:1})}>{isPdf?"엑셀/CSV로 다시 올리기":"파일 다시 선택"}</button>
                       <button type="button" disabled={!supported||stBusy[0]} onClick={analyze}
                         style={{flex:"1 1 180px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
                         {stBusy[0]?"분석 중…":isPdf?"🩺 PDF 명부 분석 시작":"🩺 명부 분석 시작"}
                       </button>
                     </div>
+                    {isPdf&&isMobileEnv()&&(
+                      <div style={{fontSize:12,color:"#64748B",lineHeight:1.6}}>
+                        💡 스마트폰에서는 PDF 분석이 불안정할 수 있습니다. <strong>PDF는 PC에서 분석</strong>하거나 <strong>엑셀/CSV로 올리기</strong>를 권장합니다.
+                      </div>
+                    )}
                   </div>
                 );
               })()}

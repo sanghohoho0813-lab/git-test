@@ -253,12 +253,17 @@ function groupItemsToLines(items) {
 }
 
 // 각 페이지 텍스트를 줄 단위로 추출 (onProgress(phase, cur, total))
-export async function extractPdfLines(file, onProgress) {
+// opts.maxPages: 모바일 등에서 과부하 방지를 위해 처리 페이지 수 제한
+export async function extractPdfLines(file, onProgress, opts) {
+  opts = opts || {};
   var doc = await loadPdfDoc(file);
   var lines = [];
+  var total = doc.numPages;
+  var limit = opts.maxPages && opts.maxPages > 0 ? Math.min(opts.maxPages, total) : total;
+  var truncated = limit < total;
   try {
-    for (var p = 1; p <= doc.numPages; p++) {
-      if (onProgress) onProgress("extract", p, doc.numPages);
+    for (var p = 1; p <= limit; p++) {
+      if (onProgress) onProgress("extract", p, limit);
       var page = await doc.getPage(p);
       var tc = await page.getTextContent();
       lines = lines.concat(groupItemsToLines(tc.items));
@@ -267,7 +272,7 @@ export async function extractPdfLines(file, onProgress) {
   } finally {
     try { doc.destroy(); } catch { /* ignore */ }
   }
-  return lines;
+  return { lines: lines, totalPages: total, processedPages: limit, truncated: truncated };
 }
 
 // 헤더/합계 등 직원명이 아닌 토큰
@@ -347,16 +352,18 @@ export function parsePdfRosterLines(lines) {
 }
 
 // PDF 명부 파싱 (텍스트 추출 → 직원 추정). 스캔 이미지 PDF 는 no_text 반환.
-export async function parsePdfRoster(file, onProgress) {
+// opts.maxPages 로 처리 페이지 수 제한(모바일 안정화).
+export async function parsePdfRoster(file, onProgress, opts) {
   try {
     if (onProgress) onProgress("read");
-    var lines = await extractPdfLines(file, onProgress);
+    var ex = await extractPdfLines(file, onProgress, opts);
+    var lines = ex.lines || [];
     var textLen = lines.join("").replace(/\s/g, "").length;
     if (!lines.length || textLen < 8) return { ok: false, error: "no_text" }; // 스캔 이미지 등 텍스트 없음
     if (onProgress) onProgress("find");
     var res = parsePdfRosterLines(lines);
-    if (!res.employees.length) return { ok: false, error: "no_rows" };
-    return { ok: true, employees: res.employees, meta: res.meta, missingCount: res.missingCount };
+    if (!res.employees.length) return { ok: false, error: "no_rows", truncated: ex.truncated, totalPages: ex.totalPages };
+    return { ok: true, employees: res.employees, meta: res.meta, missingCount: res.missingCount, truncated: ex.truncated, totalPages: ex.totalPages, processedPages: ex.processedPages };
   } catch (e) {
     return { ok: false, error: "read_failed", message: e && e.message };
   }
