@@ -2308,8 +2308,8 @@ function PayrollDiagnosis(props){
   var stOpen=useState(false);
   var stBusy=useState(false);
   var stEmps=useState(null);        // 추출된 직원 배열(메모리)
+  var stFile=useState(null);        // 선택된 파일(분석 전, 메모리만 · 저장 안 함)
   var stBase=useState(function(){return new Date().toISOString().split("T")[0];});
-  var stPdf=useState(false);        // PDF 안내
   var stTab=useState("emp");
   var stCopied=useState(false);
   var fileRef=useRef(null);
@@ -2326,7 +2326,7 @@ function PayrollDiagnosis(props){
   var stUnitN=useState(0);
 
   function reset(){
-    stEmps[1](null);stBusy[1](false);stPdf[1](false);stTab[1]("emp");stCopied[1](false);
+    stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);
     stPrevTotal[1]("");stPrevYouth[1]("");stCurTotal[1]("");stCurYouth[1]("");
     if(fileRef.current)fileRef.current.value="";
   }
@@ -2337,25 +2337,69 @@ function PayrollDiagnosis(props){
     stUnitY[1](u.youth);stUnitN[1](u.normal);
   },[stRegion[0],stSize[0]]);
 
-  async function onPick(file){
-    if(!file)return;
-    var ext=(file.name.split(".").pop()||"").toLowerCase();
-    if(ext==="pdf"){stPdf[1](true);if(fileRef.current)fileRef.current.value="";return;}
-    stBusy[1](true);stPdf[1](false);
-    var r=await PD.parseRosterFile(file);
+  function fileExt(f){return f?(f.name.split(".").pop()||"").toLowerCase():"";}
+  function fmtSize(bytes){
+    if(bytes==null)return "";
+    if(bytes<1024)return bytes+" B";
+    if(bytes<1024*1024)return (Math.round(bytes/102.4)/10)+" KB";
+    return (Math.round(bytes/104857.6)/10)+" MB";
+  }
+
+  // 1) 파일 선택창 열기 — 어떤 경우에도 명확한 피드백
+  function openPicker(){
+    try{
+      if(!fileRef.current)throw new Error("no ref");
+      fileRef.current.value="";        // 같은 파일 재선택 가능하도록 초기화
+      fileRef.current.click();
+    }catch(err){
+      console.error("[명부진단] 파일 선택창 열기 실패:",err);
+      toast("파일 선택창을 열 수 없습니다. 다시 시도해주세요.","error");
+    }
+  }
+
+  // 2) 파일 선택됨 — 분석 전에 파일 정보만 표시(저장 안 함)
+  function onFileChange(file){
+    if(!file){return;}
+    var ext=fileExt(file);
+    stEmps[1](null);
+    stFile[1](file);
+    if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){
+      toast("현재는 엑셀(xlsx·xls)·CSV 파일을 우선 지원합니다.","error");
+    }else{
+      toast("파일을 선택했습니다: "+file.name+" (아직 저장되지 않음)","success");
+    }
+  }
+
+  // 3) 명부 분석 시작 — 선택된 파일을 브라우저에서 파싱
+  async function analyze(){
+    var file=stFile[0];
+    if(!file){toast("먼저 명부 파일을 선택해주세요.","error");return;}
+    var ext=fileExt(file);
+    if(ext==="pdf"){
+      toast("PDF 분석은 다음 단계에서 지원 예정입니다. 우선 엑셀/CSV 파일을 올려주세요.","error");
+      return;
+    }
+    if(["xlsx","xls","csv"].indexOf(ext)===-1){
+      toast("현재는 엑셀(xlsx·xls)·CSV 파일을 우선 지원합니다.","error");
+      return;
+    }
+    stBusy[1](true);
+    var r;
+    try{ r=await PD.parseRosterFile(file); }
+    catch(err){ console.error("[명부진단] 파싱 예외:",err); r={ok:false,error:"read_failed",message:err&&err.message}; }
     stBusy[1](false);
-    if(fileRef.current)fileRef.current.value="";
     if(!r.ok){
-      var msg=r.error==="unsupported"?"xlsx·xls·csv 파일을 올려주세요. (PDF는 다음 단계 예정)":
-        r.error==="empty"||r.error==="no_rows"?"명부에서 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 컬럼이 있는지 확인해주세요.":
-        "파일을 읽지 못했습니다"+(r.message?": "+r.message:"");
+      if(r.message)console.error("[명부진단] 파싱 실패:",r.error,r.message);
+      var msg=r.error==="unsupported"?"현재는 엑셀(xlsx·xls)·CSV 파일을 우선 지원합니다.":
+        (r.error==="empty"||r.error==="no_rows")?"명부에서 읽을 수 있는 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 컬럼이 있는지 확인해주세요.":
+        "파일을 읽지 못했습니다. 엑셀 파일인지 확인해주세요.";
       toast(msg,"error");return;
     }
-    stEmps[1](r.employees);
     // 올해 인원 자동 추정(재직 추정 인원 기준) — 사용자가 수정 가능
     var an=PD.analyzeRoster(r.employees,{baseDate:stBase[0],year:stYear[0]});
     stCurTotal[1](String(an.counts.activeCount));
     stCurYouth[1](String(an.counts.youthCount));
+    stEmps[1](r.employees);
     toast("명부 "+r.employees.length+"명을 읽었습니다. (저장되지 않음)","success");
   }
 
@@ -2409,25 +2453,61 @@ function PayrollDiagnosis(props){
             주민등록번호 등 민감정보는 화면에 <strong>마스킹</strong>(예: 900101-1******)되어 표시되고, 결과 복사에도 포함되지 않습니다.
           </div>
 
+          {/* 숨김 파일 input — 항상 렌더되어 ref 가 끊기지 않도록 모달 최상위에 둠 */}
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.pdf" style={{display:"none"}}
+            onChange={function(e){var f=e.target.files&&e.target.files[0];onFileChange(f);}}/>
+
           {!stEmps[0]&&(
-            <div style={{display:"grid",gap:10}}>
+            <div style={{display:"grid",gap:12}}>
               <div style={{padding:"13px 16px",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:12,fontSize:13.5,color:"#065F46",lineHeight:1.7}}>
                 명부를 읽어 <strong>지원금 후보</strong>와 <strong>통합고용세액공제 검토표</strong>를 미리 보여드립니다. 이 결과는 <strong>1차 검토</strong>이며 확정이 아닙니다.
               </div>
-              <div onClick={function(){if(!stBusy[0]&&fileRef.current)fileRef.current.click();}}
-                style={{border:"2px dashed #99F6E4",borderRadius:14,padding:"34px 20px",textAlign:"center",cursor:"pointer",background:"#F8FFFE"}}>
-                <div style={{fontSize:40,marginBottom:12}}>🗂️</div>
-                <div style={{fontSize:16.5,fontWeight:800,color:"#1E293B",marginBottom:7}}>{stBusy[0]?"명부를 읽는 중…":"클릭해서 가입자 명부 파일 선택"}</div>
-                <div style={{fontSize:13.5,color:"#64748B"}}>지원 목표: PDF · XLSX · XLS · CSV</div>
-                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:5}}>현재 버전은 <strong>엑셀(xlsx·xls)·CSV</strong>를 읽습니다. PDF 자동 추출은 다음 단계 예정입니다.</div>
+
+              {/* 파일 선택 영역 */}
+              <div onClick={openPicker}
+                style={{border:"2px dashed #99F6E4",borderRadius:14,padding:"30px 20px",textAlign:"center",cursor:"pointer",background:"#F8FFFE"}}>
+                <div style={{fontSize:38,marginBottom:10}}>🗂️</div>
+                <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:7}}>클릭해서 가입자 명부 파일 선택</div>
+                <button type="button" onClick={function(e){e.stopPropagation();openPicker();}} className="prog-tap"
+                  style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,marginBottom:9}}>📎 파일 선택</button>
+                <div style={{fontSize:13,color:"#64748B"}}>지원 목표: XLSX · XLS · CSV · PDF</div>
+                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>현재 버전은 <strong>엑셀(xlsx·xls)·CSV</strong>를 읽습니다. PDF는 다음 단계 예정입니다.</div>
               </div>
-              <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv" style={{display:"none"}}
-                onChange={function(e){onPick(e.target.files&&e.target.files[0]);}}/>
-              {stPdf[0]&&(
-                <div style={{padding:"11px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,fontSize:13,color:"#92400E",lineHeight:1.7}}>
-                  📄 PDF 자동 텍스트 추출은 이번 버전에서는 제공되지 않습니다(다음 단계 예정). 우선 <strong>엑셀(xlsx·xls)·CSV</strong> 명부로 진단해주세요. 4대보험 EDI/사회보험통합징수포털에서 명부를 엑셀로 내려받을 수 있습니다.
-                </div>
-              )}
+
+              {/* 선택된 파일 정보 카드 */}
+              {stFile[0]&&(function(){
+                var ext=fileExt(stFile[0]);
+                var isPdf=ext==="pdf";
+                var supported=["xlsx","xls","csv"].indexOf(ext)>=0;
+                return(
+                  <div style={{border:"1px solid "+(supported?"#A7F3D0":"#FDE68A"),background:supported?"#F0FDF4":"#FFFBEB",borderRadius:12,padding:"14px 16px",display:"grid",gap:10}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      <span style={{fontSize:22}}>{isPdf?"📄":supported?"📊":"📁"}</span>
+                      <div style={{minWidth:0,flex:"1 1 220px"}}>
+                        <div style={{fontSize:14.5,fontWeight:800,color:"#1E293B",wordBreak:"break-all"}}>선택된 파일: {stFile[0].name}</div>
+                        <div style={{fontSize:12.5,color:"#64748B",marginTop:2}}>
+                          형식: {ext?ext.toUpperCase():"알 수 없음"} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":isPdf?"PDF는 다음 단계 예정":"미지원 형식"}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>
+                      파일은 아직 저장되지 않습니다. 브라우저에서만 읽고, 주민등록번호 등 민감정보는 화면에 마스킹합니다.
+                    </div>
+                    {isPdf&&(
+                      <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>
+                        📄 PDF 분석은 다음 단계에서 지원 예정입니다. 우선 <strong>엑셀(xlsx·xls)·CSV</strong> 파일을 올려주세요. 4대보험 EDI/사회보험통합징수포털에서 명부를 엑셀로 내려받을 수 있습니다.
+                      </div>
+                    )}
+                    <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                      <button type="button" onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14})}>파일 다시 선택</button>
+                      <button type="button" disabled={!supported||stBusy[0]} onClick={analyze}
+                        style={{flex:"1 1 180px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
+                        {stBusy[0]?"명부를 읽는 중…":"🩺 명부 분석 시작"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
