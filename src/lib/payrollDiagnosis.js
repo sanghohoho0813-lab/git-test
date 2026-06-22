@@ -369,6 +369,27 @@ export async function parsePdfRoster(file, onProgress, opts) {
   }
 }
 
+// PDF 에서 "검수용 텍스트"만 추출(직원 추정 전 단계). 실패해도 text 는 가능한 만큼 반환.
+export async function extractPdfText(file, onProgress, opts) {
+  try {
+    if (onProgress) onProgress("read");
+    var ex = await extractPdfLines(file, onProgress, opts);
+    var lines = ex.lines || [];
+    var text = lines.join("\n");
+    var textLen = text.replace(/\s/g, "").length;
+    if (!lines.length || textLen < 8) return { ok: false, error: "no_text", text: text, truncated: ex.truncated, totalPages: ex.totalPages };
+    return { ok: true, text: text, truncated: ex.truncated, totalPages: ex.totalPages, processedPages: ex.processedPages };
+  } catch (e) {
+    return { ok: false, error: "read_failed", message: e && e.message, text: "" };
+  }
+}
+
+// 사용자가 검수·붙여넣기한 텍스트 → 직원 후보 추출 (PDF 줄 파서 재사용)
+export function parseTextRoster(text) {
+  var lines = String(text || "").split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+  return parsePdfRosterLines(lines);
+}
+
 export function isYouthAge(age) { return age != null && age >= 15 && age <= 34; }
 export function isSeniorAge(age) { return age != null && age >= 60; }
 

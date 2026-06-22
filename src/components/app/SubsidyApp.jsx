@@ -2315,6 +2315,11 @@ function PayrollDiagnosis(props){
   var stPhase=useState("");          // PDF 분석 진행 상태 문구
   var stMissing=useState(0);         // 일부 항목 미확인(확인 필요) 직원 수
   var stErr=useState("");            // 모달 내부에 유지되는 오류 안내(앱 튕김 방지)
+  var stStep=useState(1);            // 1 파일 선택 · 2 추출 내용 확인 · 3 명부 정리 · 4 진단 결과
+  var stMode=useState("file");       // step1: 'file' | 'paste'
+  var stText=useState("");           // PDF에서 읽은/붙여넣은/검수한 텍스트
+  var stCand=useState([]);           // 직원 후보(검수·수정용)
+  var stOnlyCheck=useState(false);   // '확인 필요만 보기'
   var fileRef=useRef(null);
 
   // 모바일 환경 추정 + PDF 안전 제한값
@@ -2339,6 +2344,7 @@ function PayrollDiagnosis(props){
 
   function reset(){
     stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);stPhase[1]("");stMissing[1](0);stErr[1]("");
+    stStep[1](1);stMode[1]("file");stText[1]("");stCand[1]([]);stOnlyCheck[1](false);
     stPrevTotal[1]("");stPrevYouth[1]("");stCurTotal[1]("");stCurYouth[1]("");
     if(fileRef.current)fileRef.current.value="";
   }
@@ -2399,58 +2405,90 @@ function PayrollDiagnosis(props){
     });
   }
 
-  // 3) 명부 분석 시작 — 선택된 파일을 브라우저에서 파싱 (엑셀/CSV·PDF)
-  // 어떤 경우에도 예외가 밖으로 새지 않게 하여 앱이 홈/대시보드로 튕기지 않도록 함.
-  async function analyze(){
+  // 후보 변환/편집 헬퍼
+  function toCandidates(emps){
+    return (emps||[]).map(function(e){
+      var c=Object.assign({},e);
+      c.id=uid(); c.excluded=false; c.confirmed=false;
+      return c;
+    });
+  }
+  function candNeedsCheck(c){ return !c.name || c.name==="(이름 확인 필요)" || !c.birthDate || !c.hireDate; }
+  function updateCand(id,patch){ stCand[1](stCand[0].map(function(c){ return c.id===id?Object.assign({},c,patch):c; })); }
+  function addCand(){ stCand[1](stCand[0].concat([{id:uid(),name:"",birthDate:"",gender:"",rrnMasked:null,hireDate:"",loseDate:null,statusRaw:"취득",insuranceRaw:"",workplace:"",bizNo:"",excluded:false,confirmed:false}])); }
+  function confirmAll(){ stCand[1](stCand[0].map(function(c){ return c.excluded?c:Object.assign({},c,{confirmed:true}); })); }
+
+  // 1단계 → : 엑셀/CSV 는 곧장 명부 정리(3), PDF 는 글자 읽기 후 검수(2)
+  async function startFromFile(){
     var file=stFile[0];
     if(!file){toast("먼저 명부 파일을 선택해주세요.","error");return;}
     var ext=fileExt(file);
     var isPdf=ext==="pdf";
-    if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){
-      stErr[1]("현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.");
-      return;
-    }
+    if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){ stErr[1]("엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 올려주세요."); return; }
     stErr[1]("");
     var mobile=isMobileEnv();
-    // 모바일 PDF 크기 제한 — 분석을 시작하지 않고 안내(메모리 과부하·튕김 예방)
     if(isPdf&&mobile&&file.size>PDF_MOBILE_MAX_MB*1024*1024){
-      stErr[1]("모바일에서는 큰 PDF("+PDF_MOBILE_MAX_MB+"MB 초과) 분석이 불안정할 수 있습니다. PC에서 분석하거나, 4대보험 EDI/사회보험통합징수포털에서 명부를 엑셀로 내려받아 올려주세요.");
+      stErr[1]("스마트폰에서는 큰 PDF("+PDF_MOBILE_MAX_MB+"MB 초과)에서 글자 읽기가 불안정할 수 있습니다. PDF 내용을 복사해 붙여넣거나, 엑셀 파일로 올리면 더 안정적입니다.");
+      stMode[1]("paste"); stText[1](""); stStep[1](1);
       return;
     }
-
-    stBusy[1](true);stPhase[1](isPdf?"PDF를 읽는 중입니다…":"명부를 읽는 중입니다…");
-    var r;
-    try{
-      if(isPdf){
-        var opts={maxPages:mobile?PDF_MAX_PAGES_MOBILE:PDF_MAX_PAGES_DESKTOP};
-        var to=mobile?PDF_TIMEOUT_MS_MOBILE:PDF_TIMEOUT_MS_DESKTOP;
-        r=await withTimeout(PD.parsePdfRoster(file,onPdfProgress,opts),to);
-        if(r&&r.ok)stPhase[1]("지원금 후보를 분류하는 중입니다…");
-      }else{
-        r=await withTimeout(PD.parseRosterFile(file),20000);
+    stBusy[1](true);
+    if(isPdf){
+      stPhase[1]("PDF에서 글자를 읽는 중입니다…");
+      var opts={maxPages:mobile?PDF_MAX_PAGES_MOBILE:PDF_MAX_PAGES_DESKTOP};
+      var to=mobile?PDF_TIMEOUT_MS_MOBILE:PDF_TIMEOUT_MS_DESKTOP;
+      var r=await withTimeout(PD.extractPdfText(file,onPdfProgress,opts),to);
+      stBusy[1](false);stPhase[1]("");
+      if(!r||!r.ok){
+        if(r&&r.message)console.error("[명부진단] PDF 텍스트 추출 실패:",r.error,r.message);
+        // 실패해도 검수 화면으로 보내 직접 붙여넣을 수 있게(앱 유지)
+        stText[1]((r&&r.text)||"");
+        stErr[1](r&&r.error==="timeout"?"PDF에서 글자 읽기가 길어 중단했습니다. 아래에 PDF 내용을 복사해 붙여넣거나, 엑셀 파일로 올려주세요.":"PDF에서 글자를 충분히 읽지 못했습니다. 아래에 PDF 내용을 복사해 붙여넣거나, 엑셀 파일로 올려주세요.");
+        stStep[1](2);
+        return;
       }
-    }catch(err){ console.error("[명부진단] 파싱 예외:",err); r={ok:false,error:"read_failed",message:err&&err.message}; }
-    stBusy[1](false);stPhase[1]("");
-    if(!r||!r.ok){
-      var err=r?r.error:"read_failed";
-      if(r&&r.message)console.error("[명부진단] 파싱 실패:",err,r.message);
-      var msg=err==="timeout"?"PDF 분석 시간이 길어 중단했습니다. 모바일에서는 불안정할 수 있어요. 엑셀 파일로 올리면 더 안정적입니다.":
-        err==="no_text"?"이 PDF는 텍스트를 읽기 어려운 파일입니다. 4대보험 EDI 또는 사회보험통합징수포털에서 명부를 엑셀로 내려받아 다시 올려주세요.":
-        err==="unsupported"?"현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.":
-        (err==="empty"||err==="no_rows")?"명부에서 읽을 수 있는 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 항목이 있는지 확인해주세요. (PDF는 양식에 따라 인식이 어려울 수 있어요)":
-        (isPdf?"PDF를 읽지 못했습니다. 텍스트 PDF인지 확인하거나 엑셀로 올려주세요.":"파일을 읽지 못했습니다. 엑셀 파일인지 확인해주세요.");
-      stErr[1](msg);                 // 모달 안에 유지 — 닫히거나 홈으로 가지 않음
-      return;
+      stText[1](r.text||"");
+      if(r.truncated)toast("PDF "+r.totalPages+"쪽 중 앞부분만 읽었습니다. 필요하면 직접 보완해주세요.","success");
+      stStep[1](2);
+    }else{
+      stPhase[1]("명부를 읽는 중입니다…");
+      var r2=await withTimeout(PD.parseRosterFile(file),20000);
+      stBusy[1](false);stPhase[1]("");
+      if(!r2||!r2.ok){
+        var e2=r2?r2.error:"read_failed";
+        if(r2&&r2.message)console.error("[명부진단] 엑셀/CSV 읽기 실패:",e2,r2.message);
+        stErr[1]((e2==="empty"||e2==="no_rows")?"명부에서 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 항목이 있는지 확인해주세요.":"파일을 읽지 못했습니다. 엑셀 파일인지 확인해주세요.");
+        return;
+      }
+      stCand[1](toCandidates(r2.employees));
+      stStep[1](3);
     }
-    // 올해 인원 자동 추정(재직 추정 인원 기준) — 사용자가 수정 가능
-    var an=PD.analyzeRoster(r.employees,{baseDate:stBase[0],year:stYear[0]});
+  }
+
+  // 2단계(또는 붙여넣기) → 3단계: 텍스트에서 직원 후보 추출
+  function textToCandidates(){
+    var text=stText[0]||"";
+    if(!text.trim()){ stErr[1]("내용이 비어 있습니다. PDF 내용을 복사해 붙여넣거나, 엑셀 파일로 올려주세요."); return; }
+    var res=PD.parseTextRoster(text);
+    if(!res.employees.length){ stErr[1]("직원 후보를 찾지 못했습니다. 한 줄에 ‘이름 / 주민번호 앞자리 / 자격취득일’ 형태가 들어가도록 정리하거나, 엑셀 파일로 올려주세요."); return; }
+    stErr[1]("");
+    stCand[1](toCandidates(res.employees));
+    stStep[1](3);
+  }
+
+  // 3단계 → 4단계: 검수된 명부로 1차 진단 실행
+  function runDiagnosis(){
+    var list=stCand[0].filter(function(c){return !c.excluded;}).map(function(c){
+      return {name:(c.name||"").trim()||"(이름 확인 필요)",birthDate:c.birthDate||null,gender:c.gender||null,rrnMasked:c.rrnMasked||null,hireDate:c.hireDate||null,loseDate:c.loseDate||null,statusRaw:c.statusRaw||"",insuranceRaw:c.insuranceRaw||"",workplace:c.workplace||"",bizNo:c.bizNo||""};
+    });
+    if(!list.length){ stErr[1]("진단할 직원이 없습니다. 직원을 추가하거나 ‘제외’를 해제해주세요."); return; }
+    stErr[1]("");
+    var an=PD.analyzeRoster(list,{baseDate:stBase[0],year:stYear[0]});
     stCurTotal[1](String(an.counts.activeCount));
     stCurYouth[1](String(an.counts.youthCount));
-    stMissing[1](r.missingCount||0);
-    stEmps[1](r.employees);
-    var extra="";
-    if(isPdf&&r.truncated)extra=" (PDF "+r.totalPages+"쪽 중 일부만 분석)";
-    toast("명부 "+r.employees.length+"명을 읽었습니다."+(isPdf&&r.missingCount?" (일부 "+r.missingCount+"건 확인 필요)":"")+extra+" (저장되지 않음)","success");
+    stMissing[1](list.filter(function(c){return !c.birthDate||!c.hireDate||c.name==="(이름 확인 필요)";}).length);
+    stEmps[1](list);
+    stStep[1](4);
   }
 
   var analysis=useMemo(function(){
@@ -2507,82 +2545,198 @@ function PayrollDiagnosis(props){
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.pdf" style={{display:"none"}}
             onChange={function(e){var f=e.target.files&&e.target.files[0];onFileChange(f);}}/>
 
-          {!stEmps[0]&&(
+          {/* 단계 표시 (1 파일 선택 · 2 추출 내용 확인 · 3 명부 정리 · 4 진단 결과) */}
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+            {[[1,"파일 선택"],[2,"추출 내용 확인"],[3,"명부 정리"],[4,"1차 진단 결과"]].map(function(s,i){
+              var n=s[0],on=stStep[0]===n,done=stStep[0]>n;
+              return(<React.Fragment key={n}>
+                {i>0&&<span style={{flex:"0 0 12px",height:2,background:(done||on)?"#5EEAD4":"#E2E8F0"}}/>}
+                <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:800,color:(on||done)?"#0F766E":"#94A3B8",whiteSpace:"nowrap"}}>
+                  <span style={{width:22,height:22,borderRadius:11,background:on?"#0F766E":done?"#CCFBF1":"#F1F5F9",color:on?"#fff":done?"#0F766E":"#94A3B8",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800}}>{done?"✓":n}</span>
+                  <span className="hide-mobile">{s[1]}</span>
+                </span>
+              </React.Fragment>);
+            })}
+          </div>
+
+          {/* 진행 상태 (공통) */}
+          {stBusy[0]&&stPhase[0]&&(
+            <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,fontSize:13,color:"#1D4ED8",fontWeight:700}}>
+              <span className="spin" style={{width:15,height:15,border:"2px solid #BFDBFE",borderTopColor:"#1D4ED8",borderRadius:"50%",display:"inline-block"}}/>
+              {stPhase[0]}
+            </div>
+          )}
+          {/* 오류/안내 (공통, 모달 내부 유지 — 앱이 홈으로 튕기지 않음) */}
+          {stErr[0]&&!stBusy[0]&&stStep[0]!==4&&(
+            <div style={{padding:"11px 13px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:9,fontSize:13,color:"#991B1B",lineHeight:1.7}}>⚠️ {stErr[0]}</div>
+          )}
+
+          {/* ── 1단계: 파일 선택 / 텍스트 붙여넣기 ── */}
+          {stStep[0]===1&&(
             <div style={{display:"grid",gap:12}}>
               <div style={{padding:"13px 16px",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:12,fontSize:13.5,color:"#065F46",lineHeight:1.7}}>
-                명부를 읽어 <strong>지원금 후보</strong>와 <strong>통합고용세액공제 검토표</strong>를 미리 보여드립니다. 이 결과는 <strong>1차 검토</strong>이며 확정이 아닙니다.
+                명부를 올리면 <strong>읽은 내용을 먼저 확인·수정</strong>한 뒤, <strong>지원금 후보</strong>와 <strong>통합고용세액공제</strong>를 <strong>1차 검토</strong>합니다. (확정 아님)
+              </div>
+              {/* 모드 탭 */}
+              <div style={{display:"flex",gap:8}}>
+                {[["file","📎 파일 올리기"],["paste","✍️ 텍스트 붙여넣기"]].map(function(m){var on=stMode[0]===m[0];return(
+                  <button key={m[0]} type="button" onClick={function(){stMode[1](m[0]);stErr[1]("");}}
+                    style={{flex:1,padding:"10px",borderRadius:10,border:"1.5px solid "+(on?"#0F766E":"#E2E8F0"),background:on?"#0F766E":"#fff",color:on?"#fff":"#475569",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:FF}}>{m[1]}</button>
+                );})}
               </div>
 
-              {/* 파일 선택 영역 */}
-              <div onClick={openPicker}
-                style={{border:"2px dashed #99F6E4",borderRadius:14,padding:"30px 20px",textAlign:"center",cursor:"pointer",background:"#F8FFFE"}}>
-                <div style={{fontSize:38,marginBottom:10}}>🗂️</div>
-                <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:7}}>클릭해서 가입자 명부 파일 선택</div>
-                <button type="button" onClick={function(e){e.stopPropagation();openPicker();}} className="prog-tap"
-                  style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,marginBottom:9}}>📎 파일 선택</button>
-                <div style={{fontSize:13,color:"#64748B"}}>지원: XLSX · XLS · CSV · 텍스트 PDF</div>
-                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV는 가장 안정적으로 분석됩니다. PDF는 텍스트 PDF만 지원하며, 모바일에서는 파일 크기와 형식에 따라 제한될 수 있습니다.</div>
-              </div>
-
-              {/* 선택된 파일 정보 카드 */}
-              {stFile[0]&&(function(){
-                var ext=fileExt(stFile[0]);
-                var isPdf=ext==="pdf";
-                var supported=["xlsx","xls","csv","pdf"].indexOf(ext)>=0;
-                return(
-                  <div style={{border:"1px solid "+(supported?"#A7F3D0":"#FDE68A"),background:supported?"#F0FDF4":"#FFFBEB",borderRadius:12,padding:"14px 16px",display:"grid",gap:10}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                      <span style={{fontSize:22}}>{isPdf?"📄":(ext==="csv"?"📑":supported?"📊":"📁")}</span>
-                      <div style={{minWidth:0,flex:"1 1 220px"}}>
-                        <div style={{fontSize:14.5,fontWeight:800,color:"#1E293B",wordBreak:"break-all"}}>선택된 파일: {stFile[0].name}</div>
-                        <div style={{fontSize:12.5,color:"#64748B",marginTop:2}}>
-                          형식: {ext?ext.toUpperCase():"알 수 없음"} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":"미지원 형식"}
+              {stMode[0]==="file"&&(
+                <React.Fragment>
+                  <div onClick={openPicker} style={{border:"2px dashed #99F6E4",borderRadius:14,padding:"26px 20px",textAlign:"center",cursor:"pointer",background:"#F8FFFE"}}>
+                    <div style={{fontSize:36,marginBottom:9}}>🗂️</div>
+                    <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:7}}>클릭해서 가입자 명부 파일 선택</div>
+                    <button type="button" onClick={function(e){e.stopPropagation();openPicker();}} className="prog-tap"
+                      style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,marginBottom:9}}>📎 파일 선택</button>
+                    <div style={{fontSize:13,color:"#64748B"}}>지원: XLSX · XLS · CSV · 텍스트 PDF</div>
+                    <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV는 가장 안정적입니다. PDF는 텍스트 PDF만 읽을 수 있고, 스마트폰에서는 파일 크기·형식에 따라 제한될 수 있습니다.</div>
+                  </div>
+                  {stFile[0]&&(function(){
+                    var ext=fileExt(stFile[0]);
+                    var isPdf=ext==="pdf";
+                    var supported=["xlsx","xls","csv","pdf"].indexOf(ext)>=0;
+                    return(
+                      <div style={{border:"1px solid "+(supported?"#A7F3D0":"#FDE68A"),background:supported?"#F0FDF4":"#FFFBEB",borderRadius:12,padding:"14px 16px",display:"grid",gap:10}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                          <span style={{fontSize:22}}>{isPdf?"📄":(ext==="csv"?"📑":supported?"📊":"📁")}</span>
+                          <div style={{minWidth:0,flex:"1 1 220px"}}>
+                            <div style={{fontSize:14.5,fontWeight:800,color:"#1E293B",wordBreak:"break-all"}}>선택된 파일: {stFile[0].name}</div>
+                            <div style={{fontSize:12.5,color:"#64748B",marginTop:2}}>형식: {ext?ext.toUpperCase():"알 수 없음"} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":"미지원 형식"}</div>
+                          </div>
+                        </div>
+                        <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>파일은 아직 저장되지 않습니다. 브라우저에서만 읽고, 주민등록번호 등 민감정보는 화면에 마스킹합니다.</div>
+                        {isPdf&&isMobileEnv()&&(
+                          <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>💡 스마트폰에서는 PDF 글자 읽기가 제한될 수 있습니다. PDF 내용을 복사해 <strong>‘텍스트 붙여넣기’</strong>로 올리거나, 엑셀 파일로 올리면 더 안정적입니다.</div>
+                        )}
+                        <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                          <button type="button" disabled={stBusy[0]} onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14,opacity:stBusy[0]?0.6:1})}>파일 다시 선택</button>
+                          <button type="button" disabled={!supported||stBusy[0]} onClick={startFromFile}
+                            style={{flex:"1 1 200px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
+                            {stBusy[0]?"읽는 중…":isPdf?"PDF에서 글자 읽기 →":"이 파일로 명부 정리하기 →"}
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>
-                      파일은 아직 저장되지 않습니다. 브라우저에서만 읽고, 주민등록번호 등 민감정보는 화면에 마스킹합니다.
-                    </div>
-                    {isPdf&&(
-                      <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>
-                        📄 PDF는 양식에 따라 일부 항목이 “확인 필요”로 표시될 수 있습니다. 텍스트 PDF만 지원하며, 스마트폰에서는 파일 크기·형식에 따라 제한될 수 있습니다. 가장 안정적인 방법은 4대보험 EDI/사회보험통합징수포털에서 <strong>엑셀로 내려받아 올리기</strong>입니다.
-                      </div>
-                    )}
-                    {stBusy[0]&&stPhase[0]&&(
-                      <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,fontSize:13,color:"#1D4ED8",fontWeight:700}}>
-                        <span className="spin" style={{width:15,height:15,border:"2px solid #BFDBFE",borderTopColor:"#1D4ED8",borderRadius:"50%",display:"inline-block"}}/>
-                        {stPhase[0]}
-                      </div>
-                    )}
-                    {/* 분석 실패/제한 안내 — 모달 안에 유지(앱이 홈으로 튕기지 않음) */}
-                    {stErr[0]&&!stBusy[0]&&(
-                      <div style={{padding:"11px 13px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:9,fontSize:13,color:"#991B1B",lineHeight:1.7}}>
-                        ⚠️ {stErr[0]}
-                      </div>
-                    )}
-                    <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
-                      <button type="button" disabled={stBusy[0]} onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14,opacity:stBusy[0]?0.6:1})}>{isPdf?"엑셀/CSV로 다시 올리기":"파일 다시 선택"}</button>
-                      <button type="button" disabled={!supported||stBusy[0]} onClick={analyze}
-                        style={{flex:"1 1 180px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
-                        {stBusy[0]?"분석 중…":isPdf?"🩺 PDF 명부 분석 시작":"🩺 명부 분석 시작"}
-                      </button>
-                    </div>
-                    {isPdf&&isMobileEnv()&&(
-                      <div style={{fontSize:12,color:"#64748B",lineHeight:1.6}}>
-                        💡 스마트폰에서는 PDF 분석이 불안정할 수 있습니다. <strong>PDF는 PC에서 분석</strong>하거나 <strong>엑셀/CSV로 올리기</strong>를 권장합니다.
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+                    );
+                  })()}
+                </React.Fragment>
+              )}
+
+              {stMode[0]==="paste"&&(
+                <div style={{display:"grid",gap:10}}>
+                  <div style={{fontSize:15,fontWeight:800,color:"#1E293B"}}>명부 내용을 직접 붙여넣기</div>
+                  <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>PDF에서 복사한 텍스트나 4대보험 명부 내용을 붙여넣으면, 직원 후보를 찾아 1차 진단합니다.</div>
+                  <textarea value={stText[0]} onChange={function(e){stText[1](e.target.value);}} rows={9}
+                    placeholder={"여기에 4대보험 가입자 명부 내용을 붙여넣어 주세요.\n예: 이름 / 주민번호 앞자리 / 자격취득일 / 사업장명 등"}
+                    style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",fontSize:13.5,lineHeight:1.6,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
+                  <button type="button" onClick={textToCandidates} style={Object.assign({},btnP,{background:"#0F766E",padding:"12px",fontSize:15})}>붙여넣은 내용으로 명부 정리하기 →</button>
+                </div>
+              )}
             </div>
           )}
 
-          {stEmps[0]&&analysis&&(
+          {/* ── 2단계: 추출 내용 확인 ── */}
+          {stStep[0]===2&&(
+            <div style={{display:"grid",gap:11}}>
+              <div style={{fontSize:16,fontWeight:800,color:"#1E293B"}}>PDF에서 읽은 내용을 확인해주세요</div>
+              <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>PDF 양식에 따라 글자가 일부 깨지거나 순서가 어긋날 수 있습니다. 아래 내용을 확인한 뒤, 필요하면 수정하고 다음 단계로 넘어가세요.</div>
+              <textarea value={stText[0]} onChange={function(e){stText[1](e.target.value);}} rows={11}
+                placeholder={"PDF에서 읽은 내용이 여기에 표시됩니다. 비어 있다면 PDF 내용을 복사해 직접 붙여넣어 주세요."}
+                style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",fontSize:13,lineHeight:1.6,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
+              <div style={{fontSize:12,color:"#92400E",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:9,padding:"9px 12px",lineHeight:1.6}}>
+                텍스트가 거의 비어 있다면, 해당 PDF는 스캔 이미지일 가능성이 높습니다. 이 경우 엑셀 파일로 내려받아 올리거나, PDF 내용을 복사해 붙여넣어 주세요.
+              </div>
+              <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                <button type="button" onClick={function(){stErr[1]("");stStep[1](1);}} style={Object.assign({},btnS,{padding:"11px 16px",fontSize:14})}>← 파일 다시 선택</button>
+                <button type="button" onClick={textToCandidates} style={{flex:"1 1 200px",background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:FF}}>이 내용으로 명부 정리하기 →</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── 3단계: 명부 정리(직원 후보 확인/수정) ── */}
+          {stStep[0]===3&&(function(){
+            var cands=stCand[0];
+            var notExcluded=cands.filter(function(c){return !c.excluded;});
+            var needCheck=notExcluded.filter(function(c){return candNeedsCheck(c)&&!c.confirmed;});
+            var confirmedCnt=notExcluded.filter(function(c){return c.confirmed;}).length;
+            var excludedCnt=cands.length-notExcluded.length;
+            var shown=stOnlyCheck[0]?cands.filter(function(c){return !c.excluded&&candNeedsCheck(c)&&!c.confirmed;}):cands;
+            var cellS={padding:"7px 8px",verticalAlign:"middle"};
+            var smInp={width:"100%",boxSizing:"border-box",padding:"6px 8px",fontSize:12.5,borderRadius:7,border:"1px solid #E2E8F0",fontFamily:FF};
+            return(
+              <div style={{display:"grid",gap:12}}>
+                <div style={{fontSize:16,fontWeight:800,color:"#1E293B"}}>직원 후보를 확인해주세요</div>
+                <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>자동으로 찾은 직원 정보입니다. 잘못 읽힌 부분은 수정하고, 빠진 직원은 추가한 뒤 진단을 시작하세요. 주민등록번호는 <strong>900101-1******</strong> 형태로만 표시됩니다.</div>
+                {/* 요약 */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
+                  {[["찾은 직원",notExcluded.length,"#1E293B"],["확인 완료",confirmedCnt,"#059669"],["확인 필요",needCheck.length,"#B45309"],["제외 예정",excludedCnt,"#94A3B8"]].map(function(k){return(
+                    <div key={k[0]} style={{background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:10,padding:"9px 11px"}}><div style={{fontSize:11.5,color:"#94A3B8",fontWeight:700}}>{k[0]}</div><div style={{fontSize:17,fontWeight:800,color:k[2]}}>{k[1]}명</div></div>
+                  );})}
+                </div>
+                <div style={{display:"flex",gap:9,flexWrap:"wrap",alignItems:"center"}}>
+                  <button type="button" onClick={addCand} style={Object.assign({},btnS,{padding:"8px 14px",fontSize:13})}>+ 직원 직접 추가</button>
+                  <button type="button" onClick={confirmAll} style={Object.assign({},btnS,{padding:"8px 14px",fontSize:13})}>전체 확인 완료</button>
+                  <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:"#475569",cursor:"pointer",marginLeft:"auto"}}>
+                    <input type="checkbox" checked={stOnlyCheck[0]} onChange={function(e){stOnlyCheck[1](e.target.checked);}}/> 확인 필요만 보기
+                  </label>
+                </div>
+                {cands.length===0?(
+                  <div style={{padding:"22px",textAlign:"center",fontSize:13.5,color:"#94A3B8",border:"1px dashed #E2E8F0",borderRadius:10}}>직원 후보가 없습니다. “+ 직원 직접 추가”로 직접 입력하거나, 이전 단계에서 내용을 보완해주세요.</div>
+                ):(
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:640}}>
+                      <thead><tr style={{background:"#F8FAFC",textAlign:"left",color:"#64748B"}}>
+                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0"}}>{h}</th>;})}
+                      </tr></thead>
+                      <tbody>
+                        {shown.map(function(c){
+                          var age=PD.calcAge(c.birthDate,stBase[0]);
+                          var need=candNeedsCheck(c);
+                          return(
+                            <tr key={c.id} style={{borderBottom:"1px solid #F1F5F9",opacity:c.excluded?0.5:1}}>
+                              <td style={cellS}><input value={c.name||""} onChange={function(e){updateCand(c.id,{name:e.target.value});}} style={Object.assign({},smInp,{minWidth:80})} placeholder="이름"/></td>
+                              <td style={Object.assign({},cellS,{fontFamily:"monospace",color:"#64748B",whiteSpace:"nowrap"})}>{c.rrnMasked||"—"}</td>
+                              <td style={cellS}><input type="date" value={c.birthDate||""} onChange={function(e){updateCand(c.id,{birthDate:e.target.value});}} style={Object.assign({},smInp,{minWidth:130})}/></td>
+                              <td style={cellS}>
+                                <select value={c.gender||""} onChange={function(e){updateCand(c.id,{gender:e.target.value});}} style={Object.assign({},smInp,{minWidth:60})}>
+                                  <option value="">-</option><option value="M">남</option><option value="F">여</option>
+                                </select>
+                              </td>
+                              <td style={Object.assign({},cellS,{whiteSpace:"nowrap",color:"#475569"})}>{age!=null?age+"세":"—"}</td>
+                              <td style={cellS}><input type="date" value={c.hireDate||""} onChange={function(e){updateCand(c.id,{hireDate:e.target.value});}} style={Object.assign({},smInp,{minWidth:130})}/></td>
+                              <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
+                                {c.confirmed?<span style={{fontSize:11.5,fontWeight:800,color:"#059669"}}>✓ 확인</span>:need?<span style={{fontSize:11.5,fontWeight:800,color:"#B45309"}}>확인 필요</span>:<span style={{fontSize:11.5,color:"#64748B"}}>—</span>}
+                              </td>
+                              <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
+                                <button type="button" onClick={function(){updateCand(c.id,{confirmed:!c.confirmed});}} style={{marginRight:5,padding:"4px 8px",borderRadius:6,border:"1px solid "+(c.confirmed?"#A7F3D0":"#E2E8F0"),background:c.confirmed?"#ECFDF5":"#fff",color:c.confirmed?"#059669":"#64748B",fontSize:11.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>확인</button>
+                                <button type="button" onClick={function(){updateCand(c.id,{excluded:!c.excluded});}} style={{padding:"4px 8px",borderRadius:6,border:"1px solid "+(c.excluded?"#FECACA":"#E2E8F0"),background:c.excluded?"#FEF2F2":"#fff",color:c.excluded?"#DC2626":"#64748B",fontSize:11.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>{c.excluded?"되돌리기":"제외"}</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                  <button type="button" onClick={function(){stErr[1]("");stStep[1](1);}} style={Object.assign({},btnS,{padding:"11px 16px",fontSize:14})}>← 처음으로</button>
+                  <button type="button" onClick={runDiagnosis} style={{flex:"1 1 200px",background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:FF}}>이 명부로 자동진단 시작 →</button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {stStep[0]===4&&stEmps[0]&&analysis&&(
             <div style={{display:"grid",gap:16}}>
+              <div style={{padding:"10px 14px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:12.5,color:"#0F766E",lineHeight:1.6}}>
+                이 결과는 <strong>사용자가 확인한 명부</strong>를 기준으로 한 <strong>1차 검토</strong>입니다. 실제 신청 가능 여부와 세액공제 금액은 공식 요건과 세무 검토가 필요합니다.
+              </div>
               {stMissing[0]>0&&(
                 <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,fontSize:12.5,color:"#92400E",lineHeight:1.6}}>
-                  ⚠️ PDF에서 일부 항목(이름·생년월일·입사일 등)을 정확히 읽지 못한 직원이 <strong>{stMissing[0]}명</strong> 있습니다. 해당 항목은 “확인 필요”로 표시되며, 정확한 진단을 위해 엑셀 명부 사용을 권장합니다.
+                  ⚠️ 일부 항목(이름·생년월일·입사일 등)이 확인되지 않은 직원이 <strong>{stMissing[0]}명</strong> 있습니다. 해당 항목은 “확인 필요”로 반영되며, 이전 단계(명부 정리)에서 보완하면 더 정확합니다.
                 </div>
               )}
               {/* 상단 요약 카드 */}
