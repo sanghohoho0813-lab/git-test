@@ -2312,6 +2312,8 @@ function PayrollDiagnosis(props){
   var stBase=useState(function(){return new Date().toISOString().split("T")[0];});
   var stTab=useState("emp");
   var stCopied=useState(false);
+  var stPhase=useState("");          // PDF 분석 진행 상태 문구
+  var stMissing=useState(0);         // 일부 항목 미확인(확인 필요) 직원 수
   var fileRef=useRef(null);
   // 추가 입력값
   var stRegion=useState("metro");   // metro|local
@@ -2326,7 +2328,7 @@ function PayrollDiagnosis(props){
   var stUnitN=useState(0);
 
   function reset(){
-    stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);
+    stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);stPhase[1]("");stMissing[1](0);
     stPrevTotal[1]("");stPrevYouth[1]("");stCurTotal[1]("");stCurYouth[1]("");
     if(fileRef.current)fileRef.current.value="";
   }
@@ -2370,37 +2372,45 @@ function PayrollDiagnosis(props){
     }
   }
 
-  // 3) 명부 분석 시작 — 선택된 파일을 브라우저에서 파싱
+  // PDF 진행 상태 콜백 → 사용자 친화 문구
+  function onPdfProgress(phase,cur,total){
+    if(phase==="read")stPhase[1]("PDF를 읽는 중입니다…");
+    else if(phase==="extract")stPhase[1]("페이지 텍스트를 추출하는 중입니다… ("+cur+"/"+total+")");
+    else if(phase==="find")stPhase[1]("직원 정보를 찾는 중입니다…");
+  }
+
+  // 3) 명부 분석 시작 — 선택된 파일을 브라우저에서 파싱 (엑셀/CSV·PDF)
   async function analyze(){
     var file=stFile[0];
     if(!file){toast("먼저 명부 파일을 선택해주세요.","error");return;}
     var ext=fileExt(file);
-    if(ext==="pdf"){
-      toast("PDF 분석은 다음 단계에서 지원 예정입니다. 우선 엑셀/CSV 파일을 올려주세요.","error");
+    var isPdf=ext==="pdf";
+    if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){
+      toast("현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.","error");
       return;
     }
-    if(["xlsx","xls","csv"].indexOf(ext)===-1){
-      toast("현재는 엑셀(xlsx·xls)·CSV 파일을 우선 지원합니다.","error");
-      return;
-    }
-    stBusy[1](true);
+    stBusy[1](true);stPhase[1](isPdf?"PDF를 읽는 중입니다…":"명부를 읽는 중입니다…");
     var r;
-    try{ r=await PD.parseRosterFile(file); }
-    catch(err){ console.error("[명부진단] 파싱 예외:",err); r={ok:false,error:"read_failed",message:err&&err.message}; }
-    stBusy[1](false);
+    try{
+      r=isPdf ? await PD.parsePdfRoster(file,onPdfProgress) : await PD.parseRosterFile(file);
+      if(isPdf&&r.ok)stPhase[1]("지원금 후보를 분류하는 중입니다…");
+    }catch(err){ console.error("[명부진단] 파싱 예외:",err); r={ok:false,error:"read_failed",message:err&&err.message}; }
+    stBusy[1](false);stPhase[1]("");
     if(!r.ok){
       if(r.message)console.error("[명부진단] 파싱 실패:",r.error,r.message);
-      var msg=r.error==="unsupported"?"현재는 엑셀(xlsx·xls)·CSV 파일을 우선 지원합니다.":
-        (r.error==="empty"||r.error==="no_rows")?"명부에서 읽을 수 있는 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 컬럼이 있는지 확인해주세요.":
-        "파일을 읽지 못했습니다. 엑셀 파일인지 확인해주세요.";
+      var msg=r.error==="no_text"?"이 PDF는 텍스트를 읽기 어려운 파일입니다. 4대보험 EDI 또는 사회보험통합징수포털에서 명부를 엑셀로 내려받아 다시 올려주세요.":
+        r.error==="unsupported"?"현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.":
+        (r.error==="empty"||r.error==="no_rows")?"명부에서 읽을 수 있는 직원 행을 찾지 못했습니다. 성명·생년월일(또는 주민번호)·자격취득일 항목이 있는지 확인해주세요.":
+        (isPdf?"PDF를 읽지 못했습니다. 텍스트 PDF인지 확인하거나 엑셀로 올려주세요.":"파일을 읽지 못했습니다. 엑셀 파일인지 확인해주세요.");
       toast(msg,"error");return;
     }
     // 올해 인원 자동 추정(재직 추정 인원 기준) — 사용자가 수정 가능
     var an=PD.analyzeRoster(r.employees,{baseDate:stBase[0],year:stYear[0]});
     stCurTotal[1](String(an.counts.activeCount));
     stCurYouth[1](String(an.counts.youthCount));
+    stMissing[1](r.missingCount||0);
     stEmps[1](r.employees);
-    toast("명부 "+r.employees.length+"명을 읽었습니다. (저장되지 않음)","success");
+    toast("명부 "+r.employees.length+"명을 읽었습니다."+(isPdf&&r.missingCount?" (일부 "+r.missingCount+"건은 확인 필요)":"")+" (저장되지 않음)","success");
   }
 
   var analysis=useMemo(function(){
@@ -2470,23 +2480,23 @@ function PayrollDiagnosis(props){
                 <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:7}}>클릭해서 가입자 명부 파일 선택</div>
                 <button type="button" onClick={function(e){e.stopPropagation();openPicker();}} className="prog-tap"
                   style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,marginBottom:9}}>📎 파일 선택</button>
-                <div style={{fontSize:13,color:"#64748B"}}>지원 목표: XLSX · XLS · CSV · PDF</div>
-                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>현재 버전은 <strong>엑셀(xlsx·xls)·CSV</strong>를 읽습니다. PDF는 다음 단계 예정입니다.</div>
+                <div style={{fontSize:13,color:"#64748B"}}>지원: XLSX · XLS · CSV · 텍스트 PDF</div>
+                <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV·텍스트 PDF를 읽을 수 있습니다. 스캔 이미지 PDF는 엑셀 파일로 내려받아 올려주세요.</div>
               </div>
 
               {/* 선택된 파일 정보 카드 */}
               {stFile[0]&&(function(){
                 var ext=fileExt(stFile[0]);
                 var isPdf=ext==="pdf";
-                var supported=["xlsx","xls","csv"].indexOf(ext)>=0;
+                var supported=["xlsx","xls","csv","pdf"].indexOf(ext)>=0;
                 return(
                   <div style={{border:"1px solid "+(supported?"#A7F3D0":"#FDE68A"),background:supported?"#F0FDF4":"#FFFBEB",borderRadius:12,padding:"14px 16px",display:"grid",gap:10}}>
                     <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                      <span style={{fontSize:22}}>{isPdf?"📄":supported?"📊":"📁"}</span>
+                      <span style={{fontSize:22}}>{isPdf?"📄":(ext==="csv"?"📑":supported?"📊":"📁")}</span>
                       <div style={{minWidth:0,flex:"1 1 220px"}}>
                         <div style={{fontSize:14.5,fontWeight:800,color:"#1E293B",wordBreak:"break-all"}}>선택된 파일: {stFile[0].name}</div>
                         <div style={{fontSize:12.5,color:"#64748B",marginTop:2}}>
-                          형식: {ext?ext.toUpperCase():"알 수 없음"} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":isPdf?"PDF는 다음 단계 예정":"미지원 형식"}
+                          형식: {ext?ext.toUpperCase():"알 수 없음"} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":"미지원 형식"}
                         </div>
                       </div>
                     </div>
@@ -2495,14 +2505,20 @@ function PayrollDiagnosis(props){
                     </div>
                     {isPdf&&(
                       <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>
-                        📄 PDF 분석은 다음 단계에서 지원 예정입니다. 우선 <strong>엑셀(xlsx·xls)·CSV</strong> 파일을 올려주세요. 4대보험 EDI/사회보험통합징수포털에서 명부를 엑셀로 내려받을 수 있습니다.
+                        📄 PDF는 양식에 따라 일부 항목이 “확인 필요”로 표시될 수 있습니다. 텍스트로 작성된 PDF만 읽을 수 있으며, 스캔 이미지 PDF는 4대보험 EDI/사회보험통합징수포털에서 엑셀로 내려받아 올려주세요.
+                      </div>
+                    )}
+                    {stBusy[0]&&stPhase[0]&&(
+                      <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,fontSize:13,color:"#1D4ED8",fontWeight:700}}>
+                        <span className="spin" style={{width:15,height:15,border:"2px solid #BFDBFE",borderTopColor:"#1D4ED8",borderRadius:"50%",display:"inline-block"}}/>
+                        {stPhase[0]}
                       </div>
                     )}
                     <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
-                      <button type="button" onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14})}>파일 다시 선택</button>
+                      <button type="button" disabled={stBusy[0]} onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14,opacity:stBusy[0]?0.6:1})}>파일 다시 선택</button>
                       <button type="button" disabled={!supported||stBusy[0]} onClick={analyze}
                         style={{flex:"1 1 180px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
-                        {stBusy[0]?"명부를 읽는 중…":"🩺 명부 분석 시작"}
+                        {stBusy[0]?"분석 중…":isPdf?"🩺 PDF 명부 분석 시작":"🩺 명부 분석 시작"}
                       </button>
                     </div>
                   </div>
@@ -2513,6 +2529,11 @@ function PayrollDiagnosis(props){
 
           {stEmps[0]&&analysis&&(
             <div style={{display:"grid",gap:16}}>
+              {stMissing[0]>0&&(
+                <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,fontSize:12.5,color:"#92400E",lineHeight:1.6}}>
+                  ⚠️ PDF에서 일부 항목(이름·생년월일·입사일 등)을 정확히 읽지 못한 직원이 <strong>{stMissing[0]}명</strong> 있습니다. 해당 항목은 “확인 필요”로 표시되며, 정확한 진단을 위해 엑셀 명부 사용을 권장합니다.
+                </div>
+              )}
               {/* 상단 요약 카드 */}
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:10}}>
                 {[

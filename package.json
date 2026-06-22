@@ -12,6 +12,7 @@
   "dependencies": {
     "@stripe/stripe-js": "^9.7.0",
     "@supabase/supabase-js": "^2.107.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",

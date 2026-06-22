@@ -222,7 +222,146 @@ export async function parseRosterFile(file) {
   }
 }
 
-// ── 청년/고령 추정 ────────────────────────────────────────
+// ── PDF 텍스트 추출 (브라우저 워커, 서버 업로드 없음) ──────
+// pdfjs 본체는 사용 시점에만 동적 import. OCR 없음(텍스트 PDF 전용).
+async function loadPdfDoc(file) {
+  var pdfjs = await import("pdfjs-dist");
+  // 워커 URL 도 사용 시점에만 로드(Vite 가 별도 에셋으로 방출). 본체/워커 모두 lazy.
+  try {
+    var workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  } catch { /* worker 미설정 시 pdfjs 기본값 */ }
+  var buf = await file.arrayBuffer();
+  return pdfjs.getDocument({ data: new Uint8Array(buf), isEvalSupported: false, disableAutoFetch: true }).promise;
+}
+
+// 텍스트 아이템을 y좌표로 묶어 "줄" 문자열 배열로 변환
+function groupItemsToLines(items) {
+  var rows = {};
+  (items || []).forEach(function (it) {
+    if (!it || !it.str || !String(it.str).trim()) return;
+    var tr = it.transform || [];
+    var y = tr.length >= 6 ? Math.round(tr[5] / 2) * 2 : 0; // 미세한 y 차이 흡수
+    var x = tr.length >= 6 ? tr[4] : 0;
+    if (!rows[y]) rows[y] = [];
+    rows[y].push({ x: x, s: it.str });
+  });
+  var keys = Object.keys(rows).map(Number).sort(function (a, b) { return b - a; }); // 위→아래
+  return keys.map(function (k) {
+    return rows[k].sort(function (a, b) { return a.x - b.x; }).map(function (o) { return o.s; }).join(" ").replace(/\s+/g, " ").trim();
+  }).filter(function (l) { return l; });
+}
+
+// 각 페이지 텍스트를 줄 단위로 추출 (onProgress(phase, cur, total))
+export async function extractPdfLines(file, onProgress) {
+  var doc = await loadPdfDoc(file);
+  var lines = [];
+  try {
+    for (var p = 1; p <= doc.numPages; p++) {
+      if (onProgress) onProgress("extract", p, doc.numPages);
+      var page = await doc.getPage(p);
+      var tc = await page.getTextContent();
+      lines = lines.concat(groupItemsToLines(tc.items));
+      try { page.cleanup(); } catch { /* ignore */ }
+    }
+  } finally {
+    try { doc.destroy(); } catch { /* ignore */ }
+  }
+  return lines;
+}
+
+// 헤더/합계 등 직원명이 아닌 토큰
+var PDF_NAME_STOP = ["성명", "합계", "소계", "총계", "사업장", "가입자", "보험료", "국민연금", "건강보험", "고용보험", "산재보험", "연번", "순번", "번호", "자격", "취득", "상실", "구분", "비고", "주민", "생년", "입사", "퇴사", "대상", "근로자", "피보험자", "사업주", "관리"];
+function cleanName(s) { return String(s || "").replace(/[^가-힣]/g, "").trim(); }
+
+function extractPdfMeta(lines) {
+  var workplace = "", bizNo = "";
+  lines.slice(0, 20).forEach(function (l) {
+    if (!bizNo) { var bm = l.match(/\d{3}-\d{2}-\d{5}/); if (bm) bizNo = bm[0]; }
+    if (!workplace) {
+      var wm = l.match(/사업장\s*(?:명|명칭)?\s*[:：]?\s*([가-힣A-Za-z0-9()㈜\s]{2,40})/);
+      if (wm) {
+        // 사업자/관리번호/숫자 구간 직전까지만 + 다중 공백 정리
+        var v = wm[1].split(/사업자|관리번호|등록번호|\s{2,}|\s\d{3}-/)[0].replace(/\s+/g, " ").trim();
+        if (v && !/^명/.test(v)) workplace = v;
+      }
+    }
+  });
+  return { workplace: workplace, bizNo: bizNo };
+}
+
+// PDF 텍스트 줄 → 직원 객체 (주민번호 원본 미보관 · 마스킹값만)
+// 양식이 다양하므로 주민/생년 패턴이 있는 줄만 직원 행으로 추정한다.
+export function parsePdfRosterLines(lines) {
+  var meta = extractPdfMeta(lines);
+  var emps = [];
+  var missing = 0;
+  (lines || []).forEach(function (line) {
+    var rm = line.match(/(\d{6})\s*[-~]\s*([0-9*]{1,7})/);
+    if (!rm) return; // 주민/생년 패턴 없는 줄 제외(헤더·합계·안내 회피)
+    var front = rm[1];
+    var genderDigit = (rm[2] || "").charAt(0);
+    if (!/[0-9]/.test(genderDigit)) genderDigit = ""; // 성별 자리까지 마스킹된 경우
+    var der = genderDigit ? deriveFromRRN(front + genderDigit) : { birthDate: normDate(front), gender: null };
+    var rrnMasked = front + "-" + (genderDigit || "*") + "******";
+
+    // 이름: 주민번호 앞 구간의 마지막 한글 토큰
+    var before = line.slice(0, rm.index);
+    var name = "";
+    var tokens = before.split(/\s+/).filter(Boolean);
+    for (var i = tokens.length - 1; i >= 0; i--) {
+      var cand = cleanName(tokens[i]);
+      if (cand.length >= 2 && cand.length <= 4 && PDF_NAME_STOP.indexOf(cand) === -1) { name = cand; break; }
+    }
+    if (!name) {
+      var gm = before.match(/[가-힣]{2,4}/g);
+      if (gm) { for (var j = gm.length - 1; j >= 0; j--) { if (PDF_NAME_STOP.indexOf(gm[j]) === -1) { name = gm[j]; break; } } }
+    }
+
+    // 날짜(취득/상실) — 주민번호 뒤 구간에서 탐지
+    var after = line.slice(rm.index + rm[0].length);
+    var dates = [];
+    var dre = /(\d{4})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})/g;
+    var dmm;
+    while ((dmm = dre.exec(after))) { var nd = normDate(dmm[1] + "-" + dmm[2] + "-" + dmm[3]); if (nd) dates.push(nd); }
+
+    var statusRaw = /상실|퇴사|해지|종료/.test(line) ? "상실" : /취득|정상|재직/.test(line) ? "취득" : "";
+
+    var emp = {
+      name: name || "(이름 확인 필요)",
+      birthDate: der ? der.birthDate : null,
+      gender: der ? der.gender : null,
+      rrnMasked: rrnMasked,
+      hireDate: dates[0] || null,
+      loseDate: dates[1] || null,
+      statusRaw: statusRaw,
+      insuranceRaw: "",
+      workplace: meta.workplace || "",
+      bizNo: meta.bizNo || "",
+    };
+    if (!emp.birthDate || !emp.hireDate || !name) missing++;
+    emps.push(emp);
+    // front/genderDigit/rm 은 블록을 벗어나면 참조되지 않음 → 주민번호 원본 미보관
+  });
+  return { employees: emps, meta: meta, missingCount: missing };
+}
+
+// PDF 명부 파싱 (텍스트 추출 → 직원 추정). 스캔 이미지 PDF 는 no_text 반환.
+export async function parsePdfRoster(file, onProgress) {
+  try {
+    if (onProgress) onProgress("read");
+    var lines = await extractPdfLines(file, onProgress);
+    var textLen = lines.join("").replace(/\s/g, "").length;
+    if (!lines.length || textLen < 8) return { ok: false, error: "no_text" }; // 스캔 이미지 등 텍스트 없음
+    if (onProgress) onProgress("find");
+    var res = parsePdfRosterLines(lines);
+    if (!res.employees.length) return { ok: false, error: "no_rows" };
+    return { ok: true, employees: res.employees, meta: res.meta, missingCount: res.missingCount };
+  } catch (e) {
+    return { ok: false, error: "read_failed", message: e && e.message };
+  }
+}
+
 export function isYouthAge(age) { return age != null && age >= 15 && age <= 34; }
 export function isSeniorAge(age) { return age != null && age >= 60; }
 
