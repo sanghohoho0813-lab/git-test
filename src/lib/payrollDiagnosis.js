@@ -277,78 +277,137 @@ export async function extractPdfLines(file, onProgress, opts) {
 
 // 헤더/합계 등 직원명이 아닌 토큰
 var PDF_NAME_STOP = ["성명", "합계", "소계", "총계", "사업장", "가입자", "보험료", "국민연금", "건강보험", "고용보험", "산재보험", "연번", "순번", "번호", "자격", "취득", "상실", "구분", "비고", "주민", "생년", "입사", "퇴사", "대상", "근로자", "피보험자", "사업주", "관리"];
-function cleanName(s) { return String(s || "").replace(/[^가-힣]/g, "").trim(); }
 
-function extractPdfMeta(lines) {
+// 한글 이름 후보 선택 (first=true: 앞에서 첫 토큰 / false: 뒤에서 마지막 토큰)
+function pickKoreanName(s, first) {
+  var toks = String(s || "").match(/[가-힣]{2,4}/g);
+  if (!toks) return "";
+  if (first) { for (var i = 0; i < toks.length; i++) { if (PDF_NAME_STOP.indexOf(toks[i]) < 0) return toks[i]; } }
+  else { for (var j = toks.length - 1; j >= 0; j--) { if (PDF_NAME_STOP.indexOf(toks[j]) < 0) return toks[j]; } }
+  return "";
+}
+
+// 텍스트 정규화 — 깨진 공백/대시/별표/전각문자 정리(직원 후보 추출 전)
+function normalizeRosterText(text) {
+  var t = String(text || "");
+  t = t.replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFF10 + 0x30); }); // 전각숫자→반각
+  t = t.replace(/[‐‑‒–—―−－ー]/g, "-"); // 각종 하이픈/대시→'-'
+  t = t.replace(/[＊∗⁎✱٭⁕]/g, "*"); // 각종 별표/마스킹문자→'*'
+  t = t.replace(/[\u00A0\u3000\t ]/g, " "); // 특수 공백 -> 일반 공백
+  return t;
+}
+
+// 문자열에서 날짜 후보 추출 → ["YYYY-MM-DD", ...] (붙어 있어도 인식)
+function extractDatesFrom(s) {
+  var out = [];
+  var re = /(\d{4})[.\-/]?\s?(\d{1,2})[.\-/]?\s?(\d{1,2})/g;
+  var m;
+  while ((m = re.exec(s))) {
+    var y = +m[1], mo = +m[2], da = +m[3];
+    if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) out.push(y + "-" + pad2(mo) + "-" + pad2(da));
+  }
+  return out;
+}
+// 두 자리 연도 날짜(25.08.01 등) 보조 추출
+function extractShortDatesFrom(s) {
+  var out = [];
+  var re = /(?:^|[^\d])(\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})(?![\d])/g;
+  var m;
+  while ((m = re.exec(s))) {
+    var yy = +m[1], mo = +m[2], da = +m[3];
+    if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) { var cur = new Date().getFullYear() % 100; var cen = yy <= cur ? 2000 : 1900; out.push((cen + yy) + "-" + pad2(mo) + "-" + pad2(da)); }
+  }
+  return out;
+}
+
+// 텍스트 전체에서 사업장명/사업자번호 추정
+function extractMetaFromText(t) {
   var workplace = "", bizNo = "";
-  lines.slice(0, 20).forEach(function (l) {
-    if (!bizNo) { var bm = l.match(/\d{3}-\d{2}-\d{5}/); if (bm) bizNo = bm[0]; }
-    if (!workplace) {
-      var wm = l.match(/사업장\s*(?:명|명칭)?\s*[:：]?\s*([가-힣A-Za-z0-9()㈜\s]{2,40})/);
-      if (wm) {
-        // 사업자/관리번호/숫자 구간 직전까지만 + 다중 공백 정리
-        var v = wm[1].split(/사업자|관리번호|등록번호|\s{2,}|\s\d{3}-/)[0].replace(/\s+/g, " ").trim();
-        if (v && !/^명/.test(v)) workplace = v;
-      }
-    }
-  });
+  var bm = t.match(/\d{3}-\d{2}-\d{5}/); if (bm) bizNo = bm[0];
+  var wm = t.match(/사업장\s*(?:명|명칭)?\s*[:：]?\s*([가-힣A-Za-z0-9()㈜]{2,30})/);
+  if (wm) { var v = wm[1].split(/사업자|관리번호|등록번호/)[0].trim(); if (v && !/^명/.test(v)) workplace = v; }
   return { workplace: workplace, bizNo: bizNo };
 }
 
-// PDF 텍스트 줄 → 직원 객체 (주민번호 원본 미보관 · 마스킹값만)
-// 양식이 다양하므로 주민/생년 패턴이 있는 줄만 직원 행으로 추정한다.
-export function parsePdfRosterLines(lines) {
-  var meta = extractPdfMeta(lines);
+// ── 텍스트(검수/붙여넣기/PDF) → 직원 후보 (주민번호 패턴 중심, 원본 미보관) ──
+// 공백/줄바꿈/표 구조가 깨져도, 주민번호 패턴을 앵커로 직원 후보를 분리한다.
+// 반환: { employees, meta, missingCount, stats:{textLen,rrnCount,dateCount,candCount} }
+export function parseRosterText(text) {
+  var raw = String(text || "");
+  var norm = normalizeRosterText(raw);
+  var meta = extractMetaFromText(norm);
   var emps = [];
-  var missing = 0;
-  (lines || []).forEach(function (line) {
-    var rm = line.match(/(\d{6})\s*[-~]\s*([0-9*]{1,7})/);
-    if (!rm) return; // 주민/생년 패턴 없는 줄 제외(헤더·합계·안내 회피)
-    var front = rm[1];
-    var genderDigit = (rm[2] || "").charAt(0);
-    if (!/[0-9]/.test(genderDigit)) genderDigit = ""; // 성별 자리까지 마스킹된 경우
-    var der = genderDigit ? deriveFromRRN(front + genderDigit) : { birthDate: normDate(front), gender: null };
-    var rrnMasked = front + "-" + (genderDigit || "*") + "******";
 
-    // 이름: 주민번호 앞 구간의 마지막 한글 토큰
-    var before = line.slice(0, rm.index);
-    var name = "";
-    var tokens = before.split(/\s+/).filter(Boolean);
-    for (var i = tokens.length - 1; i >= 0; i--) {
-      var cand = cleanName(tokens[i]);
-      if (cand.length >= 2 && cand.length <= 4 && PDF_NAME_STOP.indexOf(cand) === -1) { name = cand; break; }
+  // 주민번호 앵커: 6자리-(성별1자리)(나머지: 숫자/마스킹 0~6). 마스킹·전체 모두 매칭.
+  var rrnRe = /(\d{6})\s*-\s*([0-9])([0-9*]{0,6})/g;
+  var anchors = [], m;
+  while ((m = rrnRe.exec(norm))) { anchors.push({ index: m.index, end: rrnRe.lastIndex, front: m[1], gender: m[2] }); }
+
+  var totalDates = 0;
+  if (anchors.length) {
+    for (var i = 0; i < anchors.length; i++) {
+      var a = anchors[i];
+      var tailEnd = (i + 1 < anchors.length) ? anchors[i + 1].index : norm.length;
+      var headStart = (i > 0) ? anchors[i - 1].end : 0;
+      var tail = norm.slice(a.end, tailEnd);
+      var head = norm.slice(headStart, a.index);
+      // 이름: 주민번호 뒤(첫 한글) 우선 → 없으면 앞쪽(가까운 마지막 한글)
+      var name = pickKoreanName(tail, true) || pickKoreanName(head, false);
+      // 날짜: 뒤 구간 우선 → 없으면 앞 구간
+      var dates = extractDatesFrom(tail);
+      if (!dates.length) dates = extractShortDatesFrom(tail);
+      if (!dates.length) dates = extractDatesFrom(head);
+      totalDates += dates.length;
+      var der = deriveFromRRN(a.front + a.gender) || { birthDate: null, gender: null };
+      var uniqDates = []; dates.forEach(function (d) { if (uniqDates.indexOf(d) < 0) uniqDates.push(d); });
+      var rawN = dates.length;                            // 보험별 취득일 칸 수(같은 날짜 반복 포함)
+      var fourIns = rawN >= 4;                            // 4칸 이상이면 4대보험 가입 추정
+      emps.push({
+        name: name || "(이름 확인 필요)",
+        birthDate: der.birthDate,
+        gender: der.gender,
+        rrnMasked: a.front + "-" + a.gender + "******",  // 원본 뒷자리 미보관
+        hireDate: uniqDates[0] || null,
+        loseDate: null,
+        acqDates: uniqDates,                              // 대표 취득일 후보(중복 제거)
+        multiDates: uniqDates.length > 1,
+        ins: { np: fourIns, hi: fourIns, ei: fourIns, wc: fourIns }, // 4칸 이상이면 4대보험 가입 추정
+        insCount: rawN,
+        statusRaw: /상실|퇴사|해지|종료/.test(tail) ? "상실" : "취득",
+        insuranceRaw: rawN ? (rawN + "개 취득일 추정") : "",
+        workplace: meta.workplace || "",
+        bizNo: meta.bizNo || "",
+      });
+      // a.front/a.gender 외 주민번호 뒷자리는 어디에도 저장하지 않음
     }
-    if (!name) {
-      var gm = before.match(/[가-힣]{2,4}/g);
-      if (gm) { for (var j = gm.length - 1; j >= 0; j--) { if (PDF_NAME_STOP.indexOf(gm[j]) === -1) { name = gm[j]; break; } } }
-    }
+  } else {
+    // 주민번호가 전혀 없을 때: 생년월일(6/8자리)+한글이름 후보를 보수적으로 탐지
+    var lines = norm.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    lines.forEach(function (line) {
+      var bm2 = line.match(/(?:^|[^\d])((?:19|20)\d{6}|\d{6})(?![\d])/);
+      var nm = pickKoreanName(line, true);
+      if (!bm2 && !nm) return;
+      var bd = bm2 ? normDate(bm2[1]) : null;
+      var ds = extractDatesFrom(line.replace(bm2 ? bm2[1] : "", " "));
+      totalDates += ds.length;
+      if (!bd && !nm) return;
+      emps.push({
+        name: nm || "(이름 확인 필요)", birthDate: bd, gender: null, rrnMasked: null,
+        hireDate: ds[0] || null, loseDate: null, acqDates: ds, multiDates: ds.length > 1,
+        ins: { np: false, hi: false, ei: false, wc: false }, insCount: ds.length,
+        statusRaw: /상실|퇴사/.test(line) ? "상실" : "취득", insuranceRaw: "",
+        workplace: meta.workplace || "", bizNo: meta.bizNo || "",
+      });
+    });
+  }
 
-    // 날짜(취득/상실) — 주민번호 뒤 구간에서 탐지
-    var after = line.slice(rm.index + rm[0].length);
-    var dates = [];
-    var dre = /(\d{4})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})/g;
-    var dmm;
-    while ((dmm = dre.exec(after))) { var nd = normDate(dmm[1] + "-" + dmm[2] + "-" + dmm[3]); if (nd) dates.push(nd); }
+  var missing = emps.filter(function (e) { return e.name === "(이름 확인 필요)" || !e.birthDate || !e.hireDate; }).length;
+  return { employees: emps, meta: meta, missingCount: missing, stats: { textLen: raw.length, rrnCount: anchors.length, dateCount: totalDates, candCount: emps.length } };
+}
 
-    var statusRaw = /상실|퇴사|해지|종료/.test(line) ? "상실" : /취득|정상|재직/.test(line) ? "취득" : "";
-
-    var emp = {
-      name: name || "(이름 확인 필요)",
-      birthDate: der ? der.birthDate : null,
-      gender: der ? der.gender : null,
-      rrnMasked: rrnMasked,
-      hireDate: dates[0] || null,
-      loseDate: dates[1] || null,
-      statusRaw: statusRaw,
-      insuranceRaw: "",
-      workplace: meta.workplace || "",
-      bizNo: meta.bizNo || "",
-    };
-    if (!emp.birthDate || !emp.hireDate || !name) missing++;
-    emps.push(emp);
-    // front/genderDigit/rm 은 블록을 벗어나면 참조되지 않음 → 주민번호 원본 미보관
-  });
-  return { employees: emps, meta: meta, missingCount: missing };
+// (호환) 줄 배열 → 직원 후보. 내부적으로 텍스트 파서를 사용.
+export function parsePdfRosterLines(lines) {
+  return parseRosterText((lines || []).join("\n"));
 }
 
 // PDF 명부 파싱 (텍스트 추출 → 직원 추정). 스캔 이미지 PDF 는 no_text 반환.
@@ -384,10 +443,9 @@ export async function extractPdfText(file, onProgress, opts) {
   }
 }
 
-// 사용자가 검수·붙여넣기한 텍스트 → 직원 후보 추출 (PDF 줄 파서 재사용)
+// 사용자가 검수·붙여넣기한 텍스트 → 직원 후보 추출 (텍스트 파서 사용)
 export function parseTextRoster(text) {
-  var lines = String(text || "").split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-  return parsePdfRosterLines(lines);
+  return parseRosterText(text);
 }
 
 export function isYouthAge(age) { return age != null && age >= 15 && age <= 34; }

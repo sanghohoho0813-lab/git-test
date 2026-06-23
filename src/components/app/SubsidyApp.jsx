@@ -2320,6 +2320,7 @@ function PayrollDiagnosis(props){
   var stText=useState("");           // PDF에서 읽은/붙여넣은/검수한 텍스트
   var stCand=useState([]);           // 직원 후보(검수·수정용)
   var stOnlyCheck=useState(false);   // '확인 필요만 보기'
+  var stStats=useState(null);        // 분석 로그(텍스트 길이·주민번호 수·날짜 수·후보 수)
   var fileRef=useRef(null);
 
   // 모바일 환경 추정 + PDF 안전 제한값
@@ -2344,7 +2345,7 @@ function PayrollDiagnosis(props){
 
   function reset(){
     stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);stPhase[1]("");stMissing[1](0);stErr[1]("");
-    stStep[1](1);stMode[1]("file");stText[1]("");stCand[1]([]);stOnlyCheck[1](false);
+    stStep[1](1);stMode[1]("file");stText[1]("");stCand[1]([]);stOnlyCheck[1](false);stStats[1](null);
     stPrevTotal[1]("");stPrevYouth[1]("");stCurTotal[1]("");stCurYouth[1]("");
     if(fileRef.current)fileRef.current.value="";
   }
@@ -2410,13 +2411,17 @@ function PayrollDiagnosis(props){
     return (emps||[]).map(function(e){
       var c=Object.assign({},e);
       c.id=uid(); c.excluded=false; c.confirmed=false;
+      c.ins=c.ins||{np:false,hi:false,ei:false,wc:false};
       return c;
     });
   }
   function candNeedsCheck(c){ return !c.name || c.name==="(이름 확인 필요)" || !c.birthDate || !c.hireDate; }
   function updateCand(id,patch){ stCand[1](stCand[0].map(function(c){ return c.id===id?Object.assign({},c,patch):c; })); }
-  function addCand(){ stCand[1](stCand[0].concat([{id:uid(),name:"",birthDate:"",gender:"",rrnMasked:null,hireDate:"",loseDate:null,statusRaw:"취득",insuranceRaw:"",workplace:"",bizNo:"",excluded:false,confirmed:false}])); }
+  function updateIns(id,key,val){ stCand[1](stCand[0].map(function(c){ return c.id===id?Object.assign({},c,{ins:Object.assign({},c.ins||{},(function(){var o={};o[key]=val;return o;})())}):c; })); }
+  function addCand(){ stCand[1](stCand[0].concat([{id:uid(),name:"",birthDate:"",gender:"",rrnMasked:null,hireDate:"",loseDate:null,statusRaw:"취득",insuranceRaw:"",ins:{np:false,hi:false,ei:false,wc:false},workplace:"",bizNo:"",excluded:false,confirmed:false}])); }
   function confirmAll(){ stCand[1](stCand[0].map(function(c){ return c.excluded?c:Object.assign({},c,{confirmed:true}); })); }
+  // 후보 0명일 때: 빈 명부로 직접 입력 진행
+  function goManual(){ stErr[1](""); stCand[1]([{id:uid(),name:"",birthDate:"",gender:"",rrnMasked:null,hireDate:"",loseDate:null,statusRaw:"취득",insuranceRaw:"",ins:{np:false,hi:false,ei:false,wc:false},workplace:"",bizNo:"",excluded:false,confirmed:false}]); stStep[1](3); }
 
   // 1단계 → : 엑셀/CSV 는 곧장 명부 정리(3), PDF 는 글자 읽기 후 검수(2)
   async function startFromFile(){
@@ -2470,7 +2475,8 @@ function PayrollDiagnosis(props){
     var text=stText[0]||"";
     if(!text.trim()){ stErr[1]("내용이 비어 있습니다. PDF 내용을 복사해 붙여넣거나, 엑셀 파일로 올려주세요."); return; }
     var res=PD.parseTextRoster(text);
-    if(!res.employees.length){ stErr[1]("직원 후보를 찾지 못했습니다. 한 줄에 ‘이름 / 주민번호 앞자리 / 자격취득일’ 형태가 들어가도록 정리하거나, 엑셀 파일로 올려주세요."); return; }
+    stStats[1](res.stats);
+    if(!res.employees.length){ stErr[1]("직원 후보를 찾지 못했습니다. 주민번호(예: 900101-1******)나 생년월일이 보이도록 정리해 보거나, 아래 ‘직원 직접 입력’으로 진행하거나 엑셀 파일로 올려주세요."); return; }
     stErr[1]("");
     stCand[1](toCandidates(res.employees));
     stStep[1](3);
@@ -2479,7 +2485,9 @@ function PayrollDiagnosis(props){
   // 3단계 → 4단계: 검수된 명부로 1차 진단 실행
   function runDiagnosis(){
     var list=stCand[0].filter(function(c){return !c.excluded;}).map(function(c){
-      return {name:(c.name||"").trim()||"(이름 확인 필요)",birthDate:c.birthDate||null,gender:c.gender||null,rrnMasked:c.rrnMasked||null,hireDate:c.hireDate||null,loseDate:c.loseDate||null,statusRaw:c.statusRaw||"",insuranceRaw:c.insuranceRaw||"",workplace:c.workplace||"",bizNo:c.bizNo||""};
+      var ins=c.ins||{};
+      var insStr=[ins.np?"국민":"",ins.hi?"건강":"",ins.ei?"고용":"",ins.wc?"산재":""].filter(Boolean).join("·");
+      return {name:(c.name||"").trim()||"(이름 확인 필요)",birthDate:c.birthDate||null,gender:c.gender||null,rrnMasked:c.rrnMasked||null,hireDate:c.hireDate||null,loseDate:c.loseDate||null,statusRaw:c.statusRaw||"",insuranceRaw:insStr||c.insuranceRaw||"",workplace:c.workplace||"",bizNo:c.bizNo||""};
     });
     if(!list.length){ stErr[1]("진단할 직원이 없습니다. 직원을 추가하거나 ‘제외’를 해제해주세요."); return; }
     stErr[1]("");
@@ -2632,7 +2640,10 @@ function PayrollDiagnosis(props){
                   <textarea value={stText[0]} onChange={function(e){stText[1](e.target.value);}} rows={9}
                     placeholder={"여기에 4대보험 가입자 명부 내용을 붙여넣어 주세요.\n예: 이름 / 주민번호 앞자리 / 자격취득일 / 사업장명 등"}
                     style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",fontSize:13.5,lineHeight:1.6,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
-                  <button type="button" onClick={textToCandidates} style={Object.assign({},btnP,{background:"#0F766E",padding:"12px",fontSize:15})}>붙여넣은 내용으로 명부 정리하기 →</button>
+                  <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                    <button type="button" onClick={goManual} style={Object.assign({},btnS,{padding:"12px 16px",fontSize:14})}>직원 직접 입력</button>
+                    <button type="button" onClick={textToCandidates} style={{flex:"1 1 200px",background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:FF}}>붙여넣은 내용으로 명부 정리하기 →</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2649,8 +2660,22 @@ function PayrollDiagnosis(props){
               <div style={{fontSize:12,color:"#92400E",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:9,padding:"9px 12px",lineHeight:1.6}}>
                 텍스트가 거의 비어 있다면, 해당 PDF는 스캔 이미지일 가능성이 높습니다. 이 경우 엑셀 파일로 내려받아 올리거나, PDF 내용을 복사해 붙여넣어 주세요.
               </div>
+              {/* 분석 로그(접이식) — 추출은 됐는데 후보가 안 잡히는지 진단 */}
+              {(function(){
+                var quickRrn=(stText[0].match(/\d{6}\s*-\s*[0-9*]/g)||[]).length;
+                return(
+                  <details style={{fontSize:12,color:"#64748B"}}>
+                    <summary style={{cursor:"pointer",fontWeight:700}}>분석 로그 보기</summary>
+                    <div style={{marginTop:6,padding:"8px 11px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:8,lineHeight:1.7}}>
+                      읽은 글자 수: {stText[0].length}자 · 발견된 주민번호 패턴: 약 {quickRrn}건
+                      {stStats[0]&&(<span> · 직전 인식 결과 — 주민번호 {stStats[0].rrnCount}건 / 날짜 {stStats[0].dateCount}개 / 직원 후보 {stStats[0].candCount}명</span>)}
+                    </div>
+                  </details>
+                );
+              })()}
               <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
                 <button type="button" onClick={function(){stErr[1]("");stStep[1](1);}} style={Object.assign({},btnS,{padding:"11px 16px",fontSize:14})}>← 파일 다시 선택</button>
+                <button type="button" onClick={goManual} style={Object.assign({},btnS,{padding:"11px 16px",fontSize:14})}>직원 직접 입력</button>
                 <button type="button" onClick={textToCandidates} style={{flex:"1 1 200px",background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:FF}}>이 내용으로 명부 정리하기 →</button>
               </div>
             </div>
@@ -2676,6 +2701,12 @@ function PayrollDiagnosis(props){
                     <div key={k[0]} style={{background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:10,padding:"9px 11px"}}><div style={{fontSize:11.5,color:"#94A3B8",fontWeight:700}}>{k[0]}</div><div style={{fontSize:17,fontWeight:800,color:k[2]}}>{k[1]}명</div></div>
                   );})}
                 </div>
+                {stStats[0]&&(
+                  <details style={{fontSize:12,color:"#64748B"}}>
+                    <summary style={{cursor:"pointer",fontWeight:700}}>분석 로그 보기</summary>
+                    <div style={{marginTop:6,padding:"8px 11px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:8,lineHeight:1.7}}>읽은 글자 수 {stStats[0].textLen}자 · 주민번호 패턴 {stStats[0].rrnCount}건 · 날짜 {stStats[0].dateCount}개 · 직원 후보 {stStats[0].candCount}명</div>
+                  </details>
+                )}
                 <div style={{display:"flex",gap:9,flexWrap:"wrap",alignItems:"center"}}>
                   <button type="button" onClick={addCand} style={Object.assign({},btnS,{padding:"8px 14px",fontSize:13})}>+ 직원 직접 추가</button>
                   <button type="button" onClick={confirmAll} style={Object.assign({},btnS,{padding:"8px 14px",fontSize:13})}>전체 확인 완료</button>
@@ -2687,9 +2718,9 @@ function PayrollDiagnosis(props){
                   <div style={{padding:"22px",textAlign:"center",fontSize:13.5,color:"#94A3B8",border:"1px dashed #E2E8F0",borderRadius:10}}>직원 후보가 없습니다. “+ 직원 직접 추가”로 직접 입력하거나, 이전 단계에서 내용을 보완해주세요.</div>
                 ):(
                   <div style={{overflowX:"auto"}}>
-                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:640}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:780}}>
                       <thead><tr style={{background:"#F8FAFC",textAlign:"left",color:"#64748B"}}>
-                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0"}}>{h}</th>;})}
+                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","4대보험(국·건·고·산)","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0"}}>{h}</th>;})}
                       </tr></thead>
                       <tbody>
                         {shown.map(function(c){
@@ -2706,7 +2737,17 @@ function PayrollDiagnosis(props){
                                 </select>
                               </td>
                               <td style={Object.assign({},cellS,{whiteSpace:"nowrap",color:"#475569"})}>{age!=null?age+"세":"—"}</td>
-                              <td style={cellS}><input type="date" value={c.hireDate||""} onChange={function(e){updateCand(c.id,{hireDate:e.target.value});}} style={Object.assign({},smInp,{minWidth:130})}/></td>
+                              <td style={cellS}>
+                                <input type="date" value={c.hireDate||""} onChange={function(e){updateCand(c.id,{hireDate:e.target.value});}} style={Object.assign({},smInp,{minWidth:130})}/>
+                                {c.multiDates&&<div style={{fontSize:10.5,color:"#B45309",marginTop:2}}>취득일 후보 여러 개 · 확인</div>}
+                              </td>
+                              <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
+                                {[["np","국"],["hi","건"],["ei","고"],["wc","산"]].map(function(k){var on=!!(c.ins&&c.ins[k[0]]);return(
+                                  <label key={k[0]} title={k[1]} style={{display:"inline-flex",alignItems:"center",gap:2,marginRight:6,fontSize:11.5,color:on?"#0F766E":"#94A3B8",cursor:"pointer"}}>
+                                    <input type="checkbox" checked={on} onChange={function(e){updateIns(c.id,k[0],e.target.checked);}}/>{k[1]}
+                                  </label>
+                                );})}
+                              </td>
                               <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
                                 {c.confirmed?<span style={{fontSize:11.5,fontWeight:800,color:"#059669"}}>✓ 확인</span>:need?<span style={{fontSize:11.5,fontWeight:800,color:"#B45309"}}>확인 필요</span>:<span style={{fontSize:11.5,color:"#64748B"}}>—</span>}
                               </td>
