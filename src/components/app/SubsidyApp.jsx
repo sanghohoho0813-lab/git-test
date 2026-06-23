@@ -2333,9 +2333,7 @@ function PayrollDiagnosis(props){
   var PDF_MAX_PAGES_MOBILE=5, PDF_MAX_PAGES_DESKTOP=30;
   var PDF_TIMEOUT_MS_MOBILE=15000, PDF_TIMEOUT_MS_DESKTOP=30000;
   // 추가 입력값
-  var stSido=useState("경기");      // 시/도 (수도권 자동판정)
-  var stSigungu=useState("");       // 시/군/구 (자유입력)
-  var stRegion=useState("metro");   // metro|local (시/도에서 자동 도출)
+  var stRegion=useState("metro");   // metro|local (수도권/비수도권 세그먼트)
   var stSize=useState("sme");       // sme|mid|other
   var stIndustry=useState("normal");// normal|excluded|check
   var stYear=useState(function(){return new Date().getFullYear();});
@@ -2353,11 +2351,6 @@ function PayrollDiagnosis(props){
     if(fileRef.current)fileRef.current.value="";
   }
 
-  // 시/도 → 수도권/지방 자동 도출
-  useEffect(function(){
-    var rt=PD.regionTypeOf(stSido[0])||"metro";
-    if(rt!==stRegion[0])stRegion[1](rt);
-  },[stSido[0]]);
   // 기본 단가 자동 세팅(소재지/기업구분 변경 시)
   useEffect(function(){
     var u=PD.defaultTaxUnits(stRegion[0],stSize[0]);
@@ -2420,6 +2413,7 @@ function PayrollDiagnosis(props){
       var c=Object.assign({},e);
       c.id=uid(); c.excluded=false; c.confirmed=false;
       c.ins=c.ins||{np:false,hi:false,ei:false,wc:false};
+      c.rel=c.rel||"none";
       return c;
     });
   }
@@ -2496,7 +2490,7 @@ function PayrollDiagnosis(props){
     var list=stCand[0].filter(function(c){return !c.excluded;}).map(function(c){
       var ins=c.ins||{};
       var insStr=[ins.np?"국민":"",ins.hi?"건강":"",ins.ei?"고용":"",ins.wc?"산재":""].filter(Boolean).join("·");
-      return {name:(c.name||"").trim()||"(이름 확인 필요)",birthDate:c.birthDate||null,gender:c.gender||null,rrnMasked:c.rrnMasked||null,hireDate:c.hireDate||null,loseDate:c.loseDate||null,statusRaw:c.statusRaw||"",insuranceRaw:insStr||c.insuranceRaw||"",workplace:c.workplace||"",bizNo:c.bizNo||""};
+      return {name:(c.name||"").trim()||"(이름 확인 필요)",birthDate:c.birthDate||null,gender:c.gender||null,rrnMasked:c.rrnMasked||null,hireDate:c.hireDate||null,loseDate:c.loseDate||null,statusRaw:c.statusRaw||"",ins:c.ins,insKnown:c.insKnown,rel:c.rel||"none",insuranceRaw:insStr||c.insuranceRaw||"",workplace:c.workplace||"",bizNo:c.bizNo||""};
     });
     if(!list.length){ stErr[1]("진단할 직원이 없습니다. 직원을 추가하거나 ‘제외’를 해제해주세요."); return; }
     stErr[1]("");
@@ -2533,7 +2527,7 @@ function PayrollDiagnosis(props){
     var text=PD.buildCopyText({
       company:(props.companyName||""),
       totalEmp:analysis.counts.totalEmp,youthCount:analysis.counts.youthCount,seniorCount:analysis.counts.seniorCount,
-      eiCheckCount:analysis.eiCheckCount,partialInsCount:analysis.partialInsCount,
+      eiCheckCount:analysis.eiCheckCount,wcCheckCount:analysis.wcCheckCount,partialInsCount:analysis.partialInsCount,relCheckCount:analysis.relCheckCount,
       candidateSubsidyCount:analysis.candidateSubsidyCount,estimate:estimate,
       issueDate:stIssueDate[0],staleText:staleText(),
     });
@@ -2542,16 +2536,16 @@ function PayrollDiagnosis(props){
     }else{toast("이 브라우저에서는 복사를 지원하지 않습니다.","error");}
   }
 
-  var inpS={width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:14,borderRadius:9,border:"1.5px solid #E2E8F0",fontFamily:FF,background:"#fff",color:"#1E293B"};
-  var labS={fontSize:12.5,fontWeight:700,color:"#475569",marginBottom:5,display:"block"};
+  var inpS={width:"100%",boxSizing:"border-box",padding:"11px 13px",fontSize:16,borderRadius:9,border:"1.5px solid #E2E8F0",fontFamily:FF,background:"#fff",color:"#1E293B"};
+  var labS={fontSize:14.5,fontWeight:700,color:"#475569",marginBottom:6,display:"block"};
 
   // 진입 버튼 (업체 관리 상단 / 채용 진단 등에서 재사용)
   var btn=compact?(
-    <button onClick={function(){stOpen[1](true);}} className="prog-tap" style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,whiteSpace:"nowrap",cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(15,118,110,0.28)"}}>🩺 4대보험 명부 진단</button>
+    <button onClick={function(){stOpen[1](true);}} className="prog-tap" style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:11,padding:"12px 20px",fontSize:18,fontWeight:800,whiteSpace:"nowrap",cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(15,118,110,0.28)"}}>🩺 4대보험 명부 진단</button>
   ):(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:3}}>
-      <button onClick={function(){stOpen[1](true);}} className="prog-tap" style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,whiteSpace:"nowrap",cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(15,118,110,0.28)"}}>🩺 4대보험 명부 진단</button>
-      <span style={{fontSize:12,color:"#94A3B8",whiteSpace:"nowrap"}}>가입자 명부를 올리면 지원금 후보와 세액공제 가능성을 자동으로 분류합니다.</span>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:4}}>
+      <button onClick={function(){stOpen[1](true);}} className="prog-tap" style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:11,padding:"13px 22px",fontSize:18,fontWeight:800,whiteSpace:"nowrap",cursor:"pointer",fontFamily:FF,boxShadow:"0 2px 8px rgba(15,118,110,0.28)"}}>🩺 4대보험 명부 진단</button>
+      <span style={{fontSize:14,color:"#64748B",whiteSpace:"nowrap",fontWeight:600}}>가입자 명부를 올리면 지원금 후보와 세액공제 가능성을 자동으로 분류합니다.</span>
     </div>
   );
 
@@ -2561,7 +2555,7 @@ function PayrollDiagnosis(props){
       <Modal open={stOpen[0]} onClose={function(){if(stBusy[0])return;var dirty=(stStep[0]>1||stFile[0]||(stText[0]&&stText[0].trim())||stCand[0].length);if(dirty&&!window.confirm("정말 닫을까요? 분석 내용은 저장되지 않습니다."))return;stOpen[1](false);}} title="🩺 4대보험 명부 자동진단 (1차 검토)" width={920}>
         <div style={{display:"grid",gap:14}}>
           {/* 개인정보/면책 안내 (항상 표시) */}
-          <div style={{padding:"11px 14px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:12.5,color:"#0F766E",lineHeight:1.65}}>
+          <div style={{padding:"12px 15px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:14,color:"#0F766E",lineHeight:1.7,wordBreak:"keep-all"}}>
             🔒 <strong>분석은 브라우저에서만 처리됩니다.</strong> 파일은 아직 저장되지 않으며, 서버·DB에 업로드하지 않습니다.
             주민등록번호 등 민감정보는 화면에 <strong>마스킹</strong>(예: 900101-1******)되어 표시되고, 결과 복사에도 포함되지 않습니다.
           </div>
@@ -2576,8 +2570,8 @@ function PayrollDiagnosis(props){
               var n=s[0],on=stStep[0]===n,done=stStep[0]>n;
               return(<React.Fragment key={n}>
                 {i>0&&<span style={{flex:"0 0 12px",height:2,background:(done||on)?"#5EEAD4":"#E2E8F0"}}/>}
-                <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:800,color:(on||done)?"#0F766E":"#94A3B8",whiteSpace:"nowrap"}}>
-                  <span style={{width:22,height:22,borderRadius:11,background:on?"#0F766E":done?"#CCFBF1":"#F1F5F9",color:on?"#fff":done?"#0F766E":"#94A3B8",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800}}>{done?"✓":n}</span>
+                <span style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:14.5,fontWeight:800,color:(on||done)?"#0F766E":"#94A3B8",whiteSpace:"nowrap"}}>
+                  <span style={{width:25,height:25,borderRadius:13,background:on?"#0F766E":done?"#CCFBF1":"#F1F5F9",color:on?"#fff":done?"#0F766E":"#94A3B8",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13.5,fontWeight:800}}>{done?"✓":n}</span>
                   <span className="hide-mobile">{s[1]}</span>
                 </span>
               </React.Fragment>);
@@ -2586,14 +2580,14 @@ function PayrollDiagnosis(props){
 
           {/* 진행 상태 (공통) */}
           {stBusy[0]&&stPhase[0]&&(
-            <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,fontSize:13,color:"#1D4ED8",fontWeight:700}}>
-              <span className="spin" style={{width:15,height:15,border:"2px solid #BFDBFE",borderTopColor:"#1D4ED8",borderRadius:"50%",display:"inline-block"}}/>
+            <div style={{display:"flex",alignItems:"center",gap:9,padding:"11px 14px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,fontSize:15,color:"#1D4ED8",fontWeight:700}}>
+              <span className="spin" style={{width:16,height:16,border:"2px solid #BFDBFE",borderTopColor:"#1D4ED8",borderRadius:"50%",display:"inline-block"}}/>
               {stPhase[0]}
             </div>
           )}
           {/* 오류/안내 (공통, 모달 내부 유지 — 앱이 홈으로 튕기지 않음) */}
           {stErr[0]&&!stBusy[0]&&stStep[0]!==4&&(
-            <div style={{padding:"11px 13px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:9,fontSize:13,color:"#991B1B",lineHeight:1.7}}>⚠️ {stErr[0]}</div>
+            <div style={{padding:"12px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:9,fontSize:14.5,color:"#991B1B",lineHeight:1.7}}>⚠️ {stErr[0]}</div>
           )}
 
           {/* ── 1단계: 파일 선택 / 텍스트 붙여넣기 ── */}
@@ -2667,7 +2661,7 @@ function PayrollDiagnosis(props){
                   <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>PDF에서 복사한 텍스트나 4대보험 명부 내용을 붙여넣으면, 직원 후보를 찾아 1차 진단합니다.</div>
                   <textarea value={stText[0]} onChange={function(e){stText[1](e.target.value);}} rows={9}
                     placeholder={"여기에 4대보험 가입자 명부 내용을 붙여넣어 주세요.\n예: 이름 / 주민번호 앞자리 / 자격취득일 / 사업장명 등"}
-                    style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",fontSize:13.5,lineHeight:1.6,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
+                    style={{width:"100%",boxSizing:"border-box",padding:"13px 15px",fontSize:15,lineHeight:1.7,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
                   <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
                     <button type="button" onClick={goManual} style={Object.assign({},btnS,{padding:"12px 16px",fontSize:14})}>직원 직접 입력</button>
                     <button type="button" onClick={textToCandidates} style={{flex:"1 1 200px",background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:FF}}>붙여넣은 내용으로 명부 정리하기 →</button>
@@ -2684,7 +2678,7 @@ function PayrollDiagnosis(props){
               <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>PDF 양식에 따라 글자가 일부 깨지거나 순서가 어긋날 수 있습니다. 아래 내용을 확인한 뒤, 필요하면 수정하고 다음 단계로 넘어가세요.</div>
               <textarea value={stText[0]} onChange={function(e){stText[1](e.target.value);}} rows={11}
                 placeholder={"PDF에서 읽은 내용이 여기에 표시됩니다. 비어 있다면 PDF 내용을 복사해 직접 붙여넣어 주세요."}
-                style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",fontSize:13,lineHeight:1.6,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
+                style={{width:"100%",boxSizing:"border-box",padding:"13px 15px",fontSize:15,lineHeight:1.7,borderRadius:10,border:"1.5px solid #E2E8F0",fontFamily:FF,resize:"vertical"}}/>
               <div style={{fontSize:12,color:"#92400E",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:9,padding:"9px 12px",lineHeight:1.6}}>
                 텍스트가 거의 비어 있다면, 해당 PDF는 스캔 이미지일 가능성이 높습니다. 이 경우 엑셀 파일로 내려받아 올리거나, PDF 내용을 복사해 붙여넣어 주세요.
               </div>
@@ -2718,8 +2712,8 @@ function PayrollDiagnosis(props){
             var confirmedCnt=notExcluded.filter(function(c){return c.confirmed;}).length;
             var excludedCnt=cands.length-notExcluded.length;
             var shown=stOnlyCheck[0]?cands.filter(function(c){return !c.excluded&&candNeedsCheck(c)&&!c.confirmed;}):cands;
-            var cellS={padding:"7px 8px",verticalAlign:"middle"};
-            var smInp={width:"100%",boxSizing:"border-box",padding:"6px 8px",fontSize:12.5,borderRadius:7,border:"1px solid #E2E8F0",fontFamily:FF};
+            var cellS={padding:"8px",verticalAlign:"middle"};
+            var smInp={width:"100%",boxSizing:"border-box",padding:"7px 9px",fontSize:14,borderRadius:7,border:"1px solid #E2E8F0",fontFamily:FF};
             return(
               <div style={{display:"grid",gap:12}}>
                 <div style={{fontSize:19,fontWeight:800,color:"#1E293B"}}>직원 후보를 확인해주세요</div>
@@ -2747,9 +2741,9 @@ function PayrollDiagnosis(props){
                   <div style={{padding:"22px",textAlign:"center",fontSize:13.5,color:"#94A3B8",border:"1px dashed #E2E8F0",borderRadius:10}}>직원 후보가 없습니다. “+ 직원 직접 추가”로 직접 입력하거나, 이전 단계에서 내용을 보완해주세요.</div>
                 ):(
                   <div style={{overflowX:"auto"}}>
-                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:780}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:14,minWidth:920}}>
                       <thead><tr style={{background:"#F8FAFC",textAlign:"left",color:"#64748B"}}>
-                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","4대보험(국·건·산·고)","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0",fontSize:13.5}}>{h}</th>;})}
+                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","4대보험(연금·건강·산재·고용)","구분","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0",fontSize:14}}>{h}</th>;})}
                       </tr></thead>
                       <tbody>
                         {shown.map(function(c){
@@ -2757,7 +2751,10 @@ function PayrollDiagnosis(props){
                           var need=candNeedsCheck(c);
                           return(
                             <tr key={c.id} style={{borderBottom:"1px solid #F1F5F9",opacity:c.excluded?0.5:1}}>
-                              <td style={cellS}><input value={c.name||""} onChange={function(e){updateCand(c.id,{name:e.target.value});}} style={Object.assign({},smInp,{minWidth:80})} placeholder="이름"/></td>
+                              <td style={cellS}>
+                                <input value={c.name||""} onChange={function(e){updateCand(c.id,{name:e.target.value});}} style={Object.assign({},smInp,{minWidth:84})} placeholder="이름"/>
+                                {(function(){var onlyNpHi=c.ins&&c.ins.np&&c.ins.hi&&!c.ins.wc&&!c.ins.ei;return onlyNpHi&&c.rel==="none"?<div style={{fontSize:11.5,color:"#B45309",marginTop:3,whiteSpace:"normal",lineHeight:1.4}}>특수관계자·대표자·임원 여부 확인 필요</div>:null;})()}
+                              </td>
                               <td style={Object.assign({},cellS,{fontFamily:"monospace",color:"#64748B",whiteSpace:"nowrap"})}>{c.rrnMasked||"—"}</td>
                               <td style={cellS}><input type="date" value={c.birthDate||""} onChange={function(e){updateCand(c.id,{birthDate:e.target.value});}} style={Object.assign({},smInp,{minWidth:130})}/></td>
                               <td style={cellS}>
@@ -2771,14 +2768,19 @@ function PayrollDiagnosis(props){
                                 {c.multiDates&&<div style={{fontSize:10.5,color:"#B45309",marginTop:2}}>취득일 후보 여러 개 · 확인</div>}
                               </td>
                               <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
-                                {[["np","국"],["hi","건"],["wc","산"],["ei","고"]].map(function(k){var on=!!(c.ins&&c.ins[k[0]]);return(
-                                  <label key={k[0]} title={k[1]} style={{display:"inline-flex",alignItems:"center",gap:2,marginRight:6,fontSize:11.5,color:on?"#0F766E":"#94A3B8",cursor:"pointer"}}>
+                                {[["np","연금","국민연금"],["hi","건강","건강보험"],["wc","산재","산재보험"],["ei","고용","고용보험"]].map(function(k){var on=!!(c.ins&&c.ins[k[0]]);return(
+                                  <label key={k[0]} title={k[2]} style={{display:"inline-flex",alignItems:"center",gap:3,marginRight:9,fontSize:13.5,color:on?"#0F766E":"#94A3B8",cursor:"pointer"}}>
                                     <input type="checkbox" checked={on} onChange={function(e){updateIns(c.id,k[0],e.target.checked);}}/>{k[1]}
                                   </label>
                                 );})}
                               </td>
+                              <td style={cellS}>
+                                <select value={c.rel||"none"} onChange={function(e){updateCand(c.id,{rel:e.target.value});}} style={Object.assign({},smInp,{minWidth:96,color:(c.rel&&c.rel!=="none")?"#B45309":"#475569"})} title="대표자/임원/특수관계자 여부">
+                                  <option value="none">해당 없음</option><option value="ceo">대표자</option><option value="exec">임원</option><option value="special">특수관계자</option>
+                                </select>
+                              </td>
                               <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
-                                {c.confirmed?<span style={{fontSize:11.5,fontWeight:800,color:"#059669"}}>✓ 확인</span>:need?<span style={{fontSize:11.5,fontWeight:800,color:"#B45309"}}>확인 필요</span>:<span style={{fontSize:11.5,color:"#64748B"}}>—</span>}
+                                {c.confirmed?<span style={{fontSize:13,fontWeight:800,color:"#059669"}}>✓ 확인</span>:need?<span style={{fontSize:13,fontWeight:800,color:"#B45309"}}>확인 필요</span>:<span style={{fontSize:13,color:"#64748B"}}>—</span>}
                               </td>
                               <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
                                 <button type="button" onClick={function(){updateCand(c.id,{confirmed:!c.confirmed});}} style={{marginRight:5,padding:"4px 8px",borderRadius:6,border:"1px solid "+(c.confirmed?"#A7F3D0":"#E2E8F0"),background:c.confirmed?"#ECFDF5":"#fff",color:c.confirmed?"#059669":"#64748B",fontSize:11.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>확인</button>
@@ -2825,6 +2827,7 @@ function PayrollDiagnosis(props){
                   {l:"고용보험 확인 필요",v:analysis.eiCheckCount+"명",c:"#DC2626"},
                   {l:"산재보험 확인 필요",v:analysis.wcCheckCount+"명",c:"#DC2626"},
                   {l:"일부 보험 확인",v:analysis.partialInsCount+"명",c:"#B45309"},
+                  {l:"특수관계자·임원 확인",v:analysis.relCheckCount+"명",c:"#B45309"},
                   {l:"예상 세액공제",v:(estimate.computable&&estimate.creditTotal!=null)?((estimate.overYouth?"재확인 필요":PD.formatWon(estimate.creditTotal))):"검토 필요",c:"#7C3AED"},
                 ].map(function(k){return(
                   <div key={k.l} style={{background:"#fff",border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 15px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
@@ -2852,14 +2855,17 @@ function PayrollDiagnosis(props){
                 <div style={{fontSize:16.5,fontWeight:800,color:"#1E293B",marginBottom:4}}>➕ 통합고용세액공제 추가 입력</div>
                 <div style={{fontSize:13.5,color:"#64748B",lineHeight:1.65,marginBottom:14}}>통합고용세액공제는 전년도와 올해의 평균 상시근로자 수를 비교해 1차 검토합니다. 올해 인원은 명부 기준으로 자동 추정되지만, 실제 계산은 <strong>월별 평균 인원 확인</strong>이 필요합니다. (확정 아님)</div>
 
-                {/* 소재지 / 기업구분 / 업종 */}
+                {/* 소재지: 수도권/비수도권 세그먼트 (H) */}
+                <div style={{marginBottom:14}}>
+                  <label style={labS}>사업장 소재지</label>
+                  <div style={{display:"inline-flex",border:"1.5px solid #E2E8F0",borderRadius:10,overflow:"hidden"}}>
+                    {[["metro","수도권 (서울·경기·인천)"],["local","비수도권 / 지방"]].map(function(o){var on=stRegion[0]===o[0];return(
+                      <button key={o[0]} type="button" onClick={function(){stRegion[1](o[0]);}} style={{padding:"10px 16px",fontSize:15,fontWeight:800,border:"none",background:on?"#0F766E":"#fff",color:on?"#fff":"#475569",cursor:"pointer",fontFamily:FF}}>{o[1]}</button>
+                    );})}
+                  </div>
+                  <div style={{fontSize:13,color:"#64748B",marginTop:7,lineHeight:1.6}}>통합고용세액공제 예상 검토는 사업장 소재지에 따라 달라질 수 있습니다. 이번 단계에서는 <strong>수도권/비수도권</strong> 기준으로 1차 검토합니다. (경기도 시흥시는 수도권) <span style={{color:"#B45309"}}>금액 단가는 최신 법령 확인 필요·직접 수정 가능</span></div>
+                </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12,marginBottom:14}}>
-                  <div><label style={labS}>사업장 시/도</label>
-                    <select value={stSido[0]} onChange={function(e){stSido[1](e.target.value);}} style={inpS}>
-                      {["서울","경기","인천","강원","충북","충남","세종","대전","전북","전남","광주","경북","경남","대구","부산","울산","제주"].map(function(s){return <option key={s} value={s}>{s}</option>;})}
-                    </select></div>
-                  <div><label style={labS}>시/군/구 <span style={{color:"#94A3B8",fontWeight:500}}>(직접 입력)</span></label>
-                    <input value={stSigungu[0]} onChange={function(e){stSigungu[1](e.target.value);}} placeholder="예: 시흥시" style={inpS}/></div>
                   <div><label style={labS}>기업 구분</label>
                     <select value={stSize[0]} onChange={function(e){stSize[1](e.target.value);}} style={inpS}>
                       <option value="sme">중소기업</option><option value="mid">중견기업</option><option value="other">기타/확인 필요</option>
@@ -2868,12 +2874,6 @@ function PayrollDiagnosis(props){
                     <select value={stIndustry[0]} onChange={function(e){stIndustry[1](e.target.value);}} style={inpS}>
                       <option value="normal">일반 업종</option><option value="excluded">소비성 서비스업 등 제외 가능성</option><option value="check">확인 필요</option>
                     </select></div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:14,padding:"9px 13px",background:"#fff",border:"1px solid #E2E8F0",borderRadius:9,fontSize:13.5}}>
-                  <span style={{color:"#475569"}}>선택한 지역: <strong style={{color:"#1E293B"}}>{stSido[0]}{stSigungu[0]?(" "+stSigungu[0]):""}</strong></span>
-                  <span style={{color:"#CBD5E1"}}>·</span>
-                  <span style={{color:"#475569"}}>세액공제 지역 구분: <strong style={{color:stRegion[0]==="metro"?"#1D4ED8":"#0F766E"}}>{stRegion[0]==="metro"?"수도권":"비수도권(지방)"}</strong></span>
-                  <span style={{color:"#94A3B8",fontSize:12}}>지역에 따라 예상 공제액이 달라질 수 있습니다. (법령 확인 필요)</span>
                 </div>
 
                 {/* 전년도(블루) / 올해(그린) 구분 */}
@@ -2917,27 +2917,36 @@ function PayrollDiagnosis(props){
               {/* 탭: 직원별 진단 */}
               {stTab[0]==="emp"&&(
                 <div style={{overflowX:"auto"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:14.5}}>
                     <thead><tr style={{background:"#F8FAFC",textAlign:"left",color:"#64748B"}}>
-                      {["직원명","주민(마스킹)","나이","성별","입사일","청년 추정","1차 검토 후보 / 확인 필요"].map(function(h){return <th key={h} style={{padding:"9px 10px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0",fontSize:13.5}}>{h}</th>;})}
+                      {["직원명","주민(마스킹)","나이","성별","입사일","청년 추정","1차 검토 후보 / 확인 필요"].map(function(h){return <th key={h} style={{padding:"9px 10px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0",fontSize:14}}>{h}</th>;})}
                     </tr></thead>
                     <tbody>
-                      {analysis.rows.map(function(r,idx){var e=r.emp,d=r.diag;return(
+                      {analysis.rows.map(function(r,idx){var e=r.emp,d=r.diag;
+                        var flags=[];
+                        if(d.eiNeedsCheck)flags.push("고용보험 확인 필요");
+                        if(d.wcNeedsCheck)flags.push("산재보험 확인 필요");
+                        if(d.onlyNpHi)flags.push("연금·건강만 가입 확인");
+                        if(d.relCheck)flags.push("특수관계자·임원 여부 확인 필요");
+                        return(
                         <tr key={idx} style={{borderBottom:"1px solid #F1F5F9",opacity:d.active?1:0.55}}>
-                          <td style={{padding:"9px 10px",fontWeight:700,color:"#1E293B",whiteSpace:"nowrap",fontSize:15}}>{e.name}{!d.active&&<span style={{marginLeft:6,fontSize:11,color:"#94A3B8"}}>(상실 추정)</span>}{(d.eiNeedsCheck||d.wcNeedsCheck)&&<span style={{marginLeft:6,fontSize:11,fontWeight:800,color:"#DC2626"}} title="고용/산재 확인 필요">⚠보험</span>}</td>
-                          <td style={{padding:"9px 10px",color:"#64748B",whiteSpace:"nowrap",fontFamily:"monospace"}}>{e.rrnMasked||"—"}</td>
-                          <td style={{padding:"9px 10px",whiteSpace:"nowrap"}}>{d.age!=null?d.age+"세":"—"}</td>
-                          <td style={{padding:"9px 10px",whiteSpace:"nowrap"}}>{e.gender==="M"?"남":e.gender==="F"?"여":"—"}</td>
-                          <td style={{padding:"9px 10px",whiteSpace:"nowrap",color:"#475569"}}>{e.hireDate||"—"}</td>
-                          <td style={{padding:"9px 10px",whiteSpace:"nowrap"}}>{d.isYouth?<span style={{fontSize:11.5,fontWeight:800,color:"#0F766E"}}>청년 추정</span>:<span style={{color:"#CBD5E1"}}>—</span>}</td>
-                          <td style={{padding:"9px 10px"}}>
-                            {d.candidates.length===0?<span style={{color:"#94A3B8"}}>현재 자료만으로 판단 불가</span>:(
-                              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                          <td style={{padding:"10px",fontWeight:700,color:"#1E293B",fontSize:16,minWidth:88}}>
+                            {e.name}{!d.active&&<span style={{marginLeft:6,fontSize:12,color:"#94A3B8"}}>(상실 추정)</span>}
+                            {flags.length>0&&<div style={{marginTop:3,fontSize:12,fontWeight:700,color:"#B45309",lineHeight:1.5,whiteSpace:"normal"}}>{flags.join(" · ")}</div>}
+                          </td>
+                          <td style={{padding:"10px",color:"#64748B",whiteSpace:"nowrap",fontFamily:"monospace",fontSize:14}}>{e.rrnMasked||"—"}</td>
+                          <td style={{padding:"10px",whiteSpace:"nowrap",fontSize:15}}>{d.age!=null?d.age+"세":"—"}</td>
+                          <td style={{padding:"10px",whiteSpace:"nowrap",fontSize:15}}>{e.gender==="M"?"남":e.gender==="F"?"여":"—"}</td>
+                          <td style={{padding:"10px",whiteSpace:"nowrap",color:"#475569",fontSize:14.5}}>{e.hireDate||"—"}</td>
+                          <td style={{padding:"10px",whiteSpace:"nowrap"}}>{d.isYouth?<span style={{fontSize:13,fontWeight:800,color:"#0F766E"}}>청년 추정</span>:<span style={{color:"#CBD5E1"}}>—</span>}</td>
+                          <td style={{padding:"10px"}}>
+                            {d.candidates.length===0?<span style={{color:"#94A3B8",fontSize:14}}>현재 자료만으로 판단 불가</span>:(
+                              <div style={{display:"flex",flexDirection:"column",gap:5}}>
                                 {d.candidates.map(function(c,ci){return(
                                   <div key={ci} style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                                     {levelBadge(c.level)}
-                                    <span style={{fontSize:12.5,fontWeight:700,color:"#334155"}}>{PD.subsidyName(c.key)}</span>
-                                    <span style={{fontSize:11.5,color:"#94A3B8"}}>· {c.note}</span>
+                                    <span style={{fontSize:14,fontWeight:700,color:"#334155"}}>{PD.subsidyName(c.key)}</span>
+                                    <span style={{fontSize:12.5,color:"#94A3B8"}}>· {c.note}</span>
                                   </div>
                                 );})}
                               </div>
@@ -3050,7 +3059,8 @@ function PayrollDiagnosis(props){
                     아래 자료를 확보하면 1차 검토 후보를 실제 신청 가능 여부로 좁힐 수 있습니다. 상담 시 대표님께 요청할 목록입니다.
                   </div>
                   <div style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 16px"}}>
-                    <div style={{fontSize:15.5,fontWeight:800,color:"#1E293B",marginBottom:10}}>공통 요청자료</div>
+                    <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:4}}>공통 추가 확인자료</div>
+                    <div style={{fontSize:13,color:"#94A3B8",marginBottom:10}}>요건에 따라 필요할 수 있는 자료입니다(확정 필수서류 아님).</div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:7}}>
                       {PD.EMP_DOC_CHECKLIST.map(function(t){return(
                         <div key={t} style={{display:"flex",alignItems:"center",gap:8,fontSize:14,color:"#475569"}}><span>⬜</span><span>{t}</span></div>
@@ -3058,7 +3068,7 @@ function PayrollDiagnosis(props){
                     </div>
                   </div>
                   <div style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 16px"}}>
-                    <div style={{fontSize:15.5,fontWeight:800,color:"#1E293B",marginBottom:10}}>지원금별 필요자료</div>
+                    <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:10}}>지원금별 확인자료 <span style={{fontSize:12.5,color:"#94A3B8",fontWeight:600}}>(요건에 따라 필요할 수 있음)</span></div>
                     <div style={{display:"grid",gap:10}}>
                       {analysis.subsidySummary.filter(function(s){return s.candidateCount>0||s.more>0;}).map(function(s){return(
                         <div key={s.key} style={{background:"#F8FAFC",borderRadius:10,padding:"11px 13px"}}>

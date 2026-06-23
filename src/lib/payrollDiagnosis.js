@@ -39,16 +39,14 @@ export const CONFIDENCE_META = {
   more:   { label: "추가자료 필요", color: "#1D4ED8", bg: "#EFF6FF" },
   limited:{ label: "판단 제한", color: "#64748B", bg: "#F1F5F9" },
 };
-// 직원별 추가자료 공통 체크리스트(상담 요청용)
+// 공통 추가 확인자료(요건에 따라 필요할 수 있는 자료 · 확정 필수서류 아님)
 export const EMP_DOC_CHECKLIST = [
-  "고용보험 피보험자격 이력내역서",
+  "고용보험 피보험자격 이력",
   "근로계약서",
   "급여대장",
-  "출근부",
-  "워크넷 구직등록 여부",
-  "취업애로청년 증빙",
-  "특수관계자 여부 확인",
   "월별 상시근로자 수",
+  "특수관계자/임원 여부 확인",
+  "퇴사 여부 확인",
   "세무대리인 검토",
 ];
 // 시/도 → 수도권 여부 (통합고용세액공제 지역 구분)
@@ -555,22 +553,31 @@ export function classifyEmployee(emp, opts) {
   var eiOn = !!ins.ei, wcOn = !!ins.wc;
   var eiNeedsCheck = !eiOn;   // 고용보험 OFF 또는 미파악 → 확인 필요
   var wcNeedsCheck = !wcOn;
-  var eiNote = eiNeedsCheck ? " · ⚠ 고용보험 피보험자격 확인 필요(미가입/확인 불가 시 대상 판단 제한)" : "";
+  var eiNote = eiNeedsCheck ? " · 고용보험 피보험자격 확인 필요(미가입/확인 불가 시 대상 판단 제한)" : "";
+
+  // 특수관계자/대표자/임원: 사용자가 표시했거나, 연금·건강만 있고 고용·산재 없는 경우 의심
+  var rel = emp.rel || "none"; // none|ceo|exec|special
+  var relMarked = rel === "ceo" || rel === "exec" || rel === "special";
+  var relSuspect = !!(ins.np && ins.hi && !ins.ei && !ins.wc); // 연금·건강만 → 의심
+  var relNote = relMarked ? " · 대표자/임원/특수관계자 표시됨 → 지원금 대상 제한 가능성(판단 제한)" : (relSuspect ? " · 특수관계자·대표자·임원 여부 확인 필요(지원금 대상 제한 가능성)" : "");
 
   var cands = [];
-  if (youth) cands.push({ key: "youth_jump", level: eiNeedsCheck ? "more" : "check", note: "청년 연령(만 " + age + "세) 1차 해당 · 취업애로청년 요건·신청기간 확인 필요" + eiNote });
-  if (recentHire) cands.push({ key: "emp_promo", level: "more", note: "신규 입사 추정 · 취업취약계층·워크넷 구직등록 등 추가자료 필요" + eiNote });
+  function lvl(base2){ return relMarked ? "more" : base2; }
+  if (youth) cands.push({ key: "youth_jump", level: lvl(eiNeedsCheck ? "more" : "check"), note: "청년 연령(만 " + age + "세) 1차 해당 · 취업애로청년 요건·신청기간 확인 필요" + eiNote + relNote });
+  if (recentHire) cands.push({ key: "emp_promo", level: "more", note: "신규 입사 추정 · 취업취약계층·워크넷 구직등록 등 추가자료 필요" + eiNote + relNote });
   if (senior) {
-    cands.push({ key: "senior_continue", level: "check", note: "고령 연령(만 " + age + "세) 1차 해당 · 정년·계속고용제도·취업규칙 확인 필요" + eiNote });
-    cands.push({ key: "senior_intern", level: eiNeedsCheck ? "more" : "check", note: "고령 연령 1차 해당 · 참여기관·사업요건 확인 필요" + eiNote });
+    cands.push({ key: "senior_continue", level: lvl("check"), note: "고령 연령(만 " + age + "세) 1차 해당 · 정년·계속고용제도·취업규칙 확인 필요" + eiNote + relNote });
+    cands.push({ key: "senior_intern", level: lvl(eiNeedsCheck ? "more" : "check"), note: "고령 연령 1차 해당 · 참여기관·사업요건 확인 필요" + eiNote + relNote });
   }
-  if (female && age != null && age >= 20 && age <= 59) cands.push({ key: "saeil_women", level: "check", note: "여성 1차 해당 · 경력단절 여부·새일센터 연계 확인 필요" + eiNote });
+  if (female && age != null && age >= 20 && age <= 59) cands.push({ key: "saeil_women", level: lvl("check"), note: "여성 1차 해당 · 경력단절 여부·새일센터 연계 확인 필요" + eiNote + relNote });
 
   return {
     age: age, isYouth: youth, isSenior: senior, isFemale: female, recentHire: recentHire, active: active,
     eiOn: eiOn, wcOn: wcOn, eiNeedsCheck: eiNeedsCheck, wcNeedsCheck: wcNeedsCheck,
     insPartial: !(ins.np && ins.hi && ins.wc && ins.ei),
+    onlyNpHi: !!(ins.np && ins.hi && !ins.ei && !ins.wc),
     insKnown: insKnown,
+    rel: rel, relMarked: relMarked, relSuspect: relSuspect, relCheck: relMarked || relSuspect,
     candidates: cands,
   };
 }
@@ -612,6 +619,7 @@ export function analyzeRoster(employees, opts) {
   var eiCheckCount = activeRows.filter(function (r) { return r.diag.eiNeedsCheck; }).length;
   var wcCheckCount = activeRows.filter(function (r) { return r.diag.wcNeedsCheck; }).length;
   var partialInsCount = activeRows.filter(function (r) { return r.diag.insPartial; }).length;
+  var relCheckCount = activeRows.filter(function (r) { return r.diag.relCheck; }).length;
 
   return {
     rows: rows,
@@ -622,6 +630,7 @@ export function analyzeRoster(employees, opts) {
     eiCheckCount: eiCheckCount,
     wcCheckCount: wcCheckCount,
     partialInsCount: partialInsCount,
+    relCheckCount: relCheckCount,
   };
 }
 
@@ -689,7 +698,9 @@ export function buildCopyText(ctx) {
   lines.push("· 청년 추정: " + c.youthCount + "명");
   if (c.seniorCount) lines.push("· 고령(만 60세+) 추정: " + c.seniorCount + "명");
   lines.push("· 고용보험 확인 필요: " + (c.eiCheckCount || 0) + "명");
+  lines.push("· 산재보험 확인 필요: " + (c.wcCheckCount || 0) + "명");
   lines.push("· 일부 보험 확인 필요: " + (c.partialInsCount || 0) + "명");
+  lines.push("· 특수관계자/임원 여부 확인 필요: " + (c.relCheckCount || 0) + "명");
   lines.push("· 1차 검토 후보: " + c.candidateSubsidyCount + "건");
   if (c.estimate && c.estimate.computable && c.estimate.creditTotal != null) {
     lines.push("· 통합고용세액공제 예상: 입력값 기준 약 " + formatWon(c.estimate.creditTotal) + " (1차 추정 · 확정 아님)");
@@ -700,7 +711,7 @@ export function buildCopyText(ctx) {
     lines.push("· ⚠ 주의: 청년 등 증가분이 전체 증가분보다 큼 → 입력값(전년도 청년 수/올해 상시) 재확인 필요");
   }
   if (c.issueDate) lines.push("· 명부 발급일: " + c.issueDate + (c.staleText ? " (" + c.staleText + ")" : ""));
-  lines.push("· 추가 요청자료: 고용보험 피보험자격 이력내역서, 근로계약서, 급여대장, 월별 상시근로자 수, 특수관계자 여부 확인");
+  lines.push("· 추가 확인자료(요건에 따라): 고용보험 이력, 근로계약서, 급여대장, 월별 상시근로자 수, 특수관계자/임원 여부 확인");
   lines.push("");
   lines.push("위 내용은 4대보험 명부 기준 1차 검토이며, 실제 신청 가능 여부와 세액공제 적용은 추가자료 및 세무 검토가 필요합니다.");
   return lines.join("\n");
