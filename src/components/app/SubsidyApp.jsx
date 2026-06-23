@@ -2555,6 +2555,10 @@ function PayrollDiagnosis(props){
   var stale=useMemo(function(){
     return stIssueDate[0]?PD.rosterStaleness(stIssueDate[0],stBase[0]):null;
   },[stIssueDate[0],stBase[0]]);
+  // 영업용 최대 예상 혜택 (지원금 + 세액공제)
+  var subsidyMax=analysis?PD.estimateSubsidyTotal(analysis.subsidySummary):0;
+  var creditMax=(estimate.computable&&!estimate.overYouth&&estimate.creditTotal!=null)?estimate.creditTotal:0;
+  var totalBenefit=subsidyMax+creditMax;
   function staleText(){ return stale?("발급 후 "+stale.days+"일 경과"):""; }
 
   function doCopy(){
@@ -2587,8 +2591,22 @@ function PayrollDiagnosis(props){
   return(
     <React.Fragment>
       {btn}
-      <Modal open={stOpen[0]} onClose={function(){if(stBusy[0])return;var dirty=(stStep[0]>1||stFile[0]||(stText[0]&&stText[0].trim())||stCand[0].length);if(dirty&&!window.confirm("정말 닫을까요? 분석 내용은 저장되지 않습니다."))return;stOpen[1](false);}} title="🩺 4대보험 명부 자동진단 (1차 검토)" width={920}>
+      <Modal open={stOpen[0]} onClose={function(){if(stBusy[0])return;var dirty=(stStep[0]>1||stFile[0]||(stText[0]&&stText[0].trim())||stCand[0].length);if(dirty&&!window.confirm("정말 닫을까요? 분석 내용은 저장되지 않습니다."))return;stOpen[1](false);}} title={<span style={{fontSize:22,fontWeight:800}}>🩺 4대보험 명부 자동진단 (1차 검토)</span>} width={920}>
         <div style={{display:"grid",gap:14}}>
+          {/* 단계 이동(뒤로/앞으로) — 제목 바로 아래 보조 버튼 */}
+          {(function(){
+            var maxReach=stEmps[0]?4:(stCand[0].length?3:((stText[0]&&stText[0].trim())?2:1));
+            var canBack=stStep[0]>1, canFwd=stStep[0]<maxReach;
+            return(
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <button type="button" disabled={!canBack||stBusy[0]} onClick={function(){if(canBack)stStep[1](stStep[0]-1);}}
+                  style={{padding:"7px 14px",fontSize:14,fontWeight:800,borderRadius:9,border:"1.5px solid #E2E8F0",background:canBack?"#fff":"#F1F5F9",color:canBack?"#0F766E":"#CBD5E1",cursor:canBack?"pointer":"default",fontFamily:FF}}>← 뒤로가기</button>
+                <button type="button" disabled={!canFwd||stBusy[0]} onClick={function(){if(canFwd)stStep[1](stStep[0]+1);}}
+                  style={{padding:"7px 14px",fontSize:14,fontWeight:800,borderRadius:9,border:"1.5px solid #E2E8F0",background:canFwd?"#fff":"#F1F5F9",color:canFwd?"#0F766E":"#CBD5E1",cursor:canFwd?"pointer":"default",fontFamily:FF}}>앞으로가기 →</button>
+                <span style={{fontSize:13,color:"#94A3B8",marginLeft:"auto"}}>{stStep[0]}/4 단계</span>
+              </div>
+            );
+          })()}
           {/* 개인정보/면책 안내 (항상 표시) */}
           <div style={{padding:"12px 15px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:14,color:"#0F766E",lineHeight:1.7,wordBreak:"keep-all"}}>
             🔒 <strong>분석은 브라우저에서만 처리됩니다.</strong> 파일은 아직 저장되지 않으며, 서버·DB에 업로드하지 않습니다.
@@ -2770,7 +2788,7 @@ function PayrollDiagnosis(props){
             return(
               <div style={{display:"grid",gap:12}}>
                 <div style={{fontSize:19,fontWeight:800,color:"#1E293B"}}>직원 후보를 확인해주세요</div>
-                <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>자동으로 찾은 직원 정보입니다. 잘못 읽힌 부분은 수정하고, 빠진 직원은 추가한 뒤 진단을 시작하세요. 주민등록번호는 <strong>900101-1******</strong> 형태로만 표시됩니다.</div>
+                <div style={{fontSize:14,color:"#64748B",lineHeight:1.65}}>자동으로 찾은 직원 정보입니다. 잘못 읽힌 부분은 수정하고, 빠진 직원은 추가한 뒤 진단을 시작하세요. 주민등록번호는 <strong>900101-1******</strong> 형태로만 표시됩니다.</div>
                 {/* 요약 */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
                   {[["찾은 직원",notExcluded.length,"#1E293B"],["확인 완료",confirmedCnt,"#059669"],["확인 필요",needCheck.length,"#B45309"],["제외 예정",excludedCnt,"#94A3B8"]].map(function(k){return(
@@ -2806,7 +2824,7 @@ function PayrollDiagnosis(props){
                             <tr key={c.id} style={{borderBottom:"1px solid #F1F5F9",opacity:c.excluded?0.5:1}}>
                               <td style={cellS}>
                                 <input value={c.name||""} onChange={function(e){updateCand(c.id,{name:e.target.value});}} style={Object.assign({},smInp,{minWidth:84})} placeholder="이름"/>
-                                {(function(){var onlyNpHi=c.ins&&c.ins.np&&c.ins.hi&&!c.ins.wc&&!c.ins.ei;return onlyNpHi&&c.rel==="none"?<div style={{fontSize:11.5,color:"#B45309",marginTop:3,whiteSpace:"normal",lineHeight:1.4}}>특수관계자·대표자·임원 여부 확인 필요</div>:null;})()}
+                                {(function(){var miss=c.ins?[c.ins.np,c.ins.hi,c.ins.wc,c.ins.ei].filter(function(b){return !b;}).length:0;return (miss>=2&&c.rel==="none")?<div style={{fontSize:13,fontWeight:700,color:"#C2410C",marginTop:3,whiteSpace:"normal",lineHeight:1.45}}>⚠ 특수관계자·대표자·임원 여부 확인 필요</div>:null;})()}
                               </td>
                               <td style={Object.assign({},cellS,{fontFamily:"monospace",color:"#64748B",whiteSpace:"nowrap"})}>{c.rrnMasked||"—"}</td>
                               <td style={cellS}><input type="date" value={c.birthDate||""} onChange={function(e){updateCand(c.id,{birthDate:e.target.value});}} style={Object.assign({},smInp,{minWidth:130})}/></td>
@@ -2856,7 +2874,7 @@ function PayrollDiagnosis(props){
 
           {stStep[0]===4&&stEmps[0]&&analysis&&(
             <div style={{display:"grid",gap:16}}>
-              <div style={{padding:"10px 14px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:12.5,color:"#0F766E",lineHeight:1.6}}>
+              <div style={{padding:"11px 15px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:14,color:"#0F766E",lineHeight:1.7}}>
                 이 결과는 <strong>사용자가 확인한 명부</strong>를 기준으로 한 <strong>1차 검토</strong>입니다. 실제 신청 가능 여부와 세액공제 금액은 공식 요건과 세무 검토가 필요합니다.
               </div>
               {stMissing[0]>0&&(
@@ -2962,8 +2980,8 @@ function PayrollDiagnosis(props){
 
               {/* 탭 (G: 글자 확대 · L: 추가 확인자료) */}
               <div style={{display:"flex",gap:7,borderBottom:"2px solid #F1F5F9",flexWrap:"wrap"}}>
-                {[{k:"emp",l:"직원별 진단"},{k:"subsidy",l:"지원금별 요약"},{k:"tax",l:"통합고용세액공제 예상"},{k:"docs",l:"추가 확인자료"}].map(function(t){var on=stTab[0]===t.k;return(
-                  <button key={t.k} onClick={function(){stTab[1](t.k);}} style={{padding:"10px 15px",fontSize:15.5,fontWeight:800,border:"none",background:"none",color:on?"#0F766E":"#94A3B8",borderBottom:"2px solid "+(on?"#0F766E":"transparent"),marginBottom:-2,cursor:"pointer",fontFamily:FF}}>{t.l}</button>
+                {[{k:"emp",l:"직원별 진단"},{k:"subsidy",l:"지원금별 요약"},{k:"tax",l:"통합고용세액공제 예상"},{k:"total",l:"💰 총 혜택 요약"},{k:"docs",l:"추가 확인자료"}].map(function(t){var on=stTab[0]===t.k;return(
+                  <button key={t.k} onClick={function(){stTab[1](t.k);}} style={{padding:"11px 16px",fontSize:16.5,fontWeight:800,border:"none",background:"none",color:on?"#0F766E":"#94A3B8",borderBottom:"2px solid "+(on?"#0F766E":"transparent"),marginBottom:-2,cursor:"pointer",fontFamily:FF}}>{t.l}</button>
                 );})}
               </div>
 
@@ -3032,8 +3050,14 @@ function PayrollDiagnosis(props){
                       <button type="button" onClick={function(e){e.preventDefault();e.stopPropagation();try{window.open(s.site,"_blank","noopener,noreferrer");}catch(err){void err;}}} style={{flexShrink:0,fontSize:13,fontWeight:700,color:"#0F766E",background:"#fff",border:"1px solid #99F6E4",borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:FF}}>공식 안내 ↗</button>
                     </div>
                   );})}
-                  <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>
+                  <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,fontSize:13,color:"#92400E",lineHeight:1.7}}>
                     이 결과는 4대보험 명부 기준 1차 검토입니다. 실제 신청 가능 여부는 공식 요건과 추가자료 확인이 필요합니다.
+                  </div>
+                  {/* 하단 큰 요약: 조건 충족 시 최대 예상 지원금 */}
+                  <div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:14,padding:"18px 16px",textAlign:"center"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:"#0F766E",marginBottom:6}}>조건 충족 시 최대 예상 지원금 총액</div>
+                    <div style={{fontSize:32,fontWeight:800,color:"#0F766E",letterSpacing:"-0.5px"}}>{subsidyMax>0?PD.formatWon(subsidyMax):"검토 필요"}</div>
+                    <div style={{fontSize:12.5,color:"#94A3B8",marginTop:6}}>최대 가능 추정 · 1차 (확정 아님)</div>
                   </div>
                 </div>
               )}
@@ -3098,10 +3122,41 @@ function PayrollDiagnosis(props){
                     <div style={{fontSize:14,fontWeight:800,color:"#1E293B",marginBottom:9}}>④ 확인 필요 체크리스트</div>
                     <div style={{display:"grid",gap:6}}>
                       {PD.TAX_CHECKLIST.map(function(t){return(
-                        <div key={t} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#475569"}}><span>⬜</span><span>{t}</span></div>
+                        <div key={t} style={{display:"flex",alignItems:"center",gap:8,fontSize:14,color:"#475569"}}><span>⬜</span><span>{t}</span></div>
                       );})}
                     </div>
                   </div>
+                  {/* 하단 강조: 총 예상 공제액 재강조 */}
+                  <div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:14,padding:"18px 16px",textAlign:"center"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:"#7C3AED",marginBottom:6}}>총 예상 세액공제액</div>
+                    <div style={{fontSize:32,fontWeight:800,color:"#7C3AED",letterSpacing:"-0.5px"}}>{estimate.overYouth?"입력값 재확인 필요":(estimate.computable&&estimate.creditTotal!=null?PD.formatWon(estimate.creditTotal):"전년도 인원 입력 후 산출")}</div>
+                    <div style={{fontSize:12.5,color:"#94A3B8",marginTop:6}}>입력값 기준 1차 추정 · 확정 아님 / 세무 검토 필요</div>
+                  </div>
+                </div>
+              )}
+
+              {/* 탭: 총 혜택 요약 (영업용) */}
+              {stTab[0]==="total"&&(
+                <div style={{display:"grid",gap:16}}>
+                  <div style={{fontSize:15,color:"#64748B",lineHeight:1.7,textAlign:"center"}}>조건이 모두 충족됐을 때 받을 수 있는 <strong>최대 예상 혜택</strong>을 한눈에 보여줍니다. (최대 가능 추정 · 1차)</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
+                    <div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:14,padding:"20px 16px",textAlign:"center"}}>
+                      <div style={{fontSize:15,fontWeight:700,color:"#0F766E",marginBottom:8}}>최대 예상 지원금</div>
+                      <div style={{fontSize:30,fontWeight:800,color:"#0F766E",letterSpacing:"-0.5px"}}>{subsidyMax>0?PD.formatWon(subsidyMax):"검토 필요"}</div>
+                      <div style={{fontSize:12.5,color:"#94A3B8",marginTop:6}}>1차 검토 후보 기준 최대 가능 추정</div>
+                    </div>
+                    <div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:14,padding:"20px 16px",textAlign:"center"}}>
+                      <div style={{fontSize:15,fontWeight:700,color:"#7C3AED",marginBottom:8}}>최대 예상 세액공제</div>
+                      <div style={{fontSize:30,fontWeight:800,color:"#7C3AED",letterSpacing:"-0.5px"}}>{creditMax>0?PD.formatWon(creditMax):(estimate.overYouth?"입력값 재확인":"검토 필요")}</div>
+                      <div style={{fontSize:12.5,color:"#94A3B8",marginTop:6}}>통합고용세액공제 입력값 기준 추정</div>
+                    </div>
+                  </div>
+                  <div style={{background:"linear-gradient(90deg,#0F766E,#0EA5A0)",borderRadius:16,padding:"26px 18px",textAlign:"center",boxShadow:"0 4px 16px rgba(15,118,110,0.25)"}}>
+                    <div style={{fontSize:17,fontWeight:800,color:"#CCFBF1",marginBottom:8}}>최대 예상 총 혜택</div>
+                    <div style={{fontSize:42,fontWeight:800,color:"#fff",letterSpacing:"-1px",lineHeight:1.1,wordBreak:"keep-all"}}>{totalBenefit>0?PD.formatWon(totalBenefit):"추가 입력·검토 필요"}</div>
+                    <div style={{fontSize:14,color:"#99F6E4",marginTop:10,fontWeight:600}}>지원금 + 세액공제 합산 (최대 가능 추정)</div>
+                  </div>
+                  <div style={{fontSize:12.5,color:"#94A3B8",textAlign:"center",lineHeight:1.7}}>실제 지원 가능 여부와 금액은 추가자료 및 요건 확인 후 달라질 수 있습니다. (확정 금액 아님)</div>
                 </div>
               )}
 

@@ -558,7 +558,9 @@ export function classifyEmployee(emp, opts) {
   // 특수관계자/대표자/임원: 사용자가 표시했거나, 연금·건강만 있고 고용·산재 없는 경우 의심
   var rel = emp.rel || "none"; // none|ceo|exec|special
   var relMarked = rel === "ceo" || rel === "exec" || rel === "special";
-  var relSuspect = !!(ins.np && ins.hi && !ins.ei && !ins.wc); // 연금·건강만 → 의심
+  // 4대보험 중 2개 이상 미가입(체크 안 됨)이면 특수관계자/대표자/임원 의심
+  var insMissingCount = [ins.np, ins.hi, ins.wc, ins.ei].filter(function (b) { return !b; }).length;
+  var relSuspect = insMissingCount >= 2;
   var relNote = relMarked ? " · 대표자/임원/특수관계자 표시됨 → 지원금 대상 제한 가능성(판단 제한)" : (relSuspect ? " · 특수관계자·대표자·임원 여부 확인 필요(지원금 대상 제한 가능성)" : "");
 
   var cands = [];
@@ -575,6 +577,7 @@ export function classifyEmployee(emp, opts) {
     age: age, isYouth: youth, isSenior: senior, isFemale: female, recentHire: recentHire, active: active,
     eiOn: eiOn, wcOn: wcOn, eiNeedsCheck: eiNeedsCheck, wcNeedsCheck: wcNeedsCheck,
     insPartial: !(ins.np && ins.hi && ins.wc && ins.ei),
+    insMissingCount: insMissingCount,
     onlyNpHi: !!(ins.np && ins.hi && !ins.ei && !ins.wc),
     insKnown: insKnown,
     rel: rel, relMarked: relMarked, relSuspect: relSuspect, relCheck: relMarked || relSuspect,
@@ -640,6 +643,26 @@ export function defaultTaxUnits(region, sizeType) {
   if (sizeType === "sme") return region === "local" ? { youth: 1550, normal: 950 } : { youth: 1450, normal: 850 };
   if (sizeType === "mid") return { youth: 800, normal: 450 };
   return { youth: 0, normal: 0 }; // 기타/확인 필요 → 직접 입력
+}
+
+// ── 지원금 1인당 최대 예상 금액 (만원, "최대 가능 추정" · 법령·요건에 따라 상이) ──
+// 영업용 "조건 충족 시 최대 예상" 표시에만 사용. 확정 금액 아님.
+export var SUBSIDY_MAX_PER_PERSON = {
+  youth_jump: 1200,      // 청년일자리도약장려금(최대 추정)
+  emp_promo: 720,        // 고용촉진장려금
+  senior_continue: 720,  // 고령자 계속고용장려금
+  senior_intern: 240,    // 시니어 인턴십
+  saeil_women: 380,      // 새일여성인턴제
+  parental: 0,
+};
+// 지원금별 후보(candidateCount) 기준 최대 예상 지원금 총액(원). "최대 가능 추정".
+export function estimateSubsidyTotal(summary) {
+  var won = 0;
+  (summary || []).forEach(function (s) {
+    var per = SUBSIDY_MAX_PER_PERSON[s.key] || 0;
+    won += (s.candidateCount || 0) * per * 10000;
+  });
+  return won;
 }
 
 // ── 통합고용세액공제 예상 검토 계산 ───────────────────────
