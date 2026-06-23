@@ -2667,8 +2667,9 @@ function PayrollDiagnosis(props){
                   <details style={{fontSize:12,color:"#64748B"}}>
                     <summary style={{cursor:"pointer",fontWeight:700}}>분석 로그 보기</summary>
                     <div style={{marginTop:6,padding:"8px 11px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:8,lineHeight:1.7}}>
-                      읽은 글자 수: {stText[0].length}자 · 발견된 주민번호 패턴: 약 {quickRrn}건
-                      {stStats[0]&&(<span> · 직전 인식 결과 — 주민번호 {stStats[0].rrnCount}건 / 날짜 {stStats[0].dateCount}개 / 직원 후보 {stStats[0].candCount}명</span>)}
+                      읽은 글자 수: {stText[0].length}자 · 발견된 주민번호 패턴(원문): 약 {quickRrn}건
+                      {stStats[0]&&(<div style={{marginTop:4}}>직전 인식 결과 — 정규화 후 글자 {stStats[0].normLen}자 · 주민번호 {stStats[0].rrnCount}건 · 날짜 {stStats[0].dateCount}개 · 직원 후보 {stStats[0].candCount}명</div>)}
+                      {stStats[0]&&stStats[0].preview&&(<div style={{marginTop:4,color:"#94A3B8",wordBreak:"break-all"}}>정규화 미리보기(주민번호 마스킹): {stStats[0].preview}…</div>)}
                     </div>
                   </details>
                 );
@@ -2704,7 +2705,7 @@ function PayrollDiagnosis(props){
                 {stStats[0]&&(
                   <details style={{fontSize:12,color:"#64748B"}}>
                     <summary style={{cursor:"pointer",fontWeight:700}}>분석 로그 보기</summary>
-                    <div style={{marginTop:6,padding:"8px 11px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:8,lineHeight:1.7}}>읽은 글자 수 {stStats[0].textLen}자 · 주민번호 패턴 {stStats[0].rrnCount}건 · 날짜 {stStats[0].dateCount}개 · 직원 후보 {stStats[0].candCount}명</div>
+                    <div style={{marginTop:6,padding:"8px 11px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:8,lineHeight:1.7}}>읽은 글자 {stStats[0].rawLen||stStats[0].textLen}자 · 정규화 후 {stStats[0].normLen}자 · 주민번호 {stStats[0].rrnCount}건 · 날짜 {stStats[0].dateCount}개 · 직원 후보 {stStats[0].candCount}명</div>
                   </details>
                 )}
                 <div style={{display:"flex",gap:9,flexWrap:"wrap",alignItems:"center"}}>

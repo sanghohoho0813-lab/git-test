@@ -290,10 +290,17 @@ function pickKoreanName(s, first) {
 // 텍스트 정규화 — 깨진 공백/대시/별표/전각문자 정리(직원 후보 추출 전)
 function normalizeRosterText(text) {
   var t = String(text || "");
-  t = t.replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFF10 + 0x30); }); // 전각숫자→반각
-  t = t.replace(/[‐‑‒–—―−－ー]/g, "-"); // 각종 하이픈/대시→'-'
-  t = t.replace(/[＊∗⁎✱٭⁕]/g, "*"); // 각종 별표/마스킹문자→'*'
-  t = t.replace(/[\u00A0\u3000\t ]/g, " "); // 특수 공백 -> 일반 공백
+  t = t.replace(/[\uFF10-\uFF19]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFF10 + 0x30); }); // 전각숫자->반각
+  t = t.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFF0D\u30FC]/g, "-"); // 각종 하이픈/대시->'-'
+  t = t.replace(/[\uFF0A\u2217\u204E\u2731\u066D\u2055]/g, "*"); // 각종 별표/마스킹문자->'*'
+  t = t.replace(/[\u00A0\u3000\t]/g, " "); // 특수 공백 -> 일반 공백 (줄바꿈 유지)
+  // PDF 추출 시 글자/숫자 사이에 끼는 공백(예: "6 1 0 8 2 3", "조 세 환", "2 0 2 5 . 0 8 . 0 1") 복원
+  var prev;
+  do { prev = t; t = t.replace(/(\d)[ ]+(\d)/g, "$1$2"); } while (t !== prev);              // 숫자 사이 공백
+  t = t.replace(/(\d)[ ]*([.\-/])[ ]*(\d)/g, "$1$2$3");                                       // 숫자-구분자-숫자(날짜/주민)
+  do { prev = t; t = t.replace(/([0-9*])[ ]+([0-9*])/g, "$1$2"); } while (t !== prev);        // 숫자/별표(마스킹) 사이
+  do { prev = t; t = t.replace(/([\uAC00-\uD7A3])[ ]+([\uAC00-\uD7A3])/g, "$1$2"); } while (t !== prev); // 한글 글자 사이
+  t = t.replace(/[ ]{2,}/g, " ");                                                              // 다중 공백 정리
   return t;
 }
 
@@ -338,8 +345,9 @@ export function parseRosterText(text) {
   var meta = extractMetaFromText(norm);
   var emps = [];
 
-  // 주민번호 앵커: 6자리-(성별1자리)(나머지: 숫자/마스킹 0~6). 마스킹·전체 모두 매칭.
-  var rrnRe = /(\d{6})\s*-\s*([0-9])([0-9*]{0,6})/g;
+  // 주민번호 앵커: 6자리-(성별1자리)+(뒤 5~7자 숫자/마스킹).
+  // 뒤를 5자 이상 요구해 사업자등록번호(\d{3}-\d{2}-\d{5}) 연속열을 직원으로 오인하지 않게 함.
+  var rrnRe = /(\d{6})\s*-\s*([0-9])([0-9*]{5,7})/g;
   var anchors = [], m;
   while ((m = rrnRe.exec(norm))) { anchors.push({ index: m.index, end: rrnRe.lastIndex, front: m[1], gender: m[2] }); }
 
@@ -384,13 +392,14 @@ export function parseRosterText(text) {
     // 주민번호가 전혀 없을 때: 생년월일(6/8자리)+한글이름 후보를 보수적으로 탐지
     var lines = norm.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
     lines.forEach(function (line) {
+      if (/사업자|관리번호|등록번호|발급|사업장|보험료|합계|소계|총계/.test(line)) return; // 헤더/사업자정보 줄 제외
       var bm2 = line.match(/(?:^|[^\d])((?:19|20)\d{6}|\d{6})(?![\d])/);
-      var nm = pickKoreanName(line, true);
-      if (!bm2 && !nm) return;
-      var bd = bm2 ? normDate(bm2[1]) : null;
-      var ds = extractDatesFrom(line.replace(bm2 ? bm2[1] : "", " "));
+      if (!bm2) return;                 // 생년월일 후보 없으면 직원행으로 보지 않음
+      var bd = normDate(bm2[1]);
+      if (!bd) return;                  // 유효 생년월일 아니면 제외(사업자번호 등 오인 방지)
+      var nm = pickKoreanName(line.replace(bm2[1], " "), true);
+      var ds = extractDatesFrom(line.replace(bm2[1], " "));
       totalDates += ds.length;
-      if (!bd && !nm) return;
       emps.push({
         name: nm || "(이름 확인 필요)", birthDate: bd, gender: null, rrnMasked: null,
         hireDate: ds[0] || null, loseDate: null, acqDates: ds, multiDates: ds.length > 1,
@@ -402,7 +411,19 @@ export function parseRosterText(text) {
   }
 
   var missing = emps.filter(function (e) { return e.name === "(이름 확인 필요)" || !e.birthDate || !e.hireDate; }).length;
-  return { employees: emps, meta: meta, missingCount: missing, stats: { textLen: raw.length, rrnCount: anchors.length, dateCount: totalDates, candCount: emps.length } };
+  // 미리보기는 전체 주민번호가 있어도 마스킹해서만 노출
+  var preview = maskFullRrnInText(norm).replace(/\s+/g, " ").slice(0, 180);
+  return {
+    employees: emps, meta: meta, missingCount: missing,
+    stats: { rawLen: raw.length, normLen: norm.length, rrnCount: anchors.length, dateCount: totalDates, candCount: emps.length, preview: preview,
+      // 호환용 별칭
+      textLen: raw.length },
+  };
+}
+
+// 텍스트 내 전체 주민번호(뒤 7자리 노출)를 마스킹 (미리보기/로그 안전용)
+function maskFullRrnInText(s) {
+  return String(s || "").replace(/(\d{6})\s*-\s*([0-9])[0-9]{6}/g, "$1-$2******");
 }
 
 // (호환) 줄 배열 → 직원 후보. 내부적으로 텍스트 파서를 사용.
