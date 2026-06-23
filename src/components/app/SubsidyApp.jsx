@@ -2322,7 +2322,10 @@ function PayrollDiagnosis(props){
   var stOnlyCheck=useState(false);   // '확인 필요만 보기'
   var stStats=useState(null);        // 분석 로그(텍스트 길이·주민번호 수·날짜 수·후보 수)
   var stIssueDate=useState(null);    // 명부 발급/출력일(최신성 경고용)
+  var stPick=useState({clicked:false,returned:false,name:"",type:"",ext:"",supported:null}); // 파일 선택 로그
   var fileRef=useRef(null);
+  var pickerOpenRef=useRef(false);   // 파일 선택기 열림 상태(복귀 시 상태 보호용)
+  var changedRef=useRef(false);      // 이번 선택에서 onChange 발생 여부(취소 감지)
 
   // 모바일 환경 추정 + PDF 안전 제한값
   function isMobileEnv(){
@@ -2365,11 +2368,35 @@ function PayrollDiagnosis(props){
     return (Math.round(bytes/104857.6)/10)+" MB";
   }
 
-  // 1) 파일 선택창 열기 — 어떤 경우에도 명확한 피드백
-  function openPicker(){
+  // 파일 형식 판정 헬퍼 (MIME 만 믿지 않고 확장자도 확인)
+  function isPdfFile(f){ if(!f)return false; var nm=(f.name||"").toLowerCase(); return nm.endsWith(".pdf")||f.type==="application/pdf"; }
+  function isExcelCsv(f){ if(!f)return false; var e=fileExt(f); return ["xlsx","xls","csv"].indexOf(e)>=0; }
+  function isImageFile(f){ if(!f)return false; var e=fileExt(f); if((f.type||"").indexOf("image/")===0)return true; return ["jpg","jpeg","png","heic","heif","webp","gif","bmp","tif","tiff"].indexOf(e)>=0; }
+  function isSupportedFile(f){ return isPdfFile(f)||isExcelCsv(f); }
+
+  // 1) 파일 선택창 열기 — mode: 'pdf' | 'excel' | 'any'
+  //  - capture/multiple 사용 안 함(카메라·사진첩 우선 방지)
+  //  - 복귀 시 상태 보호: pickerOpenRef 로 표시(앱 전체 언마운트는 useAuth 에서 이미 방지)
+  function openPicker(mode){
     try{
       if(!fileRef.current)throw new Error("no ref");
+      var accept = mode==="pdf" ? ".pdf,application/pdf"
+        : mode==="excel" ? ".xlsx,.xls,.csv"
+        : "";   // 'any' → accept 비움(안드로이드/구글드라이브에서 파일이 보이도록)
+      fileRef.current.accept=accept;
       fileRef.current.value="";        // 같은 파일 재선택 가능하도록 초기화
+      pickerOpenRef.current=true; changedRef.current=false;
+      stPick[1](Object.assign({},stPick[0],{clicked:true,returned:false,supported:null}));
+      // 선택기 복귀(window focus) 감지 → 취소 안내(모달은 그대로 유지)
+      var onFocus=function(){
+        window.removeEventListener("focus",onFocus);
+        setTimeout(function(){
+          pickerOpenRef.current=false;
+          stPick[1](function(p){return Object.assign({},p,{returned:true});});
+          if(!changedRef.current){ toast("파일이 선택되지 않았습니다. 다시 선택해주세요.","error"); }
+        },700);
+      };
+      window.addEventListener("focus",onFocus);
       fileRef.current.click();
     }catch(err){
       console.error("[명부진단] 파일 선택창 열기 실패:",err);
@@ -2377,14 +2404,22 @@ function PayrollDiagnosis(props){
     }
   }
 
-  // 2) 파일 선택됨 — 분석 전에 파일 정보만 표시(저장 안 함)
+  // 2) 파일 선택됨 — 분석 전에 파일 정보만 표시(저장 안 함). 이미지/미지원은 거부.
   function onFileChange(file){
-    if(!file){return;}      // 선택 취소 — 모달 유지, 아무 것도 하지 않음
+    changedRef.current=true; pickerOpenRef.current=false;
+    if(!file){ return; }   // 선택 취소 — 모달 유지
     var ext=fileExt(file);
-    stEmps[1](null);stErr[1]("");
+    stPick[1](Object.assign({},stPick[0],{clicked:true,returned:true,name:file.name,type:file.type||"(없음)",ext:ext||"(없음)",supported:isSupportedFile(file)}));
+    stEmps[1](null);
+    if(isImageFile(file)){
+      // 사진/이미지: OCR 미지원 → 분석하지 않음. 모달 유지, 파일은 보류.
+      stFile[1](file); stErr[1]("사진/이미지 파일은 아직 자동진단에서 지원하지 않습니다. 4대보험 명부 PDF(또는 엑셀)를 올려주세요. 사진으로 저장된 명부는 글자가 이미지라 정확히 읽기 어렵습니다 — 4대보험 EDI/사회보험통합징수포털에서 PDF·엑셀로 내려받는 것이 가장 안정적입니다.");
+      return;
+    }
+    stErr[1]("");
     stFile[1](file);        // 선택 시점에는 파일 정보만 저장(무거운 분석 실행 안 함)
-    if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){
-      toast("현재는 엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 지원합니다.","error");
+    if(!isSupportedFile(file)){
+      stErr[1]("지원하지 않는 형식입니다. PDF 또는 엑셀(xlsx·xls)·CSV 파일을 올려주세요.");
     }else{
       toast("파일을 선택했습니다: "+file.name+" (아직 저장되지 않음)","success");
     }
@@ -2429,9 +2464,9 @@ function PayrollDiagnosis(props){
   async function startFromFile(){
     var file=stFile[0];
     if(!file){toast("먼저 명부 파일을 선택해주세요.","error");return;}
-    var ext=fileExt(file);
-    var isPdf=ext==="pdf";
-    if(["xlsx","xls","csv","pdf"].indexOf(ext)===-1){ stErr[1]("엑셀(xlsx·xls)·CSV·텍스트 PDF 파일을 올려주세요."); return; }
+    var isPdf=isPdfFile(file);
+    if(isImageFile(file)){ stErr[1]("사진/이미지 파일은 자동진단에서 지원하지 않습니다. 4대보험 명부 PDF(또는 엑셀)를 올려주세요."); return; }
+    if(!isSupportedFile(file)){ stErr[1]("지원하지 않는 형식입니다. PDF 또는 엑셀(xlsx·xls)·CSV 파일을 올려주세요."); return; }
     stErr[1]("");
     var mobile=isMobileEnv();
     if(isPdf&&mobile&&file.size>PDF_MOBILE_MAX_MB*1024*1024){
@@ -2606,13 +2641,21 @@ function PayrollDiagnosis(props){
 
               {stMode[0]==="file"&&(
                 <React.Fragment>
-                  <div onClick={openPicker} style={{border:"2px dashed #99F6E4",borderRadius:14,padding:"26px 20px",textAlign:"center",cursor:"pointer",background:"#F8FFFE"}}>
-                    <div style={{fontSize:36,marginBottom:9}}>🗂️</div>
-                    <div style={{fontSize:16,fontWeight:800,color:"#1E293B",marginBottom:7}}>클릭해서 가입자 명부 파일 선택</div>
-                    <button type="button" onClick={function(e){e.stopPropagation();openPicker();}} className="prog-tap"
-                      style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14.5,fontWeight:800,cursor:"pointer",fontFamily:FF,marginBottom:9}}>📎 파일 선택</button>
-                    <div style={{fontSize:13,color:"#64748B"}}>지원: XLSX · XLS · CSV · 텍스트 PDF</div>
-                    <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV는 가장 안정적입니다. PDF는 텍스트 PDF만 읽을 수 있고, 스마트폰에서는 파일 크기·형식에 따라 제한될 수 있습니다.</div>
+                  <div style={{border:"2px dashed #99F6E4",borderRadius:14,padding:"22px 18px",background:"#F8FFFE"}}>
+                    <div style={{fontSize:32,marginBottom:8,textAlign:"center"}}>🗂️</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:9,maxWidth:420,margin:"0 auto"}}>
+                      <button type="button" onClick={function(){openPicker("pdf");}} className="prog-tap"
+                        style={{background:"#0F766E",color:"#fff",border:"none",borderRadius:11,padding:"13px 18px",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:FF}}>📄 PDF 명부 선택</button>
+                      <button type="button" onClick={function(){openPicker("excel");}}
+                        style={{background:"#fff",color:"#0F766E",border:"1.5px solid #99F6E4",borderRadius:11,padding:"12px 18px",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:FF}}>📊 엑셀/CSV 선택</button>
+                      <button type="button" onClick={function(){openPicker("any");}}
+                        style={{background:"#F1F5F9",color:"#475569",border:"1px solid #E2E8F0",borderRadius:11,padding:"11px 18px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:FF}}>📁 파일이 안 보이면 전체 파일에서 선택</button>
+                    </div>
+                    <div style={{fontSize:13,color:"#64748B",marginTop:11,lineHeight:1.7,wordBreak:"keep-all"}}>
+                      📱 스마트폰에서는 ‘내 파일’ 또는 ‘구글드라이브’에서 PDF 명부를 선택해주세요.<br/>
+                      PDF가 목록에 안 보이면 ‘전체 파일에서 선택’을 눌러 직접 고를 수 있습니다.<br/>
+                      사진첩 이미지나 캡처본은 현재 분석하지 않습니다. 글자 선택이 가능한 PDF가 가장 안정적입니다.
+                    </div>
                   </div>
                   {/* N: PDF 인식 차이 안내 */}
                   <details style={{fontSize:12.5,color:"#64748B"}}>
@@ -2627,31 +2670,41 @@ function PayrollDiagnosis(props){
                   </details>
                   {stFile[0]&&(function(){
                     var ext=fileExt(stFile[0]);
-                    var isPdf=ext==="pdf";
-                    var supported=["xlsx","xls","csv","pdf"].indexOf(ext)>=0;
+                    var isPdf=isPdfFile(stFile[0]);
+                    var isImg=isImageFile(stFile[0]);
+                    var supported=isSupportedFile(stFile[0]);
                     return(
                       <div style={{border:"1px solid "+(supported?"#A7F3D0":"#FDE68A"),background:supported?"#F0FDF4":"#FFFBEB",borderRadius:12,padding:"14px 16px",display:"grid",gap:10}}>
                         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                          <span style={{fontSize:22}}>{isPdf?"📄":(ext==="csv"?"📑":supported?"📊":"📁")}</span>
+                          <span style={{fontSize:24}}>{isPdf?"📄":(ext==="csv"?"📑":supported?"📊":isImg?"🖼️":"📁")}</span>
                           <div style={{minWidth:0,flex:"1 1 220px"}}>
-                            <div style={{fontSize:14.5,fontWeight:800,color:"#1E293B",wordBreak:"break-all"}}>선택된 파일: {stFile[0].name}</div>
-                            <div style={{fontSize:12.5,color:"#64748B",marginTop:2}}>형식: {ext?ext.toUpperCase():"알 수 없음"} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":"미지원 형식"}</div>
+                            <div style={{fontSize:15.5,fontWeight:800,color:"#1E293B",wordBreak:"break-all"}}>선택된 파일: {stFile[0].name}</div>
+                            <div style={{fontSize:13.5,color:"#64748B",marginTop:2}}>형식: {ext?ext.toUpperCase():(isPdf?"PDF":"알 수 없음")} · 크기: {fmtSize(stFile[0].size)} · {supported?"처리 가능":isImg?"이미지(미지원)":"미지원 형식"}</div>
                           </div>
                         </div>
-                        <div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>파일은 아직 저장되지 않습니다. 브라우저에서만 읽고, 주민등록번호 등 민감정보는 화면에 마스킹합니다.</div>
+                        <div style={{fontSize:13,color:"#475569",lineHeight:1.6}}>파일은 아직 저장되지 않습니다. 브라우저에서만 읽고, 주민등록번호 등 민감정보는 화면에 마스킹합니다.</div>
                         {isPdf&&isMobileEnv()&&(
-                          <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>💡 스마트폰에서는 PDF 글자 읽기가 제한될 수 있습니다. PDF 내용을 복사해 <strong>‘텍스트 붙여넣기’</strong>로 올리거나, 엑셀 파일로 올리면 더 안정적입니다.</div>
+                          <div style={{padding:"10px 13px",background:"#FEF9C3",border:"1px solid #FDE68A",borderRadius:9,fontSize:13,color:"#92400E",lineHeight:1.7}}>💡 스마트폰에서는 PDF 글자 읽기가 제한될 수 있습니다. PDF 내용을 복사해 <strong>‘텍스트 붙여넣기’</strong>로 올리거나, 엑셀 파일로 올리면 더 안정적입니다.</div>
                         )}
                         <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
-                          <button type="button" disabled={stBusy[0]} onClick={openPicker} style={Object.assign({},btnS,{padding:"10px 16px",fontSize:14,opacity:stBusy[0]?0.6:1})}>파일 다시 선택</button>
+                          <button type="button" disabled={stBusy[0]} onClick={function(){openPicker("any");}} style={Object.assign({},btnS,{padding:"11px 16px",fontSize:14.5,opacity:stBusy[0]?0.6:1})}>파일 다시 선택</button>
                           <button type="button" disabled={!supported||stBusy[0]} onClick={startFromFile}
-                            style={{flex:"1 1 200px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:15,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
+                            style={{flex:"1 1 200px",background:(!supported||stBusy[0])?"#CBD5E1":"#0F766E",color:"#fff",border:"none",borderRadius:10,padding:"12px 18px",fontSize:15.5,fontWeight:800,cursor:(!supported||stBusy[0])?"default":"pointer",fontFamily:FF}}>
                             {stBusy[0]?"읽는 중…":isPdf?"PDF에서 글자 읽기 →":"이 파일로 명부 정리하기 →"}
                           </button>
                         </div>
                       </div>
                     );
                   })()}
+                  {/* H: 파일 선택 로그(접이식) */}
+                  <details style={{fontSize:12.5,color:"#64748B"}}>
+                    <summary style={{cursor:"pointer",fontWeight:700,color:"#475569"}}>파일 선택 로그 보기</summary>
+                    <div style={{marginTop:6,padding:"9px 12px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:8,lineHeight:1.8}}>
+                      선택 버튼 클릭: {stPick[0].clicked?"예":"아니오"} · 선택기 복귀: {stPick[0].returned?"예":"아니오"}<br/>
+                      파일명: {stPick[0].name||"—"} · MIME: {stPick[0].type||"—"} · 확장자: {stPick[0].ext||"—"} · 지원: {stPick[0].supported===null?"—":(stPick[0].supported?"예":"아니오")}<br/>
+                      현재 단계: {stStep[0]}단계 · 마지막 오류: {stErr[0]?stErr[0].slice(0,60):"없음"}
+                    </div>
+                  </details>
                 </React.Fragment>
               )}
 

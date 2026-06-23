@@ -4,6 +4,18 @@ import { PRODUCT_KEY, fetchProductAccess } from "../lib/product";
 
 const AuthContext = createContext(null);
 
+// 같은 사용자의 세션 재발급(토큰 갱신 등)이면 이전 객체 참조를 그대로 유지한다.
+// 참조가 바뀌지 않으면 [session] effect 가 재실행되지 않아, 모바일에서 파일 선택기
+// 복귀 시 org/접근권한을 다시 불러오며 화면이 초기화(언마운트)되는 것을 방지한다.
+function keepIfSameUser(prev, next) {
+  var n = next || null;
+  if (prev === undefined) return n;            // 최초 1회는 항상 반영
+  var pu = prev && prev.user ? prev.user.id : null;
+  var nu = n && n.user ? n.user.id : null;
+  if (pu && nu && pu === nu) return prev;       // 같은 사용자 → 참조 유지(재로딩 방지)
+  return n;                                     // 로그인/로그아웃/사용자 변경만 반영
+}
+
 // 비밀번호 재설정(recovery) 진입 여부를 "모듈 로드 시점"에 한 번 캡처한다.
 // supabase 클라이언트가 URL 해시의 recovery 토큰을 비동기로 소비·정리하기 전에
 // 값을 읽어두어야, 이후 라우팅이 기존 세션으로 대시보드에 들어가는 것을 막을 수 있다.
@@ -31,13 +43,17 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+      setSession((prev) => keepIfSameUser(prev, session));
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // 비밀번호 재설정 링크로 들어온 경우 Supabase 가 PASSWORD_RECOVERY 이벤트를 발생시킨다.
       // 이때는 절대 대시보드로 보내지 않고 재설정 화면을 유지한다.
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
-      setSession(session);
+      // 모바일에서 파일 선택기 등으로 앱이 백그라운드→포그라운드로 돌아올 때
+      // Supabase 가 토큰 갱신(SIGNED_IN/TOKEN_REFRESHED)을 다시 발생시킨다.
+      // 이때 같은 사용자면 session 객체 참조를 유지해, org/접근권한 재로딩 effect 가
+      // 다시 돌면서 앱 전체가 "불러오는 중" 으로 언마운트되는 것을 막는다.
+      setSession((prev) => keepIfSameUser(prev, session));
     });
     return () => subscription.unsubscribe();
   }, []);
