@@ -2321,6 +2321,7 @@ function PayrollDiagnosis(props){
   var stCand=useState([]);           // 직원 후보(검수·수정용)
   var stOnlyCheck=useState(false);   // '확인 필요만 보기'
   var stStats=useState(null);        // 분석 로그(텍스트 길이·주민번호 수·날짜 수·후보 수)
+  var stIssueDate=useState(null);    // 명부 발급/출력일(최신성 경고용)
   var fileRef=useRef(null);
 
   // 모바일 환경 추정 + PDF 안전 제한값
@@ -2332,7 +2333,9 @@ function PayrollDiagnosis(props){
   var PDF_MAX_PAGES_MOBILE=5, PDF_MAX_PAGES_DESKTOP=30;
   var PDF_TIMEOUT_MS_MOBILE=15000, PDF_TIMEOUT_MS_DESKTOP=30000;
   // 추가 입력값
-  var stRegion=useState("metro");   // metro|local
+  var stSido=useState("경기");      // 시/도 (수도권 자동판정)
+  var stSigungu=useState("");       // 시/군/구 (자유입력)
+  var stRegion=useState("metro");   // metro|local (시/도에서 자동 도출)
   var stSize=useState("sme");       // sme|mid|other
   var stIndustry=useState("normal");// normal|excluded|check
   var stYear=useState(function(){return new Date().getFullYear();});
@@ -2345,11 +2348,16 @@ function PayrollDiagnosis(props){
 
   function reset(){
     stEmps[1](null);stFile[1](null);stBusy[1](false);stTab[1]("emp");stCopied[1](false);stPhase[1]("");stMissing[1](0);stErr[1]("");
-    stStep[1](1);stMode[1]("file");stText[1]("");stCand[1]([]);stOnlyCheck[1](false);stStats[1](null);
+    stStep[1](1);stMode[1]("file");stText[1]("");stCand[1]([]);stOnlyCheck[1](false);stStats[1](null);stIssueDate[1](null);
     stPrevTotal[1]("");stPrevYouth[1]("");stCurTotal[1]("");stCurYouth[1]("");
     if(fileRef.current)fileRef.current.value="";
   }
 
+  // 시/도 → 수도권/지방 자동 도출
+  useEffect(function(){
+    var rt=PD.regionTypeOf(stSido[0])||"metro";
+    if(rt!==stRegion[0])stRegion[1](rt);
+  },[stSido[0]]);
   // 기본 단가 자동 세팅(소재지/기업구분 변경 시)
   useEffect(function(){
     var u=PD.defaultTaxUnits(stRegion[0],stSize[0]);
@@ -2476,6 +2484,7 @@ function PayrollDiagnosis(props){
     if(!text.trim()){ stErr[1]("내용이 비어 있습니다. PDF 내용을 복사해 붙여넣거나, 엑셀 파일로 올려주세요."); return; }
     var res=PD.parseTextRoster(text);
     stStats[1](res.stats);
+    if(res.meta&&res.meta.issueDate)stIssueDate[1](res.meta.issueDate);
     if(!res.employees.length){ stErr[1]("직원 후보를 찾지 못했습니다. 주민번호(예: 900101-1******)나 생년월일이 보이도록 정리해 보거나, 아래 ‘직원 직접 입력’으로 진행하거나 엑셀 파일로 올려주세요."); return; }
     stErr[1]("");
     stCand[1](toCandidates(res.employees));
@@ -2514,14 +2523,22 @@ function PayrollDiagnosis(props){
     });
   },[stRegion[0],stSize[0],stPrevTotal[0],stPrevYouth[0],stCurTotal[0],stCurYouth[0],stUnitY[0],stUnitN[0]]);
 
+  var stale=useMemo(function(){
+    return stIssueDate[0]?PD.rosterStaleness(stIssueDate[0],stBase[0]):null;
+  },[stIssueDate[0],stBase[0]]);
+  function staleText(){ return stale?("발급 후 "+stale.days+"일 경과"):""; }
+
   function doCopy(){
     if(!analysis)return;
     var text=PD.buildCopyText({
+      company:(props.companyName||""),
       totalEmp:analysis.counts.totalEmp,youthCount:analysis.counts.youthCount,seniorCount:analysis.counts.seniorCount,
+      eiCheckCount:analysis.eiCheckCount,partialInsCount:analysis.partialInsCount,
       candidateSubsidyCount:analysis.candidateSubsidyCount,estimate:estimate,
+      issueDate:stIssueDate[0],staleText:staleText(),
     });
     if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){stCopied[1](true);setTimeout(function(){stCopied[1](false);},2200);toast("상담용 요약을 복사했습니다. (주민번호 미포함)","success");},function(){toast("복사에 실패했습니다.","error");});
+      navigator.clipboard.writeText(text).then(function(){stCopied[1](true);setTimeout(function(){stCopied[1](false);},2200);toast("상담용 요약을 복사했습니다. (주민번호·직원별 정보 미포함)","success");},function(){toast("복사에 실패했습니다.","error");});
     }else{toast("이 브라우저에서는 복사를 지원하지 않습니다.","error");}
   }
 
@@ -2541,7 +2558,7 @@ function PayrollDiagnosis(props){
   return(
     <React.Fragment>
       {btn}
-      <Modal open={stOpen[0]} onClose={function(){if(stBusy[0])return;stOpen[1](false);}} title="🩺 4대보험 명부 자동진단 (1차 검토)" width={900}>
+      <Modal open={stOpen[0]} onClose={function(){if(stBusy[0])return;var dirty=(stStep[0]>1||stFile[0]||(stText[0]&&stText[0].trim())||stCand[0].length);if(dirty&&!window.confirm("정말 닫을까요? 분석 내용은 저장되지 않습니다."))return;stOpen[1](false);}} title="🩺 4대보험 명부 자동진단 (1차 검토)" width={920}>
         <div style={{display:"grid",gap:14}}>
           {/* 개인정보/면책 안내 (항상 표시) */}
           <div style={{padding:"11px 14px",background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:10,fontSize:12.5,color:"#0F766E",lineHeight:1.65}}>
@@ -2603,6 +2620,17 @@ function PayrollDiagnosis(props){
                     <div style={{fontSize:13,color:"#64748B"}}>지원: XLSX · XLS · CSV · 텍스트 PDF</div>
                     <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4}}>엑셀·CSV는 가장 안정적입니다. PDF는 텍스트 PDF만 읽을 수 있고, 스마트폰에서는 파일 크기·형식에 따라 제한될 수 있습니다.</div>
                   </div>
+                  {/* N: PDF 인식 차이 안내 */}
+                  <details style={{fontSize:12.5,color:"#64748B"}}>
+                    <summary style={{cursor:"pointer",fontWeight:700,color:"#475569"}}>PDF가 어떤 건 읽히고 어떤 건 안 읽히나요?</summary>
+                    <div style={{marginTop:7,padding:"11px 13px",background:"#F8FAFC",border:"1px solid #EEF2F6",borderRadius:9,lineHeight:1.75}}>
+                      같은 PDF라도 저장 방식에 따라 다르게 인식될 수 있습니다.<br/>
+                      · <strong>글자 선택/복사가 되는 PDF</strong>: 텍스트가 들어 있어 자동으로 읽을 수 있어요.<br/>
+                      · <strong>글자 선택이 안 되는 PDF</strong>: 스캔 이미지 PDF일 가능성이 높아 자동으로 읽기 어렵습니다.<br/>
+                      · 일부 PDF는 한글 폰트·보안·출력 방식 때문에 글자 순서가 깨질 수 있습니다(검수 단계에서 직접 수정 가능).<br/>
+                      · 가장 안정적인 방법은 <strong>4대보험 EDI / 사회보험통합징수포털</strong>에서 명부를 <strong>엑셀로 내려받아 올리기</strong>입니다.
+                    </div>
+                  </details>
                   {stFile[0]&&(function(){
                     var ext=fileExt(stFile[0]);
                     var isPdf=ext==="pdf";
@@ -2652,7 +2680,7 @@ function PayrollDiagnosis(props){
           {/* ── 2단계: 추출 내용 확인 ── */}
           {stStep[0]===2&&(
             <div style={{display:"grid",gap:11}}>
-              <div style={{fontSize:16,fontWeight:800,color:"#1E293B"}}>PDF에서 읽은 내용을 확인해주세요</div>
+              <div style={{fontSize:19,fontWeight:800,color:"#1E293B"}}>PDF에서 읽은 내용을 확인해주세요</div>
               <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>PDF 양식에 따라 글자가 일부 깨지거나 순서가 어긋날 수 있습니다. 아래 내용을 확인한 뒤, 필요하면 수정하고 다음 단계로 넘어가세요.</div>
               <textarea value={stText[0]} onChange={function(e){stText[1](e.target.value);}} rows={11}
                 placeholder={"PDF에서 읽은 내용이 여기에 표시됩니다. 비어 있다면 PDF 내용을 복사해 직접 붙여넣어 주세요."}
@@ -2694,7 +2722,7 @@ function PayrollDiagnosis(props){
             var smInp={width:"100%",boxSizing:"border-box",padding:"6px 8px",fontSize:12.5,borderRadius:7,border:"1px solid #E2E8F0",fontFamily:FF};
             return(
               <div style={{display:"grid",gap:12}}>
-                <div style={{fontSize:16,fontWeight:800,color:"#1E293B"}}>직원 후보를 확인해주세요</div>
+                <div style={{fontSize:19,fontWeight:800,color:"#1E293B"}}>직원 후보를 확인해주세요</div>
                 <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6}}>자동으로 찾은 직원 정보입니다. 잘못 읽힌 부분은 수정하고, 빠진 직원은 추가한 뒤 진단을 시작하세요. 주민등록번호는 <strong>900101-1******</strong> 형태로만 표시됩니다.</div>
                 {/* 요약 */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
@@ -2721,7 +2749,7 @@ function PayrollDiagnosis(props){
                   <div style={{overflowX:"auto"}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:780}}>
                       <thead><tr style={{background:"#F8FAFC",textAlign:"left",color:"#64748B"}}>
-                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","4대보험(국·건·고·산)","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0"}}>{h}</th>;})}
+                        {["이름","주민(마스킹)","생년월일","성별","나이","입사일","4대보험(국·건·산·고)","상태","관리"].map(function(h){return <th key={h} style={{padding:"8px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0",fontSize:13.5}}>{h}</th>;})}
                       </tr></thead>
                       <tbody>
                         {shown.map(function(c){
@@ -2743,7 +2771,7 @@ function PayrollDiagnosis(props){
                                 {c.multiDates&&<div style={{fontSize:10.5,color:"#B45309",marginTop:2}}>취득일 후보 여러 개 · 확인</div>}
                               </td>
                               <td style={Object.assign({},cellS,{whiteSpace:"nowrap"})}>
-                                {[["np","국"],["hi","건"],["ei","고"],["wc","산"]].map(function(k){var on=!!(c.ins&&c.ins[k[0]]);return(
+                                {[["np","국"],["hi","건"],["wc","산"],["ei","고"]].map(function(k){var on=!!(c.ins&&c.ins[k[0]]);return(
                                   <label key={k[0]} title={k[1]} style={{display:"inline-flex",alignItems:"center",gap:2,marginRight:6,fontSize:11.5,color:on?"#0F766E":"#94A3B8",cursor:"pointer"}}>
                                     <input type="checkbox" checked={on} onChange={function(e){updateIns(c.id,k[0],e.target.checked);}}/>{k[1]}
                                   </label>
@@ -2781,18 +2809,27 @@ function PayrollDiagnosis(props){
                   ⚠️ 일부 항목(이름·생년월일·입사일 등)이 확인되지 않은 직원이 <strong>{stMissing[0]}명</strong> 있습니다. 해당 항목은 “확인 필요”로 반영되며, 이전 단계(명부 정리)에서 보완하면 더 정확합니다.
                 </div>
               )}
-              {/* 상단 요약 카드 */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:10}}>
+              {/* 명부 최신성 경고 (I) */}
+              {stale&&stale.level!=="ok"&&(
+                <div style={{padding:"11px 14px",background:stale.level==="high"?"#FEF2F2":"#FFFBEB",border:"1px solid "+(stale.level==="high"?"#FECACA":"#FDE68A"),borderRadius:10,fontSize:13.5,color:stale.level==="high"?"#991B1B":"#92400E",lineHeight:1.7}}>
+                  🕒 이 명부는 <strong>발급일({stIssueDate[0]}) 기준</strong> 자료로, 분석 기준일({stBase[0]})까지 <strong>약 {stale.days}일</strong> 경과했습니다. 현재 재직자·4대보험 가입 상태가 달라졌을 수 있으니 최신 명부로 재검토하세요.
+                  {stale.level==="high"&&<span> 발급일로부터 90일이 지난 경우 발급사실 확인 가능 기간도 지났을 수 있습니다.</span>}
+                </div>
+              )}
+              {/* 상단 요약 카드 (G: 글자 확대 · J: '1차 검토 후보') */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
                 {[
                   {l:"총 직원 수",v:analysis.counts.totalEmp+"명",c:"#1E293B"},
                   {l:"청년 추정",v:analysis.counts.youthCount+"명",c:"#0F766E"},
-                  {l:"유력 지원금 후보",v:analysis.candidateSubsidyCount+"건",c:"#1D4ED8"},
-                  {l:"확인 필요 항목",v:analysis.checkItemCount+"건",c:"#B45309"},
-                  {l:"예상 세액공제",v:(estimate.computable&&estimate.creditTotal!=null)?PD.formatWon(estimate.creditTotal):"검토 필요",c:"#7C3AED"},
+                  {l:"1차 검토 후보",v:analysis.candidateSubsidyCount+"건",c:"#1D4ED8"},
+                  {l:"고용보험 확인 필요",v:analysis.eiCheckCount+"명",c:"#DC2626"},
+                  {l:"산재보험 확인 필요",v:analysis.wcCheckCount+"명",c:"#DC2626"},
+                  {l:"일부 보험 확인",v:analysis.partialInsCount+"명",c:"#B45309"},
+                  {l:"예상 세액공제",v:(estimate.computable&&estimate.creditTotal!=null)?((estimate.overYouth?"재확인 필요":PD.formatWon(estimate.creditTotal))):"검토 필요",c:"#7C3AED"},
                 ].map(function(k){return(
-                  <div key={k.l} style={{background:"#fff",border:"1px solid #EEF2F6",borderRadius:12,padding:"13px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-                    <div style={{fontSize:12,color:"#94A3B8",fontWeight:700,marginBottom:5}}>{k.l}</div>
-                    <div style={{fontSize:20,fontWeight:800,color:k.c,letterSpacing:"-0.3px"}}>{k.v}</div>
+                  <div key={k.l} style={{background:"#fff",border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 15px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+                    <div style={{fontSize:13.5,color:"#94A3B8",fontWeight:700,marginBottom:5}}>{k.l}</div>
+                    <div style={{fontSize:23,fontWeight:800,color:k.c,letterSpacing:"-0.3px",wordBreak:"keep-all"}}>{k.v}</div>
                   </div>
                 );})}
               </div>
@@ -2810,15 +2847,19 @@ function PayrollDiagnosis(props){
                 <button onClick={reset} style={Object.assign({},btnS,{padding:"9px 14px",fontSize:13})}>↻ 다른 명부 올리기</button>
               </div>
 
-              {/* 추가 입력 카드 */}
+              {/* 추가 입력 카드 (E: 전년/올해 구분 · F: 소재지 시도/시군구) */}
               <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:14,padding:"16px 16px 18px"}}>
-                <div style={{fontSize:15,fontWeight:800,color:"#1E293B",marginBottom:4}}>➕ 통합고용세액공제 추가 입력</div>
-                <div style={{fontSize:12.5,color:"#64748B",lineHeight:1.6,marginBottom:13}}>통합고용세액공제는 전년도와 올해의 평균 상시근로자 수 비교가 필요합니다. 명부만으로는 확정 계산이 어려우므로, 아래 정보를 입력하면 <strong>예상 검토</strong>가 가능합니다.</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
-                  <div><label style={labS}>사업장 소재지</label>
-                    <select value={stRegion[0]} onChange={function(e){stRegion[1](e.target.value);}} style={inpS}>
-                      <option value="metro">수도권</option><option value="local">지방</option>
+                <div style={{fontSize:16.5,fontWeight:800,color:"#1E293B",marginBottom:4}}>➕ 통합고용세액공제 추가 입력</div>
+                <div style={{fontSize:13.5,color:"#64748B",lineHeight:1.65,marginBottom:14}}>통합고용세액공제는 전년도와 올해의 평균 상시근로자 수를 비교해 1차 검토합니다. 올해 인원은 명부 기준으로 자동 추정되지만, 실제 계산은 <strong>월별 평균 인원 확인</strong>이 필요합니다. (확정 아님)</div>
+
+                {/* 소재지 / 기업구분 / 업종 */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12,marginBottom:14}}>
+                  <div><label style={labS}>사업장 시/도</label>
+                    <select value={stSido[0]} onChange={function(e){stSido[1](e.target.value);}} style={inpS}>
+                      {["서울","경기","인천","강원","충북","충남","세종","대전","전북","전남","광주","경북","경남","대구","부산","울산","제주"].map(function(s){return <option key={s} value={s}>{s}</option>;})}
                     </select></div>
+                  <div><label style={labS}>시/군/구 <span style={{color:"#94A3B8",fontWeight:500}}>(직접 입력)</span></label>
+                    <input value={stSigungu[0]} onChange={function(e){stSigungu[1](e.target.value);}} placeholder="예: 시흥시" style={inpS}/></div>
                   <div><label style={labS}>기업 구분</label>
                     <select value={stSize[0]} onChange={function(e){stSize[1](e.target.value);}} style={inpS}>
                       <option value="sme">중소기업</option><option value="mid">중견기업</option><option value="other">기타/확인 필요</option>
@@ -2827,27 +2868,49 @@ function PayrollDiagnosis(props){
                     <select value={stIndustry[0]} onChange={function(e){stIndustry[1](e.target.value);}} style={inpS}>
                       <option value="normal">일반 업종</option><option value="excluded">소비성 서비스업 등 제외 가능성</option><option value="check">확인 필요</option>
                     </select></div>
-                  <div><label style={labS}>전년도 평균 상시근로자 수</label>
-                    <div style={{display:"flex",gap:6}}>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:14,padding:"9px 13px",background:"#fff",border:"1px solid #E2E8F0",borderRadius:9,fontSize:13.5}}>
+                  <span style={{color:"#475569"}}>선택한 지역: <strong style={{color:"#1E293B"}}>{stSido[0]}{stSigungu[0]?(" "+stSigungu[0]):""}</strong></span>
+                  <span style={{color:"#CBD5E1"}}>·</span>
+                  <span style={{color:"#475569"}}>세액공제 지역 구분: <strong style={{color:stRegion[0]==="metro"?"#1D4ED8":"#0F766E"}}>{stRegion[0]==="metro"?"수도권":"비수도권(지방)"}</strong></span>
+                  <span style={{color:"#94A3B8",fontSize:12}}>지역에 따라 예상 공제액이 달라질 수 있습니다. (법령 확인 필요)</span>
+                </div>
+
+                {/* 전년도(블루) / 올해(그린) 구분 */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12}}>
+                  <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:"13px 14px"}}>
+                    <div style={{fontSize:14,fontWeight:800,color:"#1D4ED8",marginBottom:9}}>전년도 (직접 입력)</div>
+                    <label style={labS}>전년도 평균 상시근로자 수 <span style={{color:"#94A3B8",fontWeight:500}}>(전체)</span></label>
+                    <div style={{display:"flex",gap:6,marginBottom:9}}>
                       <input type="number" min="0" placeholder="숫자" value={stPrevTotal[0]==="unknown"?"":stPrevTotal[0]} disabled={stPrevTotal[0]==="unknown"} onChange={function(e){stPrevTotal[1](e.target.value);}} style={inpS}/>
-                      <button onClick={function(){stPrevTotal[1](stPrevTotal[0]==="unknown"?"":"unknown");}} style={{flexShrink:0,padding:"0 11px",borderRadius:9,border:"1.5px solid "+(stPrevTotal[0]==="unknown"?"#0F766E":"#E2E8F0"),background:stPrevTotal[0]==="unknown"?"#0F766E":"#fff",color:stPrevTotal[0]==="unknown"?"#fff":"#64748B",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>모름</button>
-                    </div></div>
-                  <div><label style={labS}>전년도 청년 등 상시근로자 수</label>
+                      <button onClick={function(){stPrevTotal[1](stPrevTotal[0]==="unknown"?"":"unknown");}} style={{flexShrink:0,padding:"0 11px",borderRadius:9,border:"1.5px solid "+(stPrevTotal[0]==="unknown"?"#1D4ED8":"#E2E8F0"),background:stPrevTotal[0]==="unknown"?"#1D4ED8":"#fff",color:stPrevTotal[0]==="unknown"?"#fff":"#64748B",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>모름</button>
+                    </div>
+                    <label style={labS}>전년도 청년 등 상시근로자 수</label>
                     <div style={{display:"flex",gap:6}}>
                       <input type="number" min="0" placeholder="숫자" value={stPrevYouth[0]==="unknown"?"":stPrevYouth[0]} disabled={stPrevYouth[0]==="unknown"} onChange={function(e){stPrevYouth[1](e.target.value);}} style={inpS}/>
-                      <button onClick={function(){stPrevYouth[1](stPrevYouth[0]==="unknown"?"":"unknown");}} style={{flexShrink:0,padding:"0 11px",borderRadius:9,border:"1.5px solid "+(stPrevYouth[0]==="unknown"?"#0F766E":"#E2E8F0"),background:stPrevYouth[0]==="unknown"?"#0F766E":"#fff",color:stPrevYouth[0]==="unknown"?"#fff":"#64748B",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>모름</button>
-                    </div></div>
-                  <div><label style={labS}>올해 평균 상시근로자 수 <span style={{color:"#94A3B8",fontWeight:500}}>(명부 자동추정·수정 가능)</span></label>
-                    <input type="number" min="0" value={stCurTotal[0]} onChange={function(e){stCurTotal[1](e.target.value);}} style={inpS}/></div>
-                  <div><label style={labS}>올해 청년 등 상시근로자 수 <span style={{color:"#94A3B8",fontWeight:500}}>(명부 자동추정·수정 가능)</span></label>
-                    <input type="number" min="0" value={stCurYouth[0]} onChange={function(e){stCurYouth[1](e.target.value);}} style={inpS}/></div>
+                      <button onClick={function(){stPrevYouth[1](stPrevYouth[0]==="unknown"?"":"unknown");}} style={{flexShrink:0,padding:"0 11px",borderRadius:9,border:"1.5px solid "+(stPrevYouth[0]==="unknown"?"#1D4ED8":"#E2E8F0"),background:stPrevYouth[0]==="unknown"?"#1D4ED8":"#fff",color:stPrevYouth[0]==="unknown"?"#fff":"#64748B",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:FF}}>모름</button>
+                    </div>
+                  </div>
+                  <div style={{background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:10,padding:"13px 14px"}}>
+                    <div style={{fontSize:14,fontWeight:800,color:"#0F766E",marginBottom:9}}>올해 (명부 자동추정 · 수정 가능)</div>
+                    <label style={labS}>올해 평균 상시근로자 수 <span style={{color:"#94A3B8",fontWeight:500}}>(전체)</span></label>
+                    <input type="number" min="0" value={stCurTotal[0]} onChange={function(e){stCurTotal[1](e.target.value);}} style={Object.assign({},inpS,{marginBottom:9})}/>
+                    <label style={labS}>올해 청년 등 상시근로자 수</label>
+                    <input type="number" min="0" value={stCurYouth[0]} onChange={function(e){stCurYouth[1](e.target.value);}} style={inpS}/>
+                  </div>
                 </div>
+                {/* 검증 경고 (D) */}
+                {estimate.overYouth&&(
+                  <div style={{marginTop:12,padding:"11px 13px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:9,fontSize:13.5,color:"#991B1B",fontWeight:700,lineHeight:1.7}}>
+                    ⚠️ 청년 등 증가 인원({estimate.incYouth}명)이 전체 상시근로자 증가 인원({estimate.incTotal}명)보다 큽니다. 전년도 청년 수 또는 올해 상시근로자 수 입력값을 재확인하세요. (예상 공제액은 입력값 재확인 전까지 신뢰할 수 없습니다)
+                  </div>
+                )}
               </div>
 
-              {/* 탭 */}
-              <div style={{display:"flex",gap:7,borderBottom:"2px solid #F1F5F9"}}>
-                {[{k:"emp",l:"직원별 진단"},{k:"subsidy",l:"지원금별 요약"},{k:"tax",l:"통합고용세액공제 예상"}].map(function(t){var on=stTab[0]===t.k;return(
-                  <button key={t.k} onClick={function(){stTab[1](t.k);}} style={{padding:"9px 14px",fontSize:14,fontWeight:800,border:"none",background:"none",color:on?"#0F766E":"#94A3B8",borderBottom:"2px solid "+(on?"#0F766E":"transparent"),marginBottom:-2,cursor:"pointer",fontFamily:FF}}>{t.l}</button>
+              {/* 탭 (G: 글자 확대 · L: 추가 확인자료) */}
+              <div style={{display:"flex",gap:7,borderBottom:"2px solid #F1F5F9",flexWrap:"wrap"}}>
+                {[{k:"emp",l:"직원별 진단"},{k:"subsidy",l:"지원금별 요약"},{k:"tax",l:"통합고용세액공제 예상"},{k:"docs",l:"추가 확인자료"}].map(function(t){var on=stTab[0]===t.k;return(
+                  <button key={t.k} onClick={function(){stTab[1](t.k);}} style={{padding:"10px 15px",fontSize:15.5,fontWeight:800,border:"none",background:"none",color:on?"#0F766E":"#94A3B8",borderBottom:"2px solid "+(on?"#0F766E":"transparent"),marginBottom:-2,cursor:"pointer",fontFamily:FF}}>{t.l}</button>
                 );})}
               </div>
 
@@ -2856,12 +2919,12 @@ function PayrollDiagnosis(props){
                 <div style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                     <thead><tr style={{background:"#F8FAFC",textAlign:"left",color:"#64748B"}}>
-                      {["직원명","주민(마스킹)","나이","성별","입사일","청년 추정","유력 지원금 후보 / 확인 필요"].map(function(h){return <th key={h} style={{padding:"9px 10px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0"}}>{h}</th>;})}
+                      {["직원명","주민(마스킹)","나이","성별","입사일","청년 추정","1차 검토 후보 / 확인 필요"].map(function(h){return <th key={h} style={{padding:"9px 10px",fontWeight:700,whiteSpace:"nowrap",borderBottom:"1px solid #E2E8F0",fontSize:13.5}}>{h}</th>;})}
                     </tr></thead>
                     <tbody>
                       {analysis.rows.map(function(r,idx){var e=r.emp,d=r.diag;return(
                         <tr key={idx} style={{borderBottom:"1px solid #F1F5F9",opacity:d.active?1:0.55}}>
-                          <td style={{padding:"9px 10px",fontWeight:700,color:"#1E293B",whiteSpace:"nowrap"}}>{e.name}{!d.active&&<span style={{marginLeft:6,fontSize:11,color:"#94A3B8"}}>(상실 추정)</span>}</td>
+                          <td style={{padding:"9px 10px",fontWeight:700,color:"#1E293B",whiteSpace:"nowrap",fontSize:15}}>{e.name}{!d.active&&<span style={{marginLeft:6,fontSize:11,color:"#94A3B8"}}>(상실 추정)</span>}{(d.eiNeedsCheck||d.wcNeedsCheck)&&<span style={{marginLeft:6,fontSize:11,fontWeight:800,color:"#DC2626"}} title="고용/산재 확인 필요">⚠보험</span>}</td>
                           <td style={{padding:"9px 10px",color:"#64748B",whiteSpace:"nowrap",fontFamily:"monospace"}}>{e.rrnMasked||"—"}</td>
                           <td style={{padding:"9px 10px",whiteSpace:"nowrap"}}>{d.age!=null?d.age+"세":"—"}</td>
                           <td style={{padding:"9px 10px",whiteSpace:"nowrap"}}>{e.gender==="M"?"남":e.gender==="F"?"여":"—"}</td>
@@ -2890,21 +2953,21 @@ function PayrollDiagnosis(props){
               {/* 탭: 지원금별 요약 */}
               {stTab[0]==="subsidy"&&(
                 <div style={{display:"grid",gap:10}}>
-                  {analysis.subsidySummary.map(function(s){return(
-                    <div key={s.key} style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"13px 15px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-                      <div style={{flex:"1 1 240px",minWidth:0}}>
+                  {analysis.subsidySummary.map(function(s){var cm=PD.CONFIDENCE_META[s.confidence]||PD.CONFIDENCE_META.more;return(
+                    <div key={s.key} style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 16px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                      <div style={{flex:"1 1 260px",minWidth:0}}>
                         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                          <span style={{fontSize:15,fontWeight:800,color:"#1E293B"}}>{s.name}</span>
-                          {levelBadge(s.level)}
+                          <span style={{fontSize:17,fontWeight:800,color:"#1E293B"}}>{s.name}</span>
+                          <span style={{fontSize:12,fontWeight:800,padding:"2px 9px",borderRadius:999,background:cm.bg,color:cm.color,border:"1px solid "+cm.color+"33"}}>신뢰도: {cm.label}</span>
                         </div>
-                        <div style={{fontSize:12.5,color:"#94A3B8",marginTop:4,lineHeight:1.5}}>{s.note}</div>
+                        <div style={{fontSize:13,color:"#64748B",marginTop:5,lineHeight:1.55}}>사유: {s.confReason||s.note}</div>
                       </div>
                       <div style={{display:"flex",gap:16,flexShrink:0}}>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"#94A3B8",fontWeight:700}}>후보</div><div style={{fontSize:17,fontWeight:800,color:"#1D4ED8"}}>{s.candidateCount}</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"#94A3B8",fontWeight:700}}>확인 필요</div><div style={{fontSize:17,fontWeight:800,color:"#B45309"}}>{s.check}</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"#94A3B8",fontWeight:700}}>추가자료</div><div style={{fontSize:17,fontWeight:800,color:"#64748B"}}>{s.more}</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:11.5,color:"#94A3B8",fontWeight:700}}>후보</div><div style={{fontSize:19,fontWeight:800,color:"#1D4ED8"}}>{s.candidateCount}</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:11.5,color:"#94A3B8",fontWeight:700}}>확인 필요</div><div style={{fontSize:19,fontWeight:800,color:"#B45309"}}>{s.check}</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:11.5,color:"#94A3B8",fontWeight:700}}>추가자료</div><div style={{fontSize:19,fontWeight:800,color:"#64748B"}}>{s.more}</div></div>
                       </div>
-                      <a href={s.site} target="_blank" rel="noopener noreferrer" style={{flexShrink:0,fontSize:12.5,fontWeight:700,color:"#0F766E",textDecoration:"none",border:"1px solid #99F6E4",borderRadius:8,padding:"7px 11px"}}>공식 안내 ↗</a>
+                      <button type="button" onClick={function(e){e.preventDefault();e.stopPropagation();try{window.open(s.site,"_blank","noopener,noreferrer");}catch(err){void err;}}} style={{flexShrink:0,fontSize:13,fontWeight:700,color:"#0F766E",background:"#fff",border:"1px solid #99F6E4",borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:FF}}>공식 안내 ↗</button>
                     </div>
                   );})}
                   <div style={{padding:"10px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,fontSize:12.5,color:"#92400E",lineHeight:1.7}}>
@@ -2916,9 +2979,14 @@ function PayrollDiagnosis(props){
               {/* 탭: 통합고용세액공제 예상 */}
               {stTab[0]==="tax"&&(
                 <div style={{display:"grid",gap:13}}>
-                  <div style={{padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,fontSize:12.5,color:"#991B1B",lineHeight:1.7}}>
-                    ⚠️ 아래 금액은 <strong>확정 공제액이 아니라 예상 검토</strong>입니다. 단가는 귀속연도별 <strong>법령표 확인이 필요</strong>하며, 직접 수정할 수 있습니다. 최종 적용은 <strong>세무 검토</strong>가 필요합니다.
+                  <div style={{padding:"11px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,fontSize:13.5,color:"#991B1B",lineHeight:1.7}}>
+                    ⚠️ 아래 금액은 <strong>확정 공제액이 아니라 입력값 기준 1차 추정</strong>입니다. 단가는 귀속연도별 <strong>법령표 확인이 필요</strong>하며 직접 수정할 수 있습니다. 실제 공제액은 <strong>세무대리인 검토와 최신 법령 확인</strong>이 필요합니다.
                   </div>
+                  {estimate.overYouth&&(
+                    <div style={{padding:"11px 14px",background:"#FFF7ED",border:"1px solid #FDBA74",borderRadius:10,fontSize:13.5,color:"#9A3412",fontWeight:700,lineHeight:1.7}}>
+                      🔎 입력값 재확인 필요: 청년 등 증가({estimate.incYouth}명)가 전체 증가({estimate.incTotal}명)를 초과합니다. 입력값을 바로잡기 전까지 예상 공제액을 신뢰하지 마세요.
+                    </div>
+                  )}
 
                   {/* 1) 명부 기준 직원 분류 */}
                   <div style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"13px 15px"}}>
@@ -2946,7 +3014,7 @@ function PayrollDiagnosis(props){
 
                   {/* 3) 단가 + 예상 세액공제 */}
                   <div style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"13px 15px"}}>
-                    <div style={{fontSize:14,fontWeight:800,color:"#1E293B",marginBottom:4}}>③ 예상 세액공제 <span style={{fontSize:12,color:"#B45309",fontWeight:700}}>· 법령표 확인 필요</span></div>
+                    <div style={{fontSize:15.5,fontWeight:800,color:"#1E293B",marginBottom:4}}>③ 예상 세액공제 <span style={{fontSize:12.5,color:"#B45309",fontWeight:700}}>· 입력값 기준 1차 추정 · 법령표 확인 필요</span></div>
                     <div style={{fontSize:12,color:"#94A3B8",marginBottom:11}}>1인당 단가(만원)는 {stSize[0]==="sme"?"중소기업":stSize[0]==="mid"?"중견기업":"기타"}·{stRegion[0]==="metro"?"수도권":"지방"} 기본값입니다. 실제 귀속연도 법령표에 맞게 수정하세요.</div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12,marginBottom:13}}>
                       <div><label style={labS}>청년 등 1인당 단가(만원)</label><input type="number" min="0" value={stUnitY[0]} onChange={function(e){stUnitY[1](Number(e.target.value)||0);}} style={inpS}/></div>
@@ -2954,13 +3022,13 @@ function PayrollDiagnosis(props){
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
                       {[["청년 등 증가분",estimate.creditYouth],["일반 증가분",estimate.creditNormal],["총 예상 공제액",estimate.creditTotal]].map(function(k,ki){return(
-                        <div key={k[0]} style={{background:ki===2?"#F5F3FF":"#F8FAFC",border:ki===2?"1px solid #DDD6FE":"1px solid #EEF2F6",borderRadius:10,padding:"11px 13px"}}>
-                          <div style={{fontSize:12,color:"#94A3B8",fontWeight:700}}>{k[0]}</div>
-                          <div style={{fontSize:18,fontWeight:800,color:ki===2?"#7C3AED":"#1E293B"}}>{k[1]==null?"검토 필요":PD.formatWon(k[1])}</div>
+                        <div key={k[0]} style={{background:ki===2?"#F5F3FF":"#F8FAFC",border:ki===2?"1px solid #DDD6FE":"1px solid #EEF2F6",borderRadius:10,padding:"12px 14px"}}>
+                          <div style={{fontSize:12.5,color:"#94A3B8",fontWeight:700}}>{k[0]}</div>
+                          <div style={{fontSize:ki===2?22:19,fontWeight:800,color:ki===2?"#7C3AED":"#1E293B"}}>{estimate.overYouth?"입력값 재확인":(k[1]==null?"검토 필요":PD.formatWon(k[1]))}</div>
                         </div>
                       );})}
                     </div>
-                    <div style={{marginTop:10,fontSize:12,fontWeight:700,color:"#DC2626"}}>※ 확정 아님 / 세무 검토 필요</div>
+                    <div style={{marginTop:10,fontSize:13,fontWeight:700,color:"#DC2626"}}>※ 확정 아님 / 입력값 기준 1차 추정 / 세무 검토 필요</div>
                   </div>
 
                   {/* 4) 확인 필요 체크리스트 */}
@@ -2975,9 +3043,48 @@ function PayrollDiagnosis(props){
                 </div>
               )}
 
-              {/* CTA */}
+              {/* 탭: 추가 확인자료 (L) */}
+              {stTab[0]==="docs"&&(
+                <div style={{display:"grid",gap:13}}>
+                  <div style={{padding:"11px 14px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,fontSize:13.5,color:"#1D4ED8",lineHeight:1.7}}>
+                    아래 자료를 확보하면 1차 검토 후보를 실제 신청 가능 여부로 좁힐 수 있습니다. 상담 시 대표님께 요청할 목록입니다.
+                  </div>
+                  <div style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 16px"}}>
+                    <div style={{fontSize:15.5,fontWeight:800,color:"#1E293B",marginBottom:10}}>공통 요청자료</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:7}}>
+                      {PD.EMP_DOC_CHECKLIST.map(function(t){return(
+                        <div key={t} style={{display:"flex",alignItems:"center",gap:8,fontSize:14,color:"#475569"}}><span>⬜</span><span>{t}</span></div>
+                      );})}
+                    </div>
+                  </div>
+                  <div style={{border:"1px solid #EEF2F6",borderRadius:12,padding:"14px 16px"}}>
+                    <div style={{fontSize:15.5,fontWeight:800,color:"#1E293B",marginBottom:10}}>지원금별 필요자료</div>
+                    <div style={{display:"grid",gap:10}}>
+                      {analysis.subsidySummary.filter(function(s){return s.candidateCount>0||s.more>0;}).map(function(s){return(
+                        <div key={s.key} style={{background:"#F8FAFC",borderRadius:10,padding:"11px 13px"}}>
+                          <div style={{fontSize:14.5,fontWeight:800,color:"#1E293B",marginBottom:5}}>{s.name}</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                            {(s.docs||[]).map(function(dn){return <span key={dn} style={{fontSize:12.5,color:"#475569",background:"#fff",border:"1px solid #E2E8F0",borderRadius:8,padding:"4px 9px"}}>📄 {dn}</span>;})}
+                          </div>
+                        </div>
+                      );})}
+                      {analysis.subsidySummary.filter(function(s){return s.candidateCount>0||s.more>0;}).length===0&&(
+                        <div style={{fontSize:13.5,color:"#94A3B8"}}>표시할 후보가 없습니다. 명부 정리에서 직원 정보를 보완해 보세요.</div>
+                      )}
+                    </div>
+                  </div>
+                  {(analysis.eiCheckCount>0||analysis.wcCheckCount>0)&&(
+                    <div style={{padding:"11px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,fontSize:13.5,color:"#991B1B",lineHeight:1.7}}>
+                      고용보험 확인 필요 {analysis.eiCheckCount}명 · 산재보험 확인 필요 {analysis.wcCheckCount}명. 고용·산재 미가입/확인 불가 직원은 <strong>대표자·임원·특수관계자 여부</strong>와 <strong>고용보험 피보험자격</strong>을 먼저 확인하세요.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* CTA + 단계 이동(A) */}
               <div style={{borderTop:"1px solid #F1F5F9",paddingTop:14,display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
-                <button onClick={doCopy} style={Object.assign({},btnP,{background:stCopied[0]?"#059669":"#0F766E",padding:"11px 18px",fontSize:14})}>{stCopied[0]?"✓ 복사됨 (주민번호 미포함)":"📋 상담용 요약 복사"}</button>
+                <button onClick={function(){stStep[1](3);}} style={Object.assign({},btnS,{padding:"11px 16px",fontSize:14})}>← 명부 정리로 돌아가기</button>
+                <button onClick={doCopy} style={Object.assign({},btnP,{background:stCopied[0]?"#059669":"#0F766E",padding:"12px 20px",fontSize:15.5})}>{stCopied[0]?"✓ 복사됨 (주민번호 미포함)":"📋 상담용 요약 복사"}</button>
                 <button onClick={function(){toast("고객 보고서 반영·업체 임시저장·PDF 내보내기는 다음 단계로 준비 중입니다.","success");}} style={Object.assign({},btnS,{padding:"11px 18px",fontSize:14,color:"#94A3B8"})}>🗂️ 보고서 반영·저장·PDF (다음 단계)</button>
                 <span style={{fontSize:12,color:"#94A3B8",marginLeft:"auto"}}>분석은 브라우저에서만 처리 · 저장되지 않음</span>
               </div>

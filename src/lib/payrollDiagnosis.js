@@ -19,17 +19,43 @@ export const LEVELS = {
 
 // ── 지원금 정의(메타) ────────────────────────────────────
 // site 는 공식 안내 참고용. classify 는 명부+추가입력으로 1차 분류만 한다.
+// confidence: enough(데이터 충분) / some(일부 자료 필요) / more(추가자료 필요) / limited(판단 제한)
 export const SUBSIDY_DEFS = [
-  { key: "youth_jump",      name: "청년일자리도약장려금",  site: "https://www.work24.go.kr", basis: "나이·입사일 1차 / 취업애로청년 요건 확인 필요" },
-  { key: "emp_promo",       name: "고용촉진장려금",        site: "https://www.work24.go.kr", basis: "취업취약계층·워크넷 구직등록 등 추가자료 필요" },
-  { key: "senior_continue", name: "고령자 계속고용장려금",  site: "https://www.work24.go.kr", basis: "연령 1차 / 정년·계속고용제도·취업규칙 확인 필요" },
-  { key: "senior_intern",   name: "시니어 인턴십",         site: "https://www.kordi.or.kr",  basis: "연령 1차 / 참여기관·사업요건 확인 필요" },
-  { key: "saeil_women",     name: "새일여성인턴제",         site: "https://saeil.mogef.go.kr", basis: "성별·연령 1차 / 경력단절 여부·새일센터 연계 확인 필요" },
-  { key: "parental",        name: "육아휴직/대체인력 지원", site: "https://www.work24.go.kr", basis: "4대보험 명부만으로 확인 불가 · 추가자료 필요" },
+  { key: "youth_jump",      name: "청년일자리도약장려금",  site: "https://www.work24.go.kr", basis: "나이·입사일 1차 / 취업애로청년 요건 확인 필요", confidence: "more", confReason: "취업애로청년 여부·고용보험 이력·정규직 여부 확인 필요", docs: ["고용보험 피보험자격 이력내역서", "근로계약서", "취업애로청년 증빙"], eiImportant: true },
+  { key: "emp_promo",       name: "고용촉진장려금",        site: "https://www.work24.go.kr", basis: "취업취약계층·워크넷 구직등록 등 추가자료 필요", confidence: "more", confReason: "취업지원 프로그램 참여 여부·취업취약계층 여부 확인 필요", docs: ["고용보험 피보험자격 이력내역서", "워크넷 구직등록 확인", "취업지원 프로그램 수료증"], eiImportant: true },
+  { key: "senior_continue", name: "고령자 계속고용장려금",  site: "https://www.work24.go.kr", basis: "연령 1차 / 정년·계속고용제도·취업규칙 확인 필요", confidence: "some", confReason: "정년·계속고용제도·취업규칙 확인 필요", docs: ["취업규칙", "계속고용제도 운영 증빙", "근로계약서"], eiImportant: true },
+  { key: "senior_intern",   name: "시니어 인턴십",         site: "https://www.kordi.or.kr",  basis: "연령 1차 / 참여기관·사업요건 확인 필요", confidence: "more", confReason: "참여기관·사업요건·신청기간 확인 필요", docs: ["참여기관 약정 확인", "근로계약서"], eiImportant: true },
+  { key: "saeil_women",     name: "새일여성인턴제",         site: "https://saeil.mogef.go.kr", basis: "성별·연령 1차 / 경력단절 여부·새일센터 연계 확인 필요", confidence: "more", confReason: "경력단절 여부·새일센터 연계 확인 필요", docs: ["새일센터 연계 확인", "경력단절 사유 증빙", "근로계약서"], eiImportant: true },
+  { key: "parental",        name: "육아휴직/대체인력 지원", site: "https://www.work24.go.kr", basis: "4대보험 명부만으로 확인 불가 · 추가자료 필요", confidence: "limited", confReason: "육아휴직/대체인력 여부는 명부만으로 확인 불가", docs: ["육아휴직 확인서", "대체인력 근로계약서"], eiImportant: true },
 ];
 export function subsidyName(key) {
   var f = SUBSIDY_DEFS.find(function (d) { return d.key === key; });
   return f ? f.name : key;
+}
+// 신뢰도 라벨/톤
+export const CONFIDENCE_META = {
+  enough: { label: "데이터 충분", color: "#059669", bg: "#ECFDF5" },
+  some:   { label: "일부 자료 필요", color: "#B45309", bg: "#FFFBEB" },
+  more:   { label: "추가자료 필요", color: "#1D4ED8", bg: "#EFF6FF" },
+  limited:{ label: "판단 제한", color: "#64748B", bg: "#F1F5F9" },
+};
+// 직원별 추가자료 공통 체크리스트(상담 요청용)
+export const EMP_DOC_CHECKLIST = [
+  "고용보험 피보험자격 이력내역서",
+  "근로계약서",
+  "급여대장",
+  "출근부",
+  "워크넷 구직등록 여부",
+  "취업애로청년 증빙",
+  "특수관계자 여부 확인",
+  "월별 상시근로자 수",
+  "세무대리인 검토",
+];
+// 시/도 → 수도권 여부 (통합고용세액공제 지역 구분)
+export var METRO_SIDO = ["서울", "경기", "인천"];
+export function regionTypeOf(sido) {
+  if (!sido) return null;
+  return METRO_SIDO.indexOf(sido) >= 0 ? "metro" : "local";
 }
 
 // ── 명부 컬럼 자동 인식 사전 ──────────────────────────────
@@ -327,13 +353,32 @@ function extractShortDatesFrom(s) {
   return out;
 }
 
+// 보험 칸(국민/건강/산재/고용 순) 토큰 파싱 — 날짜 또는 '-'(미가입/공란)
+// 날짜를 먼저 매칭해 날짜 내부 '-'(YYYY-MM-DD)와 충돌하지 않게 한다. 최대 4칸.
+function parseInsSlots(s) {
+  var re = /(\d{4}[.\-/]?\d{1,2}[.\-/]?\d{1,2})|(-)/g;
+  var slots = [], mm;
+  while ((mm = re.exec(s)) && slots.length < 4) {
+    if (mm[1]) { var nd = normDate(mm[1]); slots.push({ on: !!nd, date: nd }); }
+    else { slots.push({ on: false, date: null }); }
+  }
+  return slots;
+}
+
+// 명부 발급일시/출력일시 추출 → "YYYY-MM-DD" | null
+function extractIssueDate(t) {
+  var m = String(t || "").match(/(?:발급일시|발급일자|발급일|출력일시|출력일|기준일)[^0-9]{0,8}(\d{4})[.\-/]?(\d{1,2})[.\-/]?(\d{1,2})/);
+  if (!m) return null;
+  return normDate(m[1] + "-" + m[2] + "-" + m[3]);
+}
+
 // 텍스트 전체에서 사업장명/사업자번호 추정
 function extractMetaFromText(t) {
   var workplace = "", bizNo = "";
   var bm = t.match(/\d{3}-\d{2}-\d{5}/); if (bm) bizNo = bm[0];
   var wm = t.match(/사업장\s*(?:명|명칭)?\s*[:：]?\s*([가-힣A-Za-z0-9()㈜]{2,30})/);
   if (wm) { var v = wm[1].split(/사업자|관리번호|등록번호/)[0].trim(); if (v && !/^명/.test(v)) workplace = v; }
-  return { workplace: workplace, bizNo: bizNo };
+  return { workplace: workplace, bizNo: bizNo, issueDate: extractIssueDate(t) };
 }
 
 // ── 텍스트(검수/붙여넣기/PDF) → 직원 후보 (주민번호 패턴 중심, 원본 미보관) ──
@@ -361,28 +406,42 @@ export function parseRosterText(text) {
       var head = norm.slice(headStart, a.index);
       // 이름: 주민번호 뒤(첫 한글) 우선 → 없으면 앞쪽(가까운 마지막 한글)
       var name = pickKoreanName(tail, true) || pickKoreanName(head, false);
-      // 날짜: 뒤 구간 우선 → 없으면 앞 구간
-      var dates = extractDatesFrom(tail);
-      if (!dates.length) dates = extractShortDatesFrom(tail);
-      if (!dates.length) dates = extractDatesFrom(head);
-      totalDates += dates.length;
+      // 보험 칸(국민/건강/산재/고용) 파싱 — 이름(앞쪽 한글) 제거 후 날짜/'-' 순서대로
+      var afterName = tail.replace(/^[가-힣()\s.·]+/, "");
+      var slots = parseInsSlots(afterName.length ? afterName : tail);
+      var dateList = slots.filter(function (s) { return s.on; }).map(function (s) { return s.date; });
+      if (!dateList.length) { // 폴백: 칸 인식 실패 시 날짜만이라도
+        dateList = extractDatesFrom(tail);
+        if (!dateList.length) dateList = extractShortDatesFrom(tail);
+        if (!dateList.length) dateList = extractDatesFrom(head);
+      }
+      totalDates += dateList.length;
       var der = deriveFromRRN(a.front + a.gender) || { birthDate: null, gender: null };
-      var uniqDates = []; dates.forEach(function (d) { if (uniqDates.indexOf(d) < 0) uniqDates.push(d); });
-      var rawN = dates.length;                            // 보험별 취득일 칸 수(같은 날짜 반복 포함)
-      var fourIns = rawN >= 4;                            // 4칸 이상이면 4대보험 가입 추정
+      var uniqDates = []; dateList.forEach(function (d) { if (uniqDates.indexOf(d) < 0) uniqDates.push(d); });
+      // 보험 ON/OFF 매핑 (칸 순서: 국민 np · 건강 hi · 산재 wc · 고용 ei)
+      var ins = {
+        np: !!(slots[0] && slots[0].on),
+        hi: !!(slots[1] && slots[1].on),
+        wc: !!(slots[2] && slots[2].on),
+        ei: !!(slots[3] && slots[3].on),
+      };
+      // 칸 자체가 안 보이면(미파악) 확인 필요로 구분
+      var insKnown = { np: slots.length >= 1, hi: slots.length >= 2, wc: slots.length >= 3, ei: slots.length >= 4 };
+      var firstOn = null; for (var si = 0; si < slots.length; si++) { if (slots[si].on) { firstOn = slots[si].date; break; } }
       emps.push({
         name: name || "(이름 확인 필요)",
         birthDate: der.birthDate,
         gender: der.gender,
         rrnMasked: a.front + "-" + a.gender + "******",  // 원본 뒷자리 미보관
-        hireDate: uniqDates[0] || null,
+        hireDate: firstOn || uniqDates[0] || null,
         loseDate: null,
-        acqDates: uniqDates,                              // 대표 취득일 후보(중복 제거)
+        acqDates: uniqDates,                              // 취득일 후보(중복 제거)
         multiDates: uniqDates.length > 1,
-        ins: { np: fourIns, hi: fourIns, ei: fourIns, wc: fourIns }, // 4칸 이상이면 4대보험 가입 추정
-        insCount: rawN,
+        ins: ins,                                         // 보험별 가입 추정(칸 위치 기준)
+        insKnown: insKnown,                               // 칸이 파악된 보험만 true
+        insCount: dateList.length,
         statusRaw: /상실|퇴사|해지|종료/.test(tail) ? "상실" : "취득",
-        insuranceRaw: rawN ? (rawN + "개 취득일 추정") : "",
+        insuranceRaw: [ins.np ? "국민" : "", ins.hi ? "건강" : "", ins.wc ? "산재" : "", ins.ei ? "고용" : ""].filter(Boolean).join("·"),
         workplace: meta.workplace || "",
         bizNo: meta.bizNo || "",
       });
@@ -403,7 +462,7 @@ export function parseRosterText(text) {
       emps.push({
         name: nm || "(이름 확인 필요)", birthDate: bd, gender: null, rrnMasked: null,
         hireDate: ds[0] || null, loseDate: null, acqDates: ds, multiDates: ds.length > 1,
-        ins: { np: false, hi: false, ei: false, wc: false }, insCount: ds.length,
+        ins: { np: false, hi: false, wc: false, ei: false }, insKnown: { np: false, hi: false, wc: false, ei: false }, insCount: ds.length,
         statusRaw: /상실|퇴사/.test(line) ? "상실" : "취득", insuranceRaw: "",
         workplace: meta.workplace || "", bizNo: meta.bizNo || "",
       });
@@ -490,16 +549,30 @@ export function classifyEmployee(emp, opts) {
     recentHire = diff >= 0 && diff <= 400; // 약 13개월 이내 입사 추정
   }
 
-  var cands = [];
-  if (youth) cands.push({ key: "youth_jump", level: "check", note: "청년 연령(만 " + age + "세) 1차 해당 · 취업애로청년 요건·신청기간 확인 필요" });
-  if (recentHire) cands.push({ key: "emp_promo", level: "more", note: "신규 입사 추정 · 취업취약계층·워크넷 구직등록 등 추가자료 필요" });
-  if (senior) {
-    cands.push({ key: "senior_continue", level: "check", note: "고령 연령(만 " + age + "세) 1차 해당 · 정년·계속고용제도·취업규칙 확인 필요" });
-    cands.push({ key: "senior_intern", level: "check", note: "고령 연령 1차 해당 · 참여기관·사업요건 확인 필요" });
-  }
-  if (female && age != null && age >= 20 && age <= 59) cands.push({ key: "saeil_women", level: "check", note: "여성 1차 해당 · 경력단절 여부·새일센터 연계 확인 필요" });
+  // 고용보험 가입 여부 추정: ON / OFF(확인필요) / unknown(칸 미파악)
+  var ins = emp.ins || {};
+  var insKnown = emp.insKnown || {};
+  var eiOn = !!ins.ei, wcOn = !!ins.wc;
+  var eiNeedsCheck = !eiOn;   // 고용보험 OFF 또는 미파악 → 확인 필요
+  var wcNeedsCheck = !wcOn;
+  var eiNote = eiNeedsCheck ? " · ⚠ 고용보험 피보험자격 확인 필요(미가입/확인 불가 시 대상 판단 제한)" : "";
 
-  return { age: age, isYouth: youth, isSenior: senior, isFemale: female, recentHire: recentHire, active: active, candidates: cands };
+  var cands = [];
+  if (youth) cands.push({ key: "youth_jump", level: eiNeedsCheck ? "more" : "check", note: "청년 연령(만 " + age + "세) 1차 해당 · 취업애로청년 요건·신청기간 확인 필요" + eiNote });
+  if (recentHire) cands.push({ key: "emp_promo", level: "more", note: "신규 입사 추정 · 취업취약계층·워크넷 구직등록 등 추가자료 필요" + eiNote });
+  if (senior) {
+    cands.push({ key: "senior_continue", level: "check", note: "고령 연령(만 " + age + "세) 1차 해당 · 정년·계속고용제도·취업규칙 확인 필요" + eiNote });
+    cands.push({ key: "senior_intern", level: eiNeedsCheck ? "more" : "check", note: "고령 연령 1차 해당 · 참여기관·사업요건 확인 필요" + eiNote });
+  }
+  if (female && age != null && age >= 20 && age <= 59) cands.push({ key: "saeil_women", level: "check", note: "여성 1차 해당 · 경력단절 여부·새일센터 연계 확인 필요" + eiNote });
+
+  return {
+    age: age, isYouth: youth, isSenior: senior, isFemale: female, recentHire: recentHire, active: active,
+    eiOn: eiOn, wcOn: wcOn, eiNeedsCheck: eiNeedsCheck, wcNeedsCheck: wcNeedsCheck,
+    insPartial: !(ins.np && ins.hi && ins.wc && ins.ei),
+    insKnown: insKnown,
+    candidates: cands,
+  };
 }
 
 // ── 전체 분석 (직원 목록 → 진단 결과) ─────────────────────
@@ -528,12 +601,17 @@ export function analyzeRoster(employees, opts) {
     });
     var note = d.basis;
     var level = d.key === "parental" ? "more" : (likely > 0 ? "likely" : check > 0 ? "check" : more > 0 ? "more" : "unknown");
-    return { key: d.key, name: d.name, site: d.site, likely: likely, check: check, more: more, candidateCount: likely + check, note: note, level: level };
+    return { key: d.key, name: d.name, site: d.site, likely: likely, check: check, more: more, candidateCount: likely + check, note: note, level: level, confidence: d.confidence, confReason: d.confReason, docs: d.docs || [] };
   });
 
   // 후보 건수 / 확인 필요 항목 수 (재직 추정 기준)
   var candidateSubsidyCount = summary.filter(function (s) { return s.candidateCount > 0; }).length;
   var checkItemCount = activeRows.reduce(function (acc, r) { return acc + r.diag.candidates.filter(function (c) { return c.level === "check" || c.level === "more"; }).length; }, 0);
+
+  // 보험 확인 필요 인원 집계(재직 추정 기준)
+  var eiCheckCount = activeRows.filter(function (r) { return r.diag.eiNeedsCheck; }).length;
+  var wcCheckCount = activeRows.filter(function (r) { return r.diag.wcNeedsCheck; }).length;
+  var partialInsCount = activeRows.filter(function (r) { return r.diag.insPartial; }).length;
 
   return {
     rows: rows,
@@ -541,6 +619,9 @@ export function analyzeRoster(employees, opts) {
     subsidySummary: summary,
     candidateSubsidyCount: candidateSubsidyCount,
     checkItemCount: checkItemCount,
+    eiCheckCount: eiCheckCount,
+    wcCheckCount: wcCheckCount,
+    partialInsCount: partialInsCount,
   };
 }
 
@@ -569,6 +650,9 @@ export function estimateTaxCredit(params) {
   var creditNormal = incNormal != null ? incNormal * unitN * 10000 : null;
   var creditTotal = (creditYouth || 0) + (creditNormal || 0);
 
+  // 검증: 청년 등 증가 인원이 전체 증가 인원을 초과하면 입력값 재확인 필요(과대계산 위험)
+  var overYouth = (incTotal != null && incYouth != null && incYouth > incTotal);
+
   return {
     computable: computable,
     youthKnown: youthKnown,
@@ -578,6 +662,8 @@ export function estimateTaxCredit(params) {
     creditYouth: creditYouth,
     creditNormal: creditNormal,
     creditTotal: (creditYouth != null || creditNormal != null) ? creditTotal : null,
+    overYouth: overYouth,
+    needsRecheck: overYouth,
   };
 }
 
@@ -592,21 +678,43 @@ export const TAX_CHECKLIST = [
   "세무대리인(세무사) 최종 검토 필요",
 ];
 
-// ── 결과 요약 복사 문구 (민감정보 미포함) ─────────────────
+// ── 결과 요약 복사 문구 (민감정보 미포함 · 직원별 정보 미포함) ──
 export function buildCopyText(ctx) {
   var c = ctx || {};
+  var company = c.company ? c.company + " " : "";
   var lines = [];
-  lines.push("[4대보험 가입자 명부 1차 검토 결과]");
+  lines.push(company + "4대보험 명부 1차 검토 결과");
   lines.push("");
-  lines.push("· 명부 기준으로 1차 검토한 결과, 총 " + c.totalEmp + "명 중 " + c.youthCount + "명이 청년 등 요건 검토 대상으로 추정되며, " + c.candidateSubsidyCount + "건의 지원금 후보가 확인되었습니다.");
-  if (c.seniorCount) lines.push("· 고령(만 60세 이상) 추정 인원은 " + c.seniorCount + "명입니다.");
-  lines.push("· 통합고용세액공제는 전년도 인원 및 소재지 확인 후 예상 공제액 검토가 가능합니다.");
+  lines.push("· 총 인원: " + c.totalEmp + "명");
+  lines.push("· 청년 추정: " + c.youthCount + "명");
+  if (c.seniorCount) lines.push("· 고령(만 60세+) 추정: " + c.seniorCount + "명");
+  lines.push("· 고용보험 확인 필요: " + (c.eiCheckCount || 0) + "명");
+  lines.push("· 일부 보험 확인 필요: " + (c.partialInsCount || 0) + "명");
+  lines.push("· 1차 검토 후보: " + c.candidateSubsidyCount + "건");
   if (c.estimate && c.estimate.computable && c.estimate.creditTotal != null) {
-    lines.push("· (참고) 입력값 기준 예상 공제액은 약 " + formatWon(c.estimate.creditTotal) + " 수준으로 추정되나, 확정 금액이 아니며 세무 검토가 필요합니다.");
+    lines.push("· 통합고용세액공제 예상: 입력값 기준 약 " + formatWon(c.estimate.creditTotal) + " (1차 추정 · 확정 아님)");
+  } else {
+    lines.push("· 통합고용세액공제 예상: 전년도 인원·소재지 입력 후 검토 가능");
   }
+  if (c.estimate && c.estimate.overYouth) {
+    lines.push("· ⚠ 주의: 청년 등 증가분이 전체 증가분보다 큼 → 입력값(전년도 청년 수/올해 상시) 재확인 필요");
+  }
+  if (c.issueDate) lines.push("· 명부 발급일: " + c.issueDate + (c.staleText ? " (" + c.staleText + ")" : ""));
+  lines.push("· 추가 요청자료: 고용보험 피보험자격 이력내역서, 근로계약서, 급여대장, 월별 상시근로자 수, 특수관계자 여부 확인");
   lines.push("");
-  lines.push("※ 본 결과는 4대보험 명부 기준 1차 검토이며, 실제 신청·공제 가능 여부는 공식 요건과 추가자료, 세무·노무 검토가 필요합니다. (확정 아님)");
+  lines.push("위 내용은 4대보험 명부 기준 1차 검토이며, 실제 신청 가능 여부와 세액공제 적용은 추가자료 및 세무 검토가 필요합니다.");
   return lines.join("\n");
+}
+
+// 명부 발급일 대비 경과일 → 경고 등급/문구
+export function rosterStaleness(issueDate, baseDate) {
+  if (!issueDate) return null;
+  var iss = new Date(issueDate), base = new Date(baseDate || new Date());
+  if (isNaN(iss.getTime()) || isNaN(base.getTime())) return null;
+  var days = Math.floor((base - iss) / 86400000);
+  if (days < 0) return null;
+  var level = days > 90 ? "high" : days > 30 ? "warn" : "ok";
+  return { days: days, level: level };
 }
 
 export function formatWon(n) {
