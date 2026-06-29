@@ -1,0 +1,18 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+.vercel
+.DS_Store
+npm-debug.log*
+
+# 테스트용 명부/개인정보 파일 커밋 금지
+*.pdf
+*.xlsx
+*.xls
+*.csv
+roster*
+명부*
